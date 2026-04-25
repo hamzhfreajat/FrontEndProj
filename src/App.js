@@ -8,19 +8,49 @@ import Users from './pages/Users';
 import SavedGroups from './pages/SavedGroups';
 import SendNotification from './pages/SendNotification';
 
-// Simple placeholder auth logic for now
-const isAuthenticated = true;
+import Login from './pages/Login';
+import axios from 'axios';
+
+// Configure Axios auth interceptor
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // If 401, token expired or invalid
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('adminToken');
+      // Only redirect if we are not already on login
+      if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+const isAuthenticated = () => {
+  return !!localStorage.getItem('adminToken');
+};
 
 const PrivateRoute = ({ children }) => {
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  return isAuthenticated() ? children : <Navigate to="/login" />;
 };
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Placeholder for Login */}
-        <Route path="/login" element={<div style={{ padding: '50px', textAlign: 'center' }}><h2>Login Page</h2></div>} />
+        <Route path="/login" element={<Login />} />
 
         {/* Protected Dashboard Routes */}
         <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>

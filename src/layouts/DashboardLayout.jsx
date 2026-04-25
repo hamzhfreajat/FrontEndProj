@@ -21,6 +21,15 @@ export const DashboardLayout = () => {
                             <span className="user-name">المدير العام</span>
                             <span className="user-role">Admin</span>
                         </div>
+                        <button 
+                            onClick={() => {
+                                localStorage.removeItem('adminToken');
+                                window.location.href = '/login';
+                            }}
+                            className="logout-btn"
+                        >
+                            تسجيل خروج
+                        </button>
                     </div>
                 </div>
 
@@ -110,6 +119,22 @@ export const DashboardLayout = () => {
         .user-role {
           font-size: 0.8rem;
           color: var(--text-gray);
+        }
+
+        .logout-btn {
+          margin-right: 15px;
+          padding: 6px 12px;
+          border: 1px solid #ff4d4f;
+          background: transparent;
+          color: #ff4d4f;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 0.85rem;
+          transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+          background: #ffe6e6;
         }
 
         .page-content {
