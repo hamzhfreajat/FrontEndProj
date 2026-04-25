@@ -5,6 +5,7 @@ COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 COPY . .
 # We build the CRA
+ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
 # Stage 2: Serve the app with Nginx
