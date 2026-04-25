@@ -163,11 +163,12 @@ const Dashboard = () => {
         }
         .stat-summary-row {
           display: flex;
-          justify-content: space-between;
-          font-size: 0.75rem;
+          flex-direction: column;
+          gap: 4px;
+          font-size: 0.8rem;
           color: #666;
           background: #f1f5f9;
-          padding: 8px 12px;
+          padding: 10px 12px;
           border-radius: 6px;
           margin-bottom: 12px;
         }
