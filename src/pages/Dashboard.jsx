@@ -34,6 +34,22 @@ const Dashboard = () => {
 
             <div className="dashboard-content" style={{ display: 'block' }}>
 
+                    <div className="card tracking-card mt-4 mb-4" style={{ marginBottom: '24px' }}>
+                        <h3>توزيع إعلانات فئات العقارات</h3>
+                        <div className="location-stats-list category-stats">
+                            {insights?.real_estate_stats?.length > 0 ? (
+                                insights.real_estate_stats.map((cat, i) => (
+                                    <div key={`cat-${i}`} className="location-item cat-item">
+                                        <span className="loc-city-name">{cat.name}</span>
+                                        <span className="loc-city-count badge">{cat.count} إعلان مختزن</span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="empty-state" style={{ minHeight: '60px' }}>لا توجد بيانات فئات متاحة حالياً...</div>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="card tracking-card mt-4">
                         <h3>توزيع الإعلانات المباشر (توزيع المحافظات والمناطق)</h3>
                         <div className="location-stats-list">
@@ -78,6 +94,12 @@ const Dashboard = () => {
           border-radius: 12px;
           padding: 16px;
           margin-bottom: 12px;
+        }
+        .cat-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0;
         }
         .loc-city-header {
           display: flex;
