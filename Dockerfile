@@ -4,7 +4,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 COPY . .
-# We build the CRA
+# Accept the backend URL from Coolify during build
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+# Fix for Node 18 hashing error
 ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
