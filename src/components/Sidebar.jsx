@@ -21,7 +21,7 @@ const navItems = [
   { path: '/settings', name: 'الإعدادات', icon: Settings },
 ];
 
-export const Sidebar = () => {
+export const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -31,8 +31,12 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
+    <>
+      {isOpen && (
+        <div className="sidebar-backdrop" onClick={onClose} />
+      )}
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
         <div className="logo-container">
           <div className="logo-icon">C</div>
           <h2 className="logo-text">كلاسيفايدز</h2>
@@ -78,6 +82,11 @@ export const Sidebar = () => {
           right: 0;
           top: 0;
           z-index: 100;
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .sidebar-backdrop {
+          display: none;
         }
 
         .sidebar-header {
@@ -185,7 +194,31 @@ export const Sidebar = () => {
         .logout-btn:hover {
           background-color: rgba(229, 57, 53, 0.05);
         }
+
+        @media (max-width: 768px) {
+          .sidebar {
+            transform: translateX(100%);
+          }
+          
+          .sidebar.open {
+            transform: translateX(0);
+            box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+          }
+          
+          .sidebar-backdrop {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 95;
+            backdrop-filter: blur(2px);
+          }
+        }
       `}</style>
     </aside>
+    </>
   );
 };

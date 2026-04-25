@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
+import { Menu } from 'lucide-react';
 
 export const DashboardLayout = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [username, setUsername] = useState('المدير العام');
     const [initial, setInitial] = useState('A');
 
@@ -28,9 +30,15 @@ export const DashboardLayout = () => {
 
     return (
         <div className="layout-wrapper">
-            <Sidebar />
+            <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
             <main className="main-content">
                 <div className="top-bar glass-panel">
+                    <button 
+                        className="mobile-menu-toggle"
+                        onClick={() => setIsMobileMenuOpen(true)}
+                    >
+                        <Menu size={24} />
+                    </button>
                     <div className="search-container">
                         <input
                             type="text"
@@ -91,6 +99,21 @@ export const DashboardLayout = () => {
           top: 0;
           z-index: 90;
           border-bottom: 1px solid var(--border-color);
+          gap: 16px;
+        }
+
+        .mobile-menu-toggle {
+          display: none;
+          background: transparent;
+          border: none;
+          color: var(--text-dark);
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 8px;
+        }
+        
+        .mobile-menu-toggle:hover {
+          background: var(--secondary-color);
         }
 
         .search-container {
@@ -193,6 +216,24 @@ export const DashboardLayout = () => {
         .page-content {
           padding: 32px;
           flex: 1;
+        }
+
+        @media (max-width: 768px) {
+          .main-content {
+            margin-right: 0;
+          }
+          .mobile-menu-toggle {
+            display: flex;
+          }
+          .top-bar {
+            padding: 0 16px;
+          }
+          .page-content {
+            padding: 16px;
+          }
+          .user-info {
+            display: none;
+          }
         }
       `}</style>
         </div>

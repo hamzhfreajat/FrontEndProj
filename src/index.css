@@ -235,3 +235,40 @@ a:hover {
 .animate-pulse-ring {
   animation: pulse-ring 2s infinite;
 }
+
+/* Global Mobile Responsiveness Overrides */
+@media (max-width: 768px) {
+  /* Prevent body scrolling horizontally if there is overflow */
+  body, html {
+    overflow-x: hidden;
+  }
+
+  /* Force tables to scroll laterally on small viewports natively instead of blowing up width */
+  table, .table, .sleek-table {
+    display: block;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border-collapse: collapse;
+  }
+
+  /* Shrink standard card padding on small screens */
+  .card {
+    padding: 16px;
+  }
+  
+  /* Make sure any common layouts stack properly */
+  .d-flex {
+    flex-wrap: wrap;
+  }
+
+  /* Target CSS Grid patterns commonly formatted as repeat(auto-fill, minmax(300px, 1fr)) */
+  .grid, .locations-grid, .distribution-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Reduce Heading scaling */
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.25rem; }
+  h3 { font-size: 1.1rem; }
+}

@@ -204,6 +204,12 @@ const Dashboard = () => {
           color: var(--text-light);
           font-weight: 600;
         }
+
+        @media (max-width: 768px) {
+          .location-stats-list {
+            grid-template-columns: 1fr;
+          }
+        }
       `}</style>
         </div>
     );
