@@ -45,11 +45,13 @@ const Dashboard = () => {
                                             <span className="loc-city-count badge">{cat.total_count} إعلان مختزن</span>
                                         </div>
                                         {cat.children && (() => {
+                                            const total = cat.children.length;
                                             const zero = cat.children.filter(c => c.count === 0).length;
                                             const under10 = cat.children.filter(c => c.count > 0 && c.count < 10).length;
                                             const under20 = cat.children.filter(c => c.count >= 10 && c.count < 20).length;
                                             return (
                                                 <div className="stat-summary-row">
+                                                    <span>إجمالي الفئات: <b>{total}</b></span>
                                                     <span>بدون إعلانات: <b>{zero}</b> فئة</span>
                                                     <span>أقل من 10: <b>{under10}</b> فئة</span>
                                                     <span>أقل من 20: <b>{under20}</b> فئة</span>
@@ -83,11 +85,13 @@ const Dashboard = () => {
                                             <span className="loc-city-count badge">{loc.total_ads} إعلان مختزن</span>
                                         </div>
                                         {loc.regions && (() => {
+                                            const total = loc.regions.length;
                                             const zero = loc.regions.filter(r => r.count === 0).length;
                                             const under10 = loc.regions.filter(r => r.count > 0 && r.count < 10).length;
                                             const under20 = loc.regions.filter(r => r.count >= 10 && r.count < 20).length;
                                             return (
                                                 <div className="stat-summary-row">
+                                                    <span>إجمالي المناطق: <b>{total}</b></span>
                                                     <span>بدون إعلانات: <b>{zero}</b> منطقة</span>
                                                     <span>أقل من 10: <b>{under10}</b> منطقة</span>
                                                     <span>أقل من 20: <b>{under20}</b> منطقة</span>
