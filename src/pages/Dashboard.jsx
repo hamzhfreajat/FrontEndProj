@@ -44,6 +44,18 @@ const Dashboard = () => {
                                             <span className="loc-city-name">{cat.name}</span>
                                             <span className="loc-city-count badge">{cat.total_count} إعلان مختزن</span>
                                         </div>
+                                        {cat.children && (() => {
+                                            const zero = cat.children.filter(c => c.count === 0).length;
+                                            const under10 = cat.children.filter(c => c.count > 0 && c.count < 10).length;
+                                            const under20 = cat.children.filter(c => c.count >= 10 && c.count < 20).length;
+                                            return (
+                                                <div className="stat-summary-row">
+                                                    <span>بدون إعلانات: <b>{zero}</b> فئة</span>
+                                                    <span>أقل من 10: <b>{under10}</b> فئة</span>
+                                                    <span>أقل من 20: <b>{under20}</b> فئة</span>
+                                                </div>
+                                            );
+                                        })()}
                                         <div className="loc-regions">
                                             {cat.children && cat.children.map((child, j) => (
                                                 <div key={`child-${j}`} className="loc-region-item">
@@ -70,6 +82,18 @@ const Dashboard = () => {
                                             <span className="loc-city-name">{loc.city}</span>
                                             <span className="loc-city-count badge">{loc.total_ads} إعلان مختزن</span>
                                         </div>
+                                        {loc.regions && (() => {
+                                            const zero = loc.regions.filter(r => r.count === 0).length;
+                                            const under10 = loc.regions.filter(r => r.count > 0 && r.count < 10).length;
+                                            const under20 = loc.regions.filter(r => r.count >= 10 && r.count < 20).length;
+                                            return (
+                                                <div className="stat-summary-row">
+                                                    <span>بدون إعلانات: <b>{zero}</b> منطقة</span>
+                                                    <span>أقل من 10: <b>{under10}</b> منطقة</span>
+                                                    <span>أقل من 20: <b>{under20}</b> منطقة</span>
+                                                </div>
+                                            );
+                                        })()}
                                         <div className="loc-regions">
                                             {loc.regions.map((reg, j) => (
                                                 <div key={j} className="loc-region-item">
@@ -136,6 +160,20 @@ const Dashboard = () => {
           display: flex;
           flex-direction: column;
           gap: 6px;
+        }
+        .stat-summary-row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.75rem;
+          color: #666;
+          background: #f1f5f9;
+          padding: 8px 12px;
+          border-radius: 6px;
+          margin-bottom: 12px;
+        }
+        .stat-summary-row span {
+          display: flex;
+          gap: 4px;
         }
         .loc-region-item {
           display: flex;
