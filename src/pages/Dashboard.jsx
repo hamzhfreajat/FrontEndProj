@@ -36,12 +36,22 @@ const Dashboard = () => {
 
                     <div className="card tracking-card mt-4 mb-4" style={{ marginBottom: '24px' }}>
                         <h3>توزيع إعلانات فئات العقارات</h3>
-                        <div className="location-stats-list category-stats">
+                        <div className="location-stats-list">
                             {insights?.real_estate_stats?.length > 0 ? (
                                 insights.real_estate_stats.map((cat, i) => (
-                                    <div key={`cat-${i}`} className="location-item cat-item">
-                                        <span className="loc-city-name">{cat.name}</span>
-                                        <span className="loc-city-count badge">{cat.count} إعلان مختزن</span>
+                                    <div key={`cat-${i}`} className="location-item">
+                                        <div className="loc-city-header">
+                                            <span className="loc-city-name">{cat.name}</span>
+                                            <span className="loc-city-count badge">{cat.total_count} إعلان مختزن</span>
+                                        </div>
+                                        <div className="loc-regions">
+                                            {cat.children && cat.children.map((child, j) => (
+                                                <div key={`child-${j}`} className="loc-region-item">
+                                                    <span className="loc-reg-name">{child.name}</span>
+                                                    <span className="loc-reg-count">{child.count}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))
                             ) : (
