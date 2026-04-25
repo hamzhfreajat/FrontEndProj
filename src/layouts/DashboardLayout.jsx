@@ -1,8 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
 
 export const DashboardLayout = () => {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [username, setUsername] = useState('المدير العام');
+    const [initial, setInitial] = useState('A');
+
+    useEffect(() => {
+        try {
+            const token = localStorage.getItem('adminToken');
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.username) {
+                    setUsername(payload.username);
+                    setInitial(payload.username.charAt(0).toUpperCase());
+                }
+            }
+        } catch (e) {
+            console.error("Could not parse token");
+        }
+    }, []);
+
+    const toggleDropdown = () => {
+        setIsDropdownOpen(!isDropdownOpen);
+    };
+
     return (
         <div className="layout-wrapper">
             <Sidebar />
@@ -15,21 +38,28 @@ export const DashboardLayout = () => {
                             className="search-input"
                         />
                     </div>
-                    <div className="user-profile">
-                        <div className="avatar">A</div>
-                        <div className="user-info">
-                            <span className="user-name">المدير العام</span>
-                            <span className="user-role">Admin</span>
+                    <div className="user-profile-wrapper">
+                        <div className="user-profile" onClick={toggleDropdown}>
+                            <div className="avatar">{initial}</div>
+                            <div className="user-info">
+                                <span className="user-name">{username}</span>
+                                <span className="user-role">Admin</span>
+                            </div>
                         </div>
-                        <button 
-                            onClick={() => {
-                                localStorage.removeItem('adminToken');
-                                window.location.href = '/login';
-                            }}
-                            className="logout-btn"
-                        >
-                            تسجيل خروج
-                        </button>
+                        
+                        {isDropdownOpen && (
+                            <div className="profile-dropdown">
+                                <button 
+                                    onClick={() => {
+                                        localStorage.removeItem('adminToken');
+                                        window.location.href = '/login';
+                                    }}
+                                    className="dropdown-item logout-btn"
+                                >
+                                    تسجيل خروج
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -121,16 +151,39 @@ export const DashboardLayout = () => {
           color: var(--text-gray);
         }
 
-        .logout-btn {
-          margin-right: 15px;
-          padding: 6px 12px;
-          border: 1px solid #ff4d4f;
-          background: transparent;
-          color: #ff4d4f;
+        .user-profile-wrapper {
+          position: relative;
+        }
+
+        .profile-dropdown {
+          position: absolute;
+          top: 60px;
+          left: 0;
+          background: white;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          width: 150px;
+          padding: 8px;
+          z-index: 100;
+        }
+
+        .dropdown-item {
+          display: block;
+          width: 100%;
+          text-align: right;
+          padding: 10px 16px;
           border-radius: 6px;
+          background: transparent;
+          border: none;
+          font-family: inherit;
+          font-size: 0.9rem;
           cursor: pointer;
-          font-size: 0.85rem;
-          transition: all 0.2s;
+          transition: background 0.2s;
+        }
+
+        .logout-btn {
+          color: #ff4d4f;
         }
 
         .logout-btn:hover {
