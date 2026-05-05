@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './Ads.css'; // Reuse table styling
 
 const Reports = () => {
   const [reports, setReports] = useState([]);
