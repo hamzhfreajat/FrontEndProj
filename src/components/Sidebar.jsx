@@ -8,7 +8,8 @@ import {
   Settings,
   LogOut,
   Globe,
-  BellRing
+  BellRing,
+  Flag
 } from 'lucide-react';
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { path: '/users', name: 'المستخدمين', icon: Users },
   { path: '/saved-groups', name: 'ربط الفيسبوك', icon: Globe },
   { path: '/send-notification', name: 'إرسال إشعارات', icon: BellRing },
+  { path: '/reports', name: 'البلاغات', icon: Flag },
   { path: '/settings', name: 'الإعدادات', icon: Settings },
 ];
 
