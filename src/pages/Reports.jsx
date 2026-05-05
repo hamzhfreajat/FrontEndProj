@@ -59,7 +59,16 @@ const Reports = () => {
                     <td>#{report.id}</td>
                     <td>#{report.ad_id}</td>
                     <td>{report.ad_title || '-'}</td>
-                    <td>{report.reporter_name || 'زائر مجهول'}</td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span>{report.reporter_name || 'زائر مجهول'}</span>
+                        {report.reporter_phone && (
+                          <span style={{ fontSize: '0.85em', color: 'gray', direction: 'ltr' }}>
+                            {report.reporter_phone}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td>
                       <span className="badge warning-badge">
                         {report.reason}
