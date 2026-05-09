@@ -8,6 +8,8 @@ import Users from './pages/Users';
 import SavedGroups from './pages/SavedGroups';
 import SendNotification from './pages/SendNotification';
 import Reports from './pages/Reports';
+import SearchLogs from './pages/SearchLogs';
+import ScrapingLogs from './pages/ScrapingLogs';
 
 import Login from './pages/Login';
 import axios from 'axios';
@@ -62,6 +64,8 @@ function App() {
           <Route path="saved-groups" element={<SavedGroups />} />
           <Route path="send-notification" element={<SendNotification />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="searches" element={<SearchLogs />} />
+          <Route path="scraping-logs" element={<ScrapingLogs />} />
           <Route path="settings" element={<div className="card"><h2>الإعدادات</h2><p>قريباً...</p></div>} />
         </Route>
       </Routes>

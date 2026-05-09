@@ -9,7 +9,8 @@ import {
   LogOut,
   Globe,
   BellRing,
-  Flag
+  Flag,
+  Search
 } from 'lucide-react';
 
 const navItems = [
@@ -20,6 +21,8 @@ const navItems = [
   { path: '/saved-groups', name: 'ربط الفيسبوك', icon: Globe },
   { path: '/send-notification', name: 'إرسال إشعارات', icon: BellRing },
   { path: '/reports', name: 'البلاغات', icon: Flag },
+  { path: '/searches', name: 'عمليات البحث', icon: Search },
+  { path: '/scraping-logs', name: 'سجلات السحب', icon: Globe },
   { path: '/settings', name: 'الإعدادات', icon: Settings },
 ];
 
