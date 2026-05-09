@@ -12,7 +12,7 @@ const ScrapingLogs = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('https://api.sooq-com.com/api/scraping-logs');
+      const res = await axios.get(`https://api.sooq-com.com/api/scraping-logs?t=${Date.now()}`);
       setLogs(res.data);
     } catch (err) {
       console.error('Failed to fetch scraping logs', err);
