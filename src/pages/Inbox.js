@@ -225,6 +225,12 @@ export default function Inbox() {
                     <span className="thread-name">{thread.otherUserName}</span>
                     <span className="thread-time">{formatTime(thread.lastMessageTime)}</span>
                   </div>
+                  {thread.otherUserPhone && (
+                    <div className="thread-phone" style={{ fontSize: '0.75rem', color: 'var(--text-gray)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Phone size={10} />
+                      <span dir="ltr">{thread.otherUserPhone}</span>
+                    </div>
+                  )}
                   <div className="thread-bottom">
                     <span className="thread-preview">{thread.lastMessage}</span>
                   </div>
