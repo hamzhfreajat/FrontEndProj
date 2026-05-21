@@ -25,6 +25,7 @@ export default function Inbox() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef(null);
+  const isTypingRef = useRef(false);
 
   // Fetch Inbox Threads
   useEffect(() => {
@@ -121,12 +122,34 @@ export default function Inbox() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleTyping = async (e) => {
+    const val = e.target.value;
+    setNewMessage(val);
+    
+    if (!selectedThread) return;
+    
+    const currentlyTyping = val.trim().length > 0;
+    if (currentlyTyping !== isTypingRef.current) {
+      isTypingRef.current = currentlyTyping;
+      try {
+        await setDoc(doc(db, 'chats', selectedThread.id), {
+          typing: {
+            admin: currentlyTyping
+          }
+        }, { merge: true });
+      } catch (err) {
+        console.error("Failed to update typing status", err);
+      }
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedThread) return;
 
     const messageText = newMessage.trim();
     setNewMessage(''); // optimistic clear
+    isTypingRef.current = false;
 
     try {
       const messageId = `admin_${Date.now()}`;
@@ -146,6 +169,9 @@ export default function Inbox() {
         lastMessage: messageText,
         lastMessageTime: serverTimestamp(),
         lastSenderId: 'admin',
+        typing: {
+          admin: false
+        },
         users: {
           [selectedThread.otherUserId]: {
             unreadCount: increment(1)
@@ -290,7 +316,7 @@ export default function Inbox() {
                     type="text"
                     placeholder="اكتب رسالتك هنا..."
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={handleTyping}
                   />
                   <button type="submit" disabled={!newMessage.trim()} className="send-btn">
                     <Send size={20} />
