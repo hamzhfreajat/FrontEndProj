@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { db } from '../firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import {
   LayoutDashboard,
   Tags,
@@ -33,6 +35,27 @@ const navItems = [
 export const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [totalUnread, setTotalUnread] = useState(0);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'chats'),
+      where('participants', 'array-contains', 'admin')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let count = 0;
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.users && data.users['admin']) {
+          count += (data.users['admin'].unreadCount || 0);
+        }
+      });
+      setTotalUnread(count);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = () => {
     // TODO: Clear Auth state
@@ -66,6 +89,9 @@ export const Sidebar = ({ isOpen, onClose }) => {
             >
               <Icon size={20} className="nav-icon" />
               <span>{item.name}</span>
+              {item.path === '/inbox' && totalUnread > 0 && (
+                <span className="sidebar-badge">{totalUnread}</span>
+              )}
               {isActive && <div className="active-indicator" />}
             </NavLink>
           );
@@ -167,6 +193,16 @@ export const Sidebar = ({ isOpen, onClose }) => {
 
         .nav-link:hover .nav-icon {
           transform: scale(1.1);
+        }
+        
+        .sidebar-badge {
+          background-color: #ef4444;
+          color: white;
+          font-size: 0.75rem;
+          font-weight: bold;
+          padding: 2px 8px;
+          border-radius: 12px;
+          margin-right: auto;
         }
 
         .active-indicator {
