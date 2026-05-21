@@ -156,10 +156,12 @@ export default function Inbox() {
       // 3. Trigger Push Notification to User
       try {
         const token = localStorage.getItem('adminToken');
-        await axios.post(`${API_BASE_URL}/api/ads/${selectedThread.adId || 'support'}/interaction/chat`, {
+        await axios.post(`${API_BASE_URL}/api/notifications/chat-alert`, {
           target_user_id: parseInt(selectedThread.otherUserId),
-          sender_name: 'خدمة العملاء',
+          sender_name: 'فريق الدعم الفني',
           message_preview: messageText,
+          ad_id: selectedThread.adId || 'support',
+          ad_title: selectedThread.adTitle || 'الدعم الفني',
           chat_id: selectedThread.id,
           message_id: messageId,
         }, {
