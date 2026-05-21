@@ -268,8 +268,13 @@
   color: var(--text-gray);
 }
 
+.message-wrapper.admin .message-time {
+  color: #ffffff;
+  opacity: 1;
+}
+
 .sent-check {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .read-check {
