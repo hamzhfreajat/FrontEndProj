@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  collection,
+  query,
+  where,
+  orderBy,
   onSnapshot,
   doc,
   setDoc,
   serverTimestamp,
-  increment 
+  increment
 } from 'firebase/firestore';
 import { Search, Send, User, Phone, CheckCircle2, Clock, ArrowRight } from 'lucide-react';
 import axios from 'axios';
 import './Inbox.css';
 
-const API_BASE_URL = 'http://178.104.204.148:8000';
+const API_BASE_URL = 'https://api.sooq-com.com/api'
 
 export default function Inbox() {
   const [threads, setThreads] = useState([]);
@@ -39,7 +39,7 @@ export default function Inbox() {
         const data = doc.data();
         const users = data.users || {};
         const adminData = users['admin'] || {};
-        
+
         // Find the other user's ID
         const otherUserId = data.participants.find(id => id !== 'admin') || '';
         const otherUser = users[otherUserId] || {};
@@ -76,8 +76,8 @@ export default function Inbox() {
       return;
     }
     const lower = searchTerm.toLowerCase();
-    setFilteredThreads(threads.filter(t => 
-      t.otherUserName.toLowerCase().includes(lower) || 
+    setFilteredThreads(threads.filter(t =>
+      t.otherUserName.toLowerCase().includes(lower) ||
       t.otherUserPhone.includes(lower)
     ));
   }, [searchTerm, threads]);
@@ -125,9 +125,9 @@ export default function Inbox() {
   const handleTyping = async (e) => {
     const val = e.target.value;
     setNewMessage(val);
-    
+
     if (!selectedThread) return;
-    
+
     const currentlyTyping = val.trim().length > 0;
     if (currentlyTyping !== isTypingRef.current) {
       isTypingRef.current = currentlyTyping;
@@ -153,7 +153,7 @@ export default function Inbox() {
 
     try {
       const messageId = `admin_${Date.now()}`;
-      
+
       // 1. Save to messages subcollection
       await setDoc(doc(db, 'chats', selectedThread.id, 'messages', messageId), {
         senderId: 'admin',
@@ -182,7 +182,7 @@ export default function Inbox() {
       // 3. Trigger Push Notification to User
       try {
         const token = localStorage.getItem('adminToken');
-        await axios.post(`${API_BASE_URL}/api/notifications/chat-alert`, {
+        await axios.post(`${API_BASE_URL}/notifications/chat-alert`, {
           target_user_id: parseInt(selectedThread.otherUserId),
           sender_name: 'فريق الدعم الفني',
           message_preview: messageText,
@@ -220,19 +220,19 @@ export default function Inbox() {
           <div className="threads-search">
             <div className="search-input-wrapper">
               <Search size={18} className="search-icon" />
-              <input 
-                type="text" 
-                placeholder="ابحث بالاسم أو رقم الهاتف..." 
+              <input
+                type="text"
+                placeholder="ابحث بالاسم أو رقم الهاتف..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-          
+
           <div className="threads-list">
             {filteredThreads.map(thread => (
-              <div 
-                key={thread.id} 
+              <div
+                key={thread.id}
                 className={`thread-item ${selectedThread?.id === thread.id ? 'active' : ''} ${thread.unreadCount > 0 ? 'unread' : ''}`}
                 onClick={() => setSelectedThread(thread)}
               >
