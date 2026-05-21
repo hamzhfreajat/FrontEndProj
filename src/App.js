@@ -11,6 +11,7 @@ import Reports from './pages/Reports';
 import SearchLogs from './pages/SearchLogs';
 import ScrapingLogs from './pages/ScrapingLogs';
 import OtpLogs from './pages/OtpLogs';
+import Inbox from './pages/Inbox';
 
 import Login from './pages/Login';
 import axios from 'axios';
@@ -59,6 +60,7 @@ function App() {
         {/* Protected Dashboard Routes */}
         <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
           <Route index element={<Dashboard />} />
+          <Route path="inbox" element={<Inbox />} />
           <Route path="ads" element={<Ads />} />
           <Route path="categories" element={<Categories />} />
           <Route path="users" element={<Users />} />

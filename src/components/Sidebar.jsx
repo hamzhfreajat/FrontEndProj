@@ -11,11 +11,13 @@ import {
   BellRing,
   Flag,
   Search,
-  Shield
+  Shield,
+  MessageSquare
 } from 'lucide-react';
 
 const navItems = [
   { path: '/', name: 'لوحة القيادة', icon: LayoutDashboard },
+  { path: '/inbox', name: 'البريد الوارد (الدعم)', icon: MessageSquare },
   { path: '/ads', name: 'إدارة الإعلانات', icon: FileText },
   { path: '/categories', name: 'الأقسام', icon: Tags },
   { path: '/users', name: 'المستخدمين', icon: Users },

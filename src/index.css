@@ -253,18 +253,70 @@ a:hover {
   }
 
   /* Shrink standard card padding on small screens */
-  .card {
+  .card, .filters-card {
     padding: 16px;
+    flex-direction: column !important;
+    align-items: stretch !important;
   }
   
+  .filters-card .search-box {
+    max-width: 100%;
+  }
+  
+  .filters-card .btn {
+    width: 100%;
+  }
+
   /* Make sure any common layouts stack properly */
   .d-flex {
     flex-wrap: wrap;
   }
 
-  /* Target CSS Grid patterns commonly formatted as repeat(auto-fill, minmax(300px, 1fr)) */
-  .grid, .locations-grid, .distribution-grid {
+  /* Force all utility grids to stack vertically */
+  .grid, .locations-grid, .distribution-grid, 
+  .grid-2, .grid-3, .grid-4, 
+  .ad-meta-grid, .stats-grid,
+  .modal-body {
     grid-template-columns: 1fr !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  .checkbox-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+  }
+
+  /* Modals */
+  .modal-content {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 95vh !important;
+    height: 95vh !important;
+  }
+  
+  .modal-header {
+    flex-direction: row !important;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+  }
+
+  /* Pagination */
+  .pagination-container {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 16px;
+  }
+  
+  .pagination-container > div {
+    justify-content: space-between;
+    width: 100%;
   }
 
   /* Reduce Heading scaling */
