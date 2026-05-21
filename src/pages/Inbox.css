@@ -247,6 +247,11 @@
   border-top-right-radius: 4px;
 }
 
+.message-wrapper.admin .message-bubble p {
+  color: #ffffff;
+  margin: 0;
+}
+
 .message-wrapper.user .message-bubble {
   background-color: white;
   color: var(--text-dark);
