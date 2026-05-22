@@ -296,7 +296,13 @@ export default function Inbox() {
                   return (
                     <div key={msg.id || index} className={`message-wrapper ${isAdmin ? 'admin' : 'user'}`}>
                       <div className="message-bubble">
-                        <p>{msg.text}</p>
+                        {msg.type === 'audio' && msg.mediaUrl ? (
+                          <audio controls src={msg.mediaUrl} style={{ maxWidth: '250px', outline: 'none' }} />
+                        ) : msg.type === 'image' && msg.mediaUrl ? (
+                          <img src={msg.mediaUrl} alt="attachment" style={{ maxWidth: '200px', borderRadius: '8px' }} />
+                        ) : (
+                          <p>{msg.text}</p>
+                        )}
                         <div className="message-time">
                           {formatTime(msg.timestamp)}
                           {isAdmin && (
