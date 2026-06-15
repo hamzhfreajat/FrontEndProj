@@ -126,7 +126,7 @@ const Dashboard = () => {
         };
 
         attemptRender();
-    }, [telemetry]);
+    }, [telemetry, loading]);
 
     if (loading) {
         return <div style={{ padding: 40, textAlign: 'center' }}>جاري تحميل البيانات الحية...</div>;
