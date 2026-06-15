@@ -61,68 +61,61 @@ const Dashboard = () => {
                     { id: "101", title: "Ads details" }
                 ],
                 edges: [
-                    { source: "0", target: "1", value: 1000, type: 'gradient' },
-                    { source: "1", target: "2", value: 200, type: 'gradient' },
-                    { source: "1", target: "3", value: 500, type: 'gradient' },
-                    { source: "1", target: "4", value: 300, type: 'gradient' },
-                    { source: "3", target: "310", value: 300, type: 'gradient' },
-                    { source: "3", target: "311", value: 50, type: 'gradient' },
-                    { source: "3", target: "313", value: 40, type: 'gradient' },
-                    { source: "3", target: "314", value: 30, type: 'gradient' },
-                    { source: "3", target: "315", value: 30, type: 'gradient' },
-                    { source: "3", target: "316", value: 20, type: 'gradient' },
-                    { source: "3", target: "306", value: 30, type: 'gradient' },
-                    { source: "310", target: "301", value: 100, type: 'gradient' },
-                    { source: "310", target: "302", value: 50, type: 'gradient' },
-                    { source: "310", target: "3101", value: 40, type: 'gradient' },
-                    { source: "310", target: "3102", value: 40, type: 'gradient' },
-                    { source: "310", target: "3103", value: 30, type: 'gradient' },
-                    { source: "310", target: "3104", value: 20, type: 'gradient' },
-                    { source: "310", target: "3105", value: 10, type: 'gradient' },
-                    { source: "310", target: "3999", value: 10, type: 'gradient' },
-                    { source: "2", target: "100", value: 200, type: 'gradient' },
-                    { source: "4", target: "100", value: 300, type: 'gradient' },
-                    { source: "311", target: "100", value: 50, type: 'gradient' },
-                    { source: "313", target: "100", value: 40, type: 'gradient' },
-                    { source: "314", target: "100", value: 30, type: 'gradient' },
-                    { source: "315", target: "100", value: 30, type: 'gradient' },
-                    { source: "316", target: "100", value: 20, type: 'gradient' },
-                    { source: "306", target: "100", value: 30, type: 'gradient' },
-                    { source: "301", target: "100", value: 100, type: 'gradient' },
-                    { source: "302", target: "100", value: 50, type: 'gradient' },
-                    { source: "3101", target: "100", value: 40, type: 'gradient' },
-                    { source: "3102", target: "100", value: 40, type: 'gradient' },
-                    { source: "3103", target: "100", value: 30, type: 'gradient' },
-                    { source: "3104", target: "100", value: 20, type: 'gradient' },
-                    { source: "3105", target: "100", value: 10, type: 'gradient' },
-                    { source: "3999", target: "100", value: 10, type: 'gradient' },
-                    { source: "100", target: "101", value: 1000, type: 'gradient' }
+                    { source: "0", target: "1", value: 1000 },
+                    { source: "1", target: "2", value: 200 },
+                    { source: "1", target: "3", value: 500 },
+                    { source: "1", target: "4", value: 300 },
+                    { source: "3", target: "310", value: 300 },
+                    { source: "3", target: "311", value: 50 },
+                    { source: "3", target: "313", value: 40 },
+                    { source: "3", target: "314", value: 30 },
+                    { source: "3", target: "315", value: 30 },
+                    { source: "3", target: "316", value: 20 },
+                    { source: "3", target: "306", value: 30 },
+                    { source: "310", target: "301", value: 100 },
+                    { source: "310", target: "302", value: 50 },
+                    { source: "310", target: "3101", value: 40 },
+                    { source: "310", target: "3102", value: 40 },
+                    { source: "310", target: "3103", value: 30 },
+                    { source: "310", target: "3104", value: 20 },
+                    { source: "310", target: "3105", value: 10 },
+                    { source: "310", target: "3999", value: 10 },
+                    { source: "2", target: "100", value: 200 },
+                    { source: "4", target: "100", value: 300 },
+                    { source: "311", target: "100", value: 50 },
+                    { source: "313", target: "100", value: 40 },
+                    { source: "314", target: "100", value: 30 },
+                    { source: "315", target: "100", value: 30 },
+                    { source: "316", target: "100", value: 20 },
+                    { source: "306", target: "100", value: 30 },
+                    { source: "301", target: "100", value: 100 },
+                    { source: "302", target: "100", value: 50 },
+                    { source: "3101", target: "100", value: 40 },
+                    { source: "3102", target: "100", value: 40 },
+                    { source: "3103", target: "100", value: 30 },
+                    { source: "3104", target: "100", value: 20 },
+                    { source: "3105", target: "100", value: 10 },
+                    { source: "3999", target: "100", value: 10 },
+                    { source: "100", target: "101", value: 1000 }
                 ]
             };
 
             try {
                 if (window.ApexSankey) {
                     const containerWidth = sankeyContainerRef.current.clientWidth || 800;
-                    // Wait a tiny bit just in case fonts/styles are settling
-                    setTimeout(() => {
-                        try {
-                            const sankey = new window.ApexSankey(sankeyContainerRef.current, {
-                                width: containerWidth,
-                                height: 750,
-                                nodeWidth: 20,
-                                edgeOpacity: 0.4
-                            });
-                            sankey.render(apexSankeyData);
-                        } catch(innerE) {
-                            console.error(innerE);
-                        }
-                    }, 50);
+                    const sankey = new window.ApexSankey(sankeyContainerRef.current, {
+                        width: containerWidth,
+                        height: 750,
+                        nodeWidth: 20,
+                        edgeOpacity: 0.4
+                    });
+                    sankey.render(apexSankeyData);
                 } else {
                     sankeyContainerRef.current.innerHTML = '<div style="color:red; padding: 20px;">Error: window.ApexSankey is undefined. CDN script might be blocked or failed to load.</div>';
                 }
             } catch (e) {
                 console.error("ApexSankey render error", e);
-                sankeyContainerRef.current.innerHTML = '<div style="color:red; padding: 20px;">Error rendering chart: ' + e.message + '</div>';
+                sankeyContainerRef.current.innerHTML = '<div style="color:red; padding: 20px; text-align: left;" dir="ltr"><b>Sankey Render Error:</b><br/>' + e.message + '<br/><pre>' + e.stack + '</pre></div>';
             }
         }
     }, [telemetry]);
