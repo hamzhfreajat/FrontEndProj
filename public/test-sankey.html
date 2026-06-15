@@ -1,32 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang='en'>
 <head>
-    <meta charset="UTF-8">
+    <meta charset='UTF-8'>
     <title>Sankey Test</title>
-    <script src="https://cdn.jsdelivr.net/npm/apexsankey"></script>
+    <script src='https://cdn.jsdelivr.net/npm/@svgdotjs/svg.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/apexsankey/apexsankey.min.js'></script>
 </head>
 <body>
-    <div id="chart"></div>
+    <h1>ApexSankey Test Page</h1>
+    <div id='chart' style='width: 800px; height: 450px; border: 1px solid black;'></div>
+    <div id='error-log' style='color: red; margin-top: 20px;'></div>
     <script>
-        const data = {
-            nodes: [
-                { id: "A", title: "A" },
-                { id: "B", title: "B" }
-            ],
-            edges: [
-                { source: "A", target: "B", value: 10, type: 'gradient' }
-            ]
-        };
-
         try {
-            const chart = new window.ApexSankey(document.getElementById('chart'), {
-                width: 800,
-                height: 450
-            });
-            chart.render(data);
-            console.log("Rendered!");
+            const data = {
+                nodes: [
+                    { id: 'A', title: 'Node A' },
+                    { id: 'B', title: 'Node B' }
+                ],
+                edges: [
+                    { source: 'A', target: 'B', value: 10 }
+                ]
+            };
+            
+            if (typeof window.ApexSankey === 'undefined') {
+                document.getElementById('error-log').innerHTML = 'ApexSankey is undefined. CDN failed to load.';
+            } else {
+                const chart = new window.ApexSankey(document.getElementById('chart'), {
+                    width: 800,
+                    height: 450
+                });
+                chart.render(data);
+                console.log('Rendered successfully');
+                document.getElementById('error-log').innerHTML = '<span style="color:green">Render completed without throwing errors!</span>';
+            }
         } catch (e) {
-            document.body.innerHTML += '<div style="color:red">' + e.message + '</div>';
+            document.getElementById('error-log').innerHTML = 'Error: ' + e.message + '<br>' + e.stack;
         }
     </script>
 </body>
