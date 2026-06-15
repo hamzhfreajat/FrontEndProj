@@ -49,23 +49,22 @@ const Dashboard = () => {
             console.log("ApexSankey Data:", apexSankeyData);
 
             try {
-                // Ensure window.ApexSankey is available from the CDN script
                 if (window.ApexSankey) {
                     const containerWidth = sankeyContainerRef.current.clientWidth || 800;
                     const sankey = new window.ApexSankey(sankeyContainerRef.current, {
                         width: containerWidth,
                         height: 450,
                         nodeWidth: 20,
-                        colorScheme: 'palette1',
                         edgeOpacity: 0.4
                     });
-                    console.log("Rendering Sankey...");
+                    console.log("Rendering Sankey with data:", JSON.stringify(apexSankeyData));
                     sankey.render(apexSankeyData);
                 } else {
-                    console.error("ApexSankey not loaded from CDN");
+                    sankeyContainerRef.current.innerHTML = '<div style="color:red; padding: 20px;">Error: window.ApexSankey is undefined. CDN script might be blocked or failed to load.</div>';
                 }
             } catch (e) {
                 console.error("ApexSankey render error", e);
+                sankeyContainerRef.current.innerHTML = '<div style="color:red; padding: 20px;">Error rendering chart: ' + e.message + '</div>';
             }
         }
     }, [telemetry]);
