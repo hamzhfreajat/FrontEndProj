@@ -45,7 +45,7 @@ const Dashboard = () => {
                             <h2 style={{ marginBottom: '20px' }}>إحصائيات التتبع والتحليلات (Telemetry)</h2>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
                                 
-                                <div className="card tracking-card" style={{ padding: '24px' }}>
+                                <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
                                     <div style={{ marginBottom: '20px' }}>
                                         <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>المستخدمين النشطين يومياً (DAU)</h3>
                                         <p style={{ margin: '8px 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>يوضح هذا الرسم البياني عدد الزوار الفريدين الذين فتحوا التطبيق يومياً.</p>
@@ -63,7 +63,7 @@ const Dashboard = () => {
                                     </div>
                                 </div>
 
-                                <div className="card tracking-card" style={{ padding: '24px' }}>
+                                <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
                                     <div style={{ marginBottom: '20px' }}>
                                         <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>أكثر الشاشات زيارة</h3>
                                         <p style={{ margin: '8px 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>تصنيف لأكثر صفحات التطبيق تفاعلاً من قبل المستخدمين.</p>
