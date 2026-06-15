@@ -52,9 +52,9 @@ const Dashboard = () => {
                                             <LineChart data={telemetry.dau}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                                                 <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                                                <YAxis tick={{ fontSize: 12 }} />
+                                                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                                                 <RechartsTooltip />
-                                                <Line type="monotone" dataKey="active_users" stroke="#0075FF" name="مستخدم نشط" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                                <Line type="monotone" dataKey="active_users" stroke="#0075FF" name="مستخدم نشط" strokeWidth={4} dot={{ r: 5 }} activeDot={{ r: 8 }} />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -64,12 +64,12 @@ const Dashboard = () => {
                                     <h3>أكثر الشاشات زيارة</h3>
                                     <div style={{ height: 300, marginTop: 16 }}>
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={telemetry.top_screens} layout="vertical" margin={{ left: 40 }}>
+                                            <BarChart data={telemetry.top_screens} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
                                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
-                                                <XAxis type="number" tick={{ fontSize: 12 }} />
-                                                <YAxis dataKey="screen" type="category" tick={{ fontSize: 12 }} width={80} />
-                                                <RechartsTooltip />
-                                                <Bar dataKey="views" fill="#E94057" name="مشاهدات" radius={[0, 4, 4, 0]} />
+                                                <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
+                                                <YAxis dataKey="screen" type="category" tick={{ fontSize: 12 }} width={130} />
+                                                <RechartsTooltip cursor={{fill: 'transparent'}} />
+                                                <Bar dataKey="views" fill="#E94057" name="مشاهدات" radius={[0, 4, 4, 0]} barSize={25} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -79,12 +79,18 @@ const Dashboard = () => {
                                     <h3>مسار المستخدم (قمع التحويل)</h3>
                                     <div style={{ height: 300, marginTop: 16 }}>
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={telemetry.funnel}>
+                                            <AreaChart data={telemetry.funnel} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#F27121" stopOpacity={0.8}/>
+                                                        <stop offset="95%" stopColor="#F27121" stopOpacity={0}/>
+                                                    </linearGradient>
+                                                </defs>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                                                <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: 'bold' }} />
-                                                <YAxis tick={{ fontSize: 12 }} />
+                                                <XAxis dataKey="name" tick={{ fontSize: 13, fontWeight: 'bold' }} />
+                                                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                                                 <RechartsTooltip />
-                                                <Area type="monotone" dataKey="value" stroke="#F27121" fill="#F27121" fillOpacity={0.3} name="عدد المستخدمين" />
+                                                <Area type="monotone" dataKey="value" stroke="#F27121" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" name="عدد المستخدمين" />
                                             </AreaChart>
                                         </ResponsiveContainer>
                                     </div>
