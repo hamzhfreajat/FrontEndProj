@@ -48,6 +48,18 @@ const Dashboard = () => {
         const nodesMap = new Map();
         const edges = [];
 
+        const getFlowValue = (sourceName, targetName) => {
+            if (!telemetry || !telemetry.sankey || !telemetry.sankey.nodes) return 1; // Fallback so structure remains visible
+            
+            const sIdx = telemetry.sankey.nodes.findIndex(n => n.name === sourceName);
+            const tIdx = telemetry.sankey.nodes.findIndex(n => n.name === targetName);
+            
+            if (sIdx === -1 || tIdx === -1) return 1;
+            
+            const link = telemetry.sankey.links.find(l => l.source === sIdx && l.target === tIdx);
+            return link ? Math.max(1, link.value) : 1;
+        };
+
         // Add static outer journey nodes
         nodesMap.set("login", "Login");
         nodesMap.set("home", "Home");
@@ -56,10 +68,10 @@ const Dashboard = () => {
         nodesMap.set("ad_details", "Ads details");
 
         // Outer journey edges
-        edges.push({ source: "login", target: "home", value: 1000 });
-        edges.push({ source: "home", target: "search", value: 300 });
-        edges.push({ source: "search", target: "cat_details", value: 300 });
-        edges.push({ source: "cat_details", target: "ad_details", value: 1000 });
+        edges.push({ source: "login", target: "home", value: getFlowValue("login", "home") });
+        edges.push({ source: "home", target: "search", value: getFlowValue("home", "search") });
+        edges.push({ source: "search", target: "cat_details", value: getFlowValue("search", "cat_details") });
+        edges.push({ source: "cat_details", target: "ad_details", value: getFlowValue("cat_details", "ad_details") });
 
         // Flatten categories from API
         const allCategories = [];
@@ -86,7 +98,7 @@ const Dashboard = () => {
         realEstateRoots.forEach(rootCat => {
             nodesMap.set(rootCat.id.toString(), rootCat.name);
             // Connect Home to Real Estate Roots
-            edges.push({ source: "home", target: rootCat.id.toString(), value: rootCat.id === 2 ? 500 : 200 });
+            edges.push({ source: "home", target: rootCat.id.toString(), value: getFlowValue("home", rootCat.id.toString()) });
 
             // Find immediate children
             const children = allCategories.filter(c => c.parent_id === rootCat.id);
@@ -94,7 +106,7 @@ const Dashboard = () => {
             
             children.forEach(child => {
                 nodesMap.set(child.id.toString(), child.name);
-                edges.push({ source: rootCat.id.toString(), target: child.id.toString(), value: 100 });
+                edges.push({ source: rootCat.id.toString(), target: child.id.toString(), value: getFlowValue(rootCat.id.toString(), child.id.toString()) });
                 
                 // Find grandchildren
                 const grandChildren = allCategories.filter(c => c.parent_id === child.id);
@@ -102,7 +114,7 @@ const Dashboard = () => {
                 
                 grandChildren.forEach(gc => {
                     nodesMap.set(gc.id.toString(), gc.name);
-                    edges.push({ source: child.id.toString(), target: gc.id.toString(), value: 20 });
+                    edges.push({ source: child.id.toString(), target: gc.id.toString(), value: getFlowValue(child.id.toString(), gc.id.toString()) });
                     
                     // Grandchildren are typically leaf nodes in this DB
                     leafNodes.add(gc.id.toString());
@@ -112,7 +124,7 @@ const Dashboard = () => {
 
         // Connect all Real Estate leaf nodes directly to "Category details"
         leafNodes.forEach(leafId => {
-            edges.push({ source: leafId, target: "cat_details", value: 30 });
+            edges.push({ source: leafId, target: "cat_details", value: getFlowValue(leafId, "cat_details") });
         });
 
         const apexSankeyData = {
