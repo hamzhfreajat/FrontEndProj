@@ -200,18 +200,17 @@ const Dashboard = () => {
                                     </div>
                                 </div>
 
-                                {telemetry.sankey && telemetry.sankey.nodes.length > 0 && (
-                                    <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
-                                        <div style={{ marginBottom: '20px' }}>
-                                            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>خريطة تنقلات المستخدم (User Flow - Sankey Diagram)</h3>
-                                            <p style={{ margin: '8px 0 0 0', fontSize: '0.9rem', color: '#64748B', lineHeight: '1.5' }}>
-                                                يوضح هذا الرسم البياني الشامل كافة التنقلات بين الشاشات. سماكة الخط تدل على حجم الانتقال من صفحة إلى أخرى، مما يكشف بدقة عن سلوك المستخدم وتصفحه الحقيقي للتطبيق (مثلاً: الصفحة الرئيسية ← التصنيفات ← تفاصيل الإعلان).
-                                            </p>
-                                        </div>
-                                        <div style={{ height: 750, marginTop: 16 }} ref={sankeyContainerRef}>
-                                        </div>
+                                {/* Sankey Chart is hardcoded, so it should always display regardless of telemetry data */}
+                                <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>خريطة تنقلات المستخدم (User Flow - Sankey Diagram)</h3>
+                                        <p style={{ margin: '8px 0 0 0', fontSize: '0.9rem', color: '#64748B', lineHeight: '1.5' }}>
+                                            يوضح هذا الرسم البياني الشامل كافة التنقلات بين الشاشات. سماكة الخط تدل على حجم الانتقال من صفحة إلى أخرى، مما يكشف بدقة عن سلوك المستخدم وتصفحه الحقيقي للتطبيق (مثلاً: الصفحة الرئيسية ← التصنيفات ← تفاصيل الإعلان).
+                                        </p>
                                     </div>
-                                )}
+                                    <div style={{ height: 750, marginTop: 16 }} ref={sankeyContainerRef}>
+                                    </div>
+                                </div>
                                 
                             </div>
                         </div>
