@@ -105,9 +105,7 @@ const Dashboard = () => {
                     const containerWidth = sankeyContainerRef.current.clientWidth || 800;
                     const sankey = new window.ApexSankey(sankeyContainerRef.current, {
                         width: containerWidth,
-                        height: 750,
-                        nodeWidth: 20,
-                        edgeOpacity: 0.4
+                        height: 750
                     });
                     sankey.render(apexSankeyData);
                 } else {
@@ -208,7 +206,7 @@ const Dashboard = () => {
                                             يوضح هذا الرسم البياني الشامل كافة التنقلات بين الشاشات. سماكة الخط تدل على حجم الانتقال من صفحة إلى أخرى، مما يكشف بدقة عن سلوك المستخدم وتصفحه الحقيقي للتطبيق (مثلاً: الصفحة الرئيسية ← التصنيفات ← تفاصيل الإعلان).
                                         </p>
                                     </div>
-                                    <div style={{ height: 750, marginTop: 16 }} ref={sankeyContainerRef}>
+                                    <div style={{ height: 750, marginTop: 16 }} dir="ltr" ref={sankeyContainerRef}>
                                     </div>
                                 </div>
                                 
