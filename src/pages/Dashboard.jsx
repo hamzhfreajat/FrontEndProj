@@ -106,9 +106,13 @@ const Dashboard = () => {
             if (window.ApexSankey) {
                 try {
                     sankeyDrawn.current = true;
-                    sankeyContainerRef.current.innerHTML = '';
+                    
+                    // Force a completely fresh DOM node for the charting library
+                    sankeyContainerRef.current.innerHTML = '<div id="fresh-sankey-wrapper" style="width:100%; height:100%;" dir="ltr"></div>';
+                    const freshContainer = sankeyContainerRef.current.querySelector('#fresh-sankey-wrapper');
+                    
                     const containerWidth = sankeyContainerRef.current.clientWidth || 800;
-                    const sankey = new window.ApexSankey(sankeyContainerRef.current, {
+                    const sankey = new window.ApexSankey(freshContainer, {
                         width: containerWidth,
                         height: 750
                     });
