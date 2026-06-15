@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 const Dashboard = () => {
     const [insights, setInsights] = useState(null);
     const [telemetry, setTelemetry] = useState(null);
+    const [categories, setCategories] = useState(null);
     const [loading, setLoading] = useState(true);
     const sankeyContainerRef = React.useRef(null);
 
@@ -12,14 +13,17 @@ const Dashboard = () => {
         const fetchData = async () => {
             try {
                 // Adjust base URL if needed based on your environment
-                const API_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
-                const [resInsights, resTelemetry] = await Promise.all([
+                // Hardcode API URL to production as requested
+                const API_URL = 'https://api.sooq-com.com/api';
+                const [resInsights, resTelemetry, resCategories] = await Promise.all([
                     axios.get(`${API_URL}/tracking/insights`).catch(() => ({ data: null })),
-                    axios.get(`${API_URL}/telemetry/analytics`).catch(() => ({ data: null }))
+                    axios.get(`${API_URL}/telemetry/analytics`).catch(() => ({ data: null })),
+                    axios.get(`${API_URL}/categories`).catch(() => ({ data: null }))
                 ]);
                 
                 if (resInsights.data) setInsights(resInsights.data);
                 if (resTelemetry.data) setTelemetry(resTelemetry.data);
+                if (resCategories.data) setCategories(resCategories.data);
             } catch (err) {
                 console.error("Error fetching dashboard data:", err);
             } finally {
@@ -37,69 +41,58 @@ const Dashboard = () => {
         if (!sankeyContainerRef.current) return;
         if (sankeyDrawn.current) return;
 
+        if (!categories || categories.length === 0) {
+            return; // Wait for categories to load
+        }
+
+        const nodesMap = new Map();
+        const edges = [];
+
+        // Add a root node
+        nodesMap.set("root", "🏠 Real Estate Categories");
+
+        // Flatten categories in case the API returns a nested tree
+        const allCategories = [];
+        const extractCategories = (list) => {
+            list.forEach(c => {
+                allCategories.push(c);
+                if (c.children && Array.isArray(c.children)) {
+                    extractCategories(c.children);
+                }
+            });
+        };
+        extractCategories(categories);
+
+        // Filter for Real Estate categories (ID 2 = Sale, ID 3 = Rent)
+        const realEstateRoots = allCategories.filter(c => c.id === 2 || c.id === 3);
+
+        if (realEstateRoots.length === 0) {
+            // Fallback if IDs are different, check name
+            realEstateRoots.push(...allCategories.filter(c => c.name && c.name.includes('عقارات')));
+        }
+
+        realEstateRoots.forEach(rootCat => {
+            nodesMap.set(rootCat.id.toString(), rootCat.name);
+            edges.push({ source: "root", target: rootCat.id.toString(), value: 500 });
+
+            // Find immediate children
+            const children = allCategories.filter(c => c.parent_id === rootCat.id);
+            children.forEach(child => {
+                nodesMap.set(child.id.toString(), child.name);
+                edges.push({ source: rootCat.id.toString(), target: child.id.toString(), value: 100 });
+                
+                // Find grandchildren
+                const grandChildren = allCategories.filter(c => c.parent_id === child.id);
+                grandChildren.forEach(gc => {
+                    nodesMap.set(gc.id.toString(), gc.name);
+                    edges.push({ source: child.id.toString(), target: gc.id.toString(), value: 20 });
+                });
+            });
+        });
+
         const apexSankeyData = {
-            nodes: [
-                { id: "0", title: "Login" },
-                { id: "1", title: "Home" },
-                { id: "2", title: "Rent" },
-                { id: "3", title: "Sale" },
-                { id: "4", title: "Search" },
-                { id: "310", title: "🏘️ سكني" },
-                { id: "311", title: "🏪 تجاري" },
-                { id: "313", title: "🏞️ أراضي" },
-                { id: "314", title: "🚜 مزارع" },
-                { id: "315", title: "🏖️ شاليهات / منتجعات" },
-                { id: "316", title: "🛖 بيوت ريفية" },
-                { id: "306", title: "🏠 سكن مشترك" },
-                { id: "301", title: "🏢 شقق للإيجار" },
-                { id: "302", title: "🏠 ستوديوهات للإيجار" },
-                { id: "3101", title: "🏰 فلل وقصور" },
-                { id: "3102", title: "🏡 بيوت مستقلة للإيجار" },
-                { id: "3103", title: "🏙️ دوبلكس / بنتهاوس" },
-                { id: "3104", title: "🏢 طابق كامل للإيجار" },
-                { id: "3105", title: "🏠 ملحق / روف" },
-                { id: "3999", title: "🏠 أخرى" },
-                { id: "100", title: "Category details" },
-                { id: "101", title: "Ads details" }
-            ],
-            edges: [
-                { source: "0", target: "1", value: 1000 },
-                { source: "1", target: "2", value: 200 },
-                { source: "1", target: "3", value: 500 },
-                { source: "1", target: "4", value: 300 },
-                { source: "3", target: "310", value: 300 },
-                { source: "3", target: "311", value: 50 },
-                { source: "3", target: "313", value: 40 },
-                { source: "3", target: "314", value: 30 },
-                { source: "3", target: "315", value: 30 },
-                { source: "3", target: "316", value: 20 },
-                { source: "3", target: "306", value: 30 },
-                { source: "310", target: "301", value: 100 },
-                { source: "310", target: "302", value: 50 },
-                { source: "310", target: "3101", value: 40 },
-                { source: "310", target: "3102", value: 40 },
-                { source: "310", target: "3103", value: 30 },
-                { source: "310", target: "3104", value: 20 },
-                { source: "310", target: "3105", value: 10 },
-                { source: "310", target: "3999", value: 10 },
-                { source: "2", target: "100", value: 200 },
-                { source: "4", target: "100", value: 300 },
-                { source: "311", target: "100", value: 50 },
-                { source: "313", target: "100", value: 40 },
-                { source: "314", target: "100", value: 30 },
-                { source: "315", target: "100", value: 30 },
-                { source: "316", target: "100", value: 20 },
-                { source: "306", target: "100", value: 30 },
-                { source: "301", target: "100", value: 100 },
-                { source: "302", target: "100", value: 50 },
-                { source: "3101", target: "100", value: 40 },
-                { source: "3102", target: "100", value: 40 },
-                { source: "3103", target: "100", value: 30 },
-                { source: "3104", target: "100", value: 20 },
-                { source: "3105", target: "100", value: 10 },
-                { source: "3999", target: "100", value: 10 },
-                { source: "100", target: "101", value: 1000 }
-            ]
+            nodes: Array.from(nodesMap.entries()).map(([id, title]) => ({ id, title })),
+            edges: edges
         };
 
         const attemptRender = () => {
@@ -126,7 +119,7 @@ const Dashboard = () => {
         };
 
         attemptRender();
-    }, [telemetry, loading]);
+    }, [telemetry, loading, categories]);
 
     if (loading) {
         return <div style={{ padding: 40, textAlign: 'center' }}>جاري تحميل البيانات الحية...</div>;
