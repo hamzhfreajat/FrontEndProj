@@ -7,7 +7,6 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
-    "apexsankey": "^1.8.0",
     "axios": "^1.13.5",
     "firebase": "^9.23.0",
     "lucide-react": "^0.575.0",

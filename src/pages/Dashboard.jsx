@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
-import ApexSankey from 'apexsankey';
 
 const Dashboard = () => {
     const [insights, setInsights] = useState(null);
@@ -52,14 +51,19 @@ const Dashboard = () => {
             });
 
             try {
-                const sankey = new ApexSankey(sankeyContainerRef.current, {
-                    width: sankeyContainerRef.current.clientWidth || 800,
-                    height: 450,
-                    nodeWidth: 20,
-                    colorScheme: 'palette1',
-                    edgeOpacity: 0.4
-                });
-                sankey.render(apexSankeyData);
+                // Ensure window.ApexSankey is available from the CDN script
+                if (window.ApexSankey) {
+                    const sankey = new window.ApexSankey(sankeyContainerRef.current, {
+                        width: sankeyContainerRef.current.clientWidth || 800,
+                        height: 450,
+                        nodeWidth: 20,
+                        colorScheme: 'palette1',
+                        edgeOpacity: 0.4
+                    });
+                    sankey.render(apexSankeyData);
+                } else {
+                    console.error("ApexSankey not loaded from CDN");
+                }
             } catch (e) {
                 console.error("ApexSankey render error", e);
             }
