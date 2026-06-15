@@ -64,6 +64,8 @@ const Dashboard = () => {
         nodesMap.set("login", "Login");
         nodesMap.set("home", "Home");
         nodesMap.set("search", "Search");
+        nodesMap.set("my_ads", "My Ads");
+        nodesMap.set("my_account", "My Account");
         nodesMap.set("ad_details", "Ads details");
 
         // Add edges helper
@@ -76,7 +78,11 @@ const Dashboard = () => {
 
         // Outer journey edges
         addEdge("login", "home");
+        addEdge("login", "my_ads");
+        addEdge("login", "my_account");
         addEdge("home", "search");
+        addEdge("home", "my_ads");
+        addEdge("home", "my_account");
 
         // Flatten categories from API
         const allCategories = [];
