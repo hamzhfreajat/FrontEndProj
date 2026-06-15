@@ -11,7 +11,7 @@ const Dashboard = () => {
         const fetchData = async () => {
             try {
                 // Adjust base URL if needed based on your environment
-                const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+                const API_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
                 const [resInsights, resTelemetry] = await Promise.all([
                     axios.get(`${API_URL}/tracking/insights`).catch(() => ({ data: null })),
                     axios.get(`${API_URL}/telemetry/analytics`).catch(() => ({ data: null }))

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Filter, Trash2, Eye, X, ChevronRight, ChevronLeft, MapPin, Tag, Clock, User, Bot } from 'lucide-react';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
 const API_HEADERS = {
   'ngrok-skip-browser-warning': 'true',
   'Bypass-Tunnel-Reminder': 'true'

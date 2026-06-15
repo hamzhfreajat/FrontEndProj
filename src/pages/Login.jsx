@@ -15,7 +15,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-            const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+            const API_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
             const res = await axios.post(`${API_URL}/auth/admin-login`, {
                 username,
                 password
