@@ -145,6 +145,19 @@ const Dashboard = () => {
                 try {
                     sankeyDrawn.current = true;
                     
+                    if (apexSankeyData.edges.length === 0) {
+                        sankeyContainerRef.current.innerHTML = `
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 400px; color: #6B7280; font-family: inherit;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                                <h3 style="font-size: 20px; margin: 0 0 8px 0; color: #374151;">لا توجد بيانات تتبع حتى الآن</h3>
+                                <p style="margin: 0; text-align: center; max-width: 400px; line-height: 1.6;">
+                                    لم يتم تسجيل أي تفاعلات من المستخدمين. قم بتشغيل تطبيق الهاتف (Flutter) وتصفح الإعلانات والأقسام لتبدأ مسارات البيانات بالظهور هنا.
+                                </p>
+                            </div>
+                        `;
+                        return;
+                    }
+
                     // Force a completely fresh DOM node for the charting library
                     sankeyContainerRef.current.innerHTML = '<div id="fresh-sankey-wrapper" style="width:100%; height:100%;" dir="ltr"></div>';
                     const freshContainer = sankeyContainerRef.current.querySelector('#fresh-sankey-wrapper');
