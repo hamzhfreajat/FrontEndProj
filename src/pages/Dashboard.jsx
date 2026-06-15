@@ -1,24 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 
 const Dashboard = () => {
     const [insights, setInsights] = useState(null);
+    const [telemetry, setTelemetry] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchInsights = async () => {
+        const fetchData = async () => {
             try {
                 // Adjust base URL if needed based on your environment
                 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-                const res = await axios.get(`${API_URL}/tracking/insights`);
-                setInsights(res.data);
+                const [resInsights, resTelemetry] = await Promise.all([
+                    axios.get(`${API_URL}/tracking/insights`).catch(() => ({ data: null })),
+                    axios.get(`${API_URL}/telemetry/analytics`).catch(() => ({ data: null }))
+                ]);
+                setInsights(resInsights.data);
+                setTelemetry(resTelemetry.data);
             } catch (error) {
-                console.error("Failed to fetch tracking insights:", error);
+                console.error("Failed to fetch dashboard data:", error);
             } finally {
                 setLoading(false);
             }
         };
-        fetchInsights();
+        fetchData();
     }, []);
 
     if (loading) {
@@ -33,6 +39,60 @@ const Dashboard = () => {
             </div>
 
             <div className="dashboard-content" style={{ display: 'block' }}>
+
+                    {telemetry && (
+                        <div className="telemetry-section" style={{ marginBottom: '40px' }}>
+                            <h2 style={{ marginBottom: '20px' }}>إحصائيات التتبع والتحليلات (Telemetry)</h2>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+                                
+                                <div className="card tracking-card" style={{ padding: '20px' }}>
+                                    <h3>المستخدمين النشطين يومياً (DAU)</h3>
+                                    <div style={{ height: 300, marginTop: 16 }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={telemetry.dau}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                                                <YAxis tick={{ fontSize: 12 }} />
+                                                <RechartsTooltip />
+                                                <Line type="monotone" dataKey="active_users" stroke="#0075FF" name="مستخدم نشط" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                <div className="card tracking-card" style={{ padding: '20px' }}>
+                                    <h3>أكثر الشاشات زيارة</h3>
+                                    <div style={{ height: 300, marginTop: 16 }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={telemetry.top_screens} layout="vertical" margin={{ left: 40 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
+                                                <XAxis type="number" tick={{ fontSize: 12 }} />
+                                                <YAxis dataKey="screen" type="category" tick={{ fontSize: 12 }} width={80} />
+                                                <RechartsTooltip />
+                                                <Bar dataKey="views" fill="#E94057" name="مشاهدات" radius={[0, 4, 4, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                <div className="card tracking-card" style={{ padding: '20px', gridColumn: '1 / -1' }}>
+                                    <h3>مسار المستخدم (قمع التحويل)</h3>
+                                    <div style={{ height: 300, marginTop: 16 }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={telemetry.funnel}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                                <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: 'bold' }} />
+                                                <YAxis tick={{ fontSize: 12 }} />
+                                                <RechartsTooltip />
+                                                <Area type="monotone" dataKey="value" stroke="#F27121" fill="#F27121" fillOpacity={0.3} name="عدد المستخدمين" />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                                
+                            </div>
+                        </div>
+                    )}
 
                     <div className="card tracking-card mt-4 mb-4" style={{ marginBottom: '24px' }}>
                         <h3>توزيع إعلانات فئات العقارات</h3>

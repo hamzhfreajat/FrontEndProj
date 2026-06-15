@@ -15,7 +15,15 @@ import { Search, Send, User, Phone, CheckCircle2, Clock, ArrowRight } from 'luci
 import axios from 'axios';
 import './Inbox.css';
 
-const API_BASE_URL = 'https://api.sooq-com.com/api'
+const API_BASE_URL = 'https://api.sooq-com.com/api';
+
+const getAbsoluteMediaUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('/')) {
+    return API_BASE_URL.replace('/api', '') + url;
+  }
+  return url;
+};
 
 export default function Inbox() {
   const [threads, setThreads] = useState([]);
@@ -238,7 +246,7 @@ export default function Inbox() {
               >
                 <div className="thread-avatar">
                   {thread.otherUserAvatar ? (
-                    <img src={thread.otherUserAvatar} alt="avatar" />
+                    <img src={getAbsoluteMediaUrl(thread.otherUserAvatar)} alt="avatar" />
                   ) : (
                     <User size={24} />
                   )}
@@ -297,9 +305,9 @@ export default function Inbox() {
                     <div key={msg.id || index} className={`message-wrapper ${isAdmin ? 'admin' : 'user'}`}>
                       <div className="message-bubble">
                         {msg.type === 'audio' && msg.mediaUrl ? (
-                          <audio controls src={msg.mediaUrl} style={{ maxWidth: '250px', outline: 'none' }} />
+                          <audio controls src={getAbsoluteMediaUrl(msg.mediaUrl)} style={{ maxWidth: '250px', outline: 'none' }} />
                         ) : msg.type === 'image' && msg.mediaUrl ? (
-                          <img src={msg.mediaUrl} alt="attachment" style={{ maxWidth: '200px', borderRadius: '8px' }} />
+                          <img src={getAbsoluteMediaUrl(msg.mediaUrl)} alt="attachment" style={{ maxWidth: '200px', borderRadius: '8px' }} />
                         ) : (
                           <p>{msg.text}</p>
                         )}
