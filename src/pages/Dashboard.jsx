@@ -48,10 +48,20 @@ const Dashboard = () => {
         const nodesMap = new Map();
         const edges = [];
 
-        // Add a root node
-        nodesMap.set("root", "🏠 Real Estate Categories");
+        // Add static outer journey nodes
+        nodesMap.set("login", "Login");
+        nodesMap.set("home", "Home");
+        nodesMap.set("search", "Search");
+        nodesMap.set("cat_details", "Category details");
+        nodesMap.set("ad_details", "Ads details");
 
-        // Flatten categories in case the API returns a nested tree
+        // Outer journey edges
+        edges.push({ source: "login", target: "home", value: 1000 });
+        edges.push({ source: "home", target: "search", value: 300 });
+        edges.push({ source: "search", target: "cat_details", value: 300 });
+        edges.push({ source: "cat_details", target: "ad_details", value: 1000 });
+
+        // Flatten categories from API
         const allCategories = [];
         const extractCategories = (list) => {
             list.forEach(c => {
@@ -67,27 +77,42 @@ const Dashboard = () => {
         const realEstateRoots = allCategories.filter(c => c.id === 2 || c.id === 3);
 
         if (realEstateRoots.length === 0) {
-            // Fallback if IDs are different, check name
             realEstateRoots.push(...allCategories.filter(c => c.name && c.name.includes('عقارات')));
         }
 
+        // Track leaf nodes to connect them to "cat_details"
+        const leafNodes = new Set();
+
         realEstateRoots.forEach(rootCat => {
             nodesMap.set(rootCat.id.toString(), rootCat.name);
-            edges.push({ source: "root", target: rootCat.id.toString(), value: 500 });
+            // Connect Home to Real Estate Roots
+            edges.push({ source: "home", target: rootCat.id.toString(), value: rootCat.id === 2 ? 500 : 200 });
 
             // Find immediate children
             const children = allCategories.filter(c => c.parent_id === rootCat.id);
+            if (children.length === 0) leafNodes.add(rootCat.id.toString());
+            
             children.forEach(child => {
                 nodesMap.set(child.id.toString(), child.name);
                 edges.push({ source: rootCat.id.toString(), target: child.id.toString(), value: 100 });
                 
                 // Find grandchildren
                 const grandChildren = allCategories.filter(c => c.parent_id === child.id);
+                if (grandChildren.length === 0) leafNodes.add(child.id.toString());
+                
                 grandChildren.forEach(gc => {
                     nodesMap.set(gc.id.toString(), gc.name);
                     edges.push({ source: child.id.toString(), target: gc.id.toString(), value: 20 });
+                    
+                    // Grandchildren are typically leaf nodes in this DB
+                    leafNodes.add(gc.id.toString());
                 });
             });
+        });
+
+        // Connect all Real Estate leaf nodes directly to "Category details"
+        leafNodes.forEach(leafId => {
+            edges.push({ source: leafId, target: "cat_details", value: 30 });
         });
 
         const apexSankeyData = {
