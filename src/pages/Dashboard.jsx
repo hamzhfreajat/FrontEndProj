@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area, Sankey, Tooltip } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
+import { Chart } from "react-google-charts";
 
 const Dashboard = () => {
     const [insights, setInsights] = useState(null);
@@ -16,16 +17,27 @@ const Dashboard = () => {
                     axios.get(`${API_URL}/tracking/insights`).catch(() => ({ data: null })),
                     axios.get(`${API_URL}/telemetry/analytics`).catch(() => ({ data: null }))
                 ]);
-                setInsights(resInsights.data);
-                setTelemetry(resTelemetry.data);
-            } catch (error) {
-                console.error("Failed to fetch dashboard data:", error);
+                
+                if (resInsights.data) setInsights(resInsights.data);
+                if (resTelemetry.data) setTelemetry(resTelemetry.data);
+            } catch (err) {
+                console.error("Error fetching dashboard data:", err);
             } finally {
                 setLoading(false);
             }
         };
+
         fetchData();
     }, []);
+
+    let googleSankeyData = [["From", "To", "Weight"]];
+    if (telemetry && telemetry.sankey && telemetry.sankey.nodes) {
+        telemetry.sankey.links.forEach(link => {
+            const fromName = telemetry.sankey.nodes[link.source].name;
+            const toName = telemetry.sankey.nodes[link.target].name;
+            googleSankeyData.push([fromName, toName, link.value]);
+        });
+    }
 
     if (loading) {
         return <div style={{ padding: 40, textAlign: 'center' }}>جاري تحميل البيانات الحية...</div>;
@@ -116,17 +128,25 @@ const Dashboard = () => {
                                             </p>
                                         </div>
                                         <div style={{ height: 450, marginTop: 16 }}>
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <Sankey
-                                                    data={telemetry.sankey}
-                                                    node={{ stroke: '#10B981', strokeWidth: 2 }}
-                                                    nodePadding={50}
-                                                    margin={{ top: 20, right: 100, bottom: 20, left: 100 }}
-                                                    link={{ stroke: '#E2E8F0', fill: '#E2E8F0', fillOpacity: 0.5 }}
-                                                >
-                                                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
-                                                </Sankey>
-                                            </ResponsiveContainer>
+                                            <Chart
+                                                chartType="Sankey"
+                                                width="100%"
+                                                height="100%"
+                                                data={googleSankeyData}
+                                                options={{
+                                                    sankey: {
+                                                        node: {
+                                                            colors: ['#A0AEC0'],
+                                                            label: { fontName: 'system-ui', fontSize: 14, color: '#1E293B' },
+                                                            nodePadding: 40
+                                                        },
+                                                        link: {
+                                                            colorMode: 'gradient',
+                                                            colors: ['#3182CE']
+                                                        }
+                                                    }
+                                                }}
+                                            />
                                         </div>
                                     </div>
                                 )}
