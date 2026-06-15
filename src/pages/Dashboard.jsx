@@ -45,52 +45,63 @@ const Dashboard = () => {
                             <h2 style={{ marginBottom: '20px' }}>إحصائيات التتبع والتحليلات (Telemetry)</h2>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
                                 
-                                <div className="card tracking-card" style={{ padding: '20px' }}>
-                                    <h3>المستخدمين النشطين يومياً (DAU)</h3>
+                                <div className="card tracking-card" style={{ padding: '24px' }}>
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>المستخدمين النشطين يومياً (DAU)</h3>
+                                        <p style={{ margin: '8px 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>يوضح هذا الرسم البياني عدد الزوار الفريدين الذين فتحوا التطبيق يومياً.</p>
+                                    </div>
                                     <div style={{ height: 300, marginTop: 16 }}>
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={telemetry.dau}>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                                                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                                                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                                                <RechartsTooltip />
-                                                <Line type="monotone" dataKey="active_users" stroke="#0075FF" name="مستخدم نشط" strokeWidth={4} dot={{ r: 5 }} activeDot={{ r: 8 }} />
+                                            <LineChart data={telemetry.dau} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                                <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fontSize: 12, fill: '#64748B' }} allowDecimals={false} axisLine={false} tickLine={false} />
+                                                <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                                                <Line type="monotone" dataKey="active_users" stroke="#0075FF" name="مستخدم نشط" strokeWidth={4} dot={{ r: 5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 8 }} />
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>
                                 </div>
 
-                                <div className="card tracking-card" style={{ padding: '20px' }}>
-                                    <h3>أكثر الشاشات زيارة</h3>
+                                <div className="card tracking-card" style={{ padding: '24px' }}>
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>أكثر الشاشات زيارة</h3>
+                                        <p style={{ margin: '8px 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>تصنيف لأكثر صفحات التطبيق تفاعلاً من قبل المستخدمين.</p>
+                                    </div>
                                     <div style={{ height: 300, marginTop: 16 }}>
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={telemetry.top_screens} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
-                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
-                                                <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
-                                                <YAxis dataKey="screen" type="category" tick={{ fontSize: 12 }} width={130} />
-                                                <RechartsTooltip cursor={{fill: 'transparent'}} />
-                                                <Bar dataKey="views" fill="#E94057" name="مشاهدات" radius={[0, 4, 4, 0]} barSize={25} />
+                                            <BarChart data={telemetry.top_screens} layout="vertical" margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                                                <XAxis type="number" tick={{ fontSize: 12, fill: '#64748B' }} allowDecimals={false} axisLine={false} tickLine={false} />
+                                                <YAxis dataKey="screen" type="category" tick={{ fontSize: 12, fill: '#334155', fontWeight: 'bold' }} width={140} orientation="right" axisLine={false} tickLine={false} />
+                                                <RechartsTooltip cursor={{fill: '#F8FAFC'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                                                <Bar dataKey="views" fill="#E94057" name="مشاهدات" radius={[4, 0, 0, 4]} barSize={28} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
                                 </div>
 
-                                <div className="card tracking-card" style={{ padding: '20px', gridColumn: '1 / -1' }}>
-                                    <h3>مسار المستخدم (قمع التحويل)</h3>
-                                    <div style={{ height: 300, marginTop: 16 }}>
+                                <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>مسار المستخدم (قمع التحويل - Sales Funnel)</h3>
+                                        <p style={{ margin: '8px 0 0 0', fontSize: '0.9rem', color: '#64748B', lineHeight: '1.5' }}>
+                                            يتتبع هذا القمع رحلة المستخدم خطوة بخطوة: من لحظة تصفح قسم العقارات، مروراً بفتح تفاصيل إعلان معين، وصولاً إلى اتخاذ قرار بشراء/استئجار العقار والضغط على زر (اتصل بالبائع أو واتساب). يساعدك هذا لمعرفة أين تفقد العملاء المحتملين.
+                                        </p>
+                                    </div>
+                                    <div style={{ height: 350, marginTop: 16 }}>
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={telemetry.funnel} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                                            <AreaChart data={telemetry.funnel} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
                                                 <defs>
                                                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#F27121" stopOpacity={0.8}/>
-                                                        <stop offset="95%" stopColor="#F27121" stopOpacity={0}/>
+                                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
                                                     </linearGradient>
                                                 </defs>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                                                <XAxis dataKey="name" tick={{ fontSize: 13, fontWeight: 'bold' }} />
-                                                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                                                <RechartsTooltip />
-                                                <Area type="monotone" dataKey="value" stroke="#F27121" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" name="عدد المستخدمين" />
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                                <XAxis dataKey="name" tick={{ fontSize: 14, fontWeight: 'bold', fill: '#334155' }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fontSize: 12, fill: '#64748B' }} allowDecimals={false} axisLine={false} tickLine={false} />
+                                                <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                                                <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={4} fillOpacity={1} fill="url(#colorValue)" name="عدد المستخدمين" activeDot={{ r: 8, strokeWidth: 2, fill: '#fff' }} />
                                             </AreaChart>
                                         </ResponsiveContainer>
                                     </div>
