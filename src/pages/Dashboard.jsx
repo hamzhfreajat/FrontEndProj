@@ -34,32 +34,32 @@ const Dashboard = () => {
         if (sankeyContainerRef.current && telemetry && telemetry.sankey && telemetry.sankey.nodes.length > 0) {
             sankeyContainerRef.current.innerHTML = '';
             const apexSankeyData = { nodes: [], edges: [] };
-            telemetry.sankey.nodes.forEach((n) => {
-                apexSankeyData.nodes.push({ id: n.name, title: n.name });
+            telemetry.sankey.nodes.forEach((n, i) => {
+                apexSankeyData.nodes.push({ id: String(i), title: n.name });
             });
             telemetry.sankey.links.forEach(l => {
-                const sourceNode = telemetry.sankey.nodes[l.source];
-                const targetNode = telemetry.sankey.nodes[l.target];
-                if (sourceNode && targetNode) {
-                    apexSankeyData.edges.push({
-                        source: sourceNode.name,
-                        target: targetNode.name,
-                        value: l.value,
-                        type: 'gradient'
-                    });
-                }
+                apexSankeyData.edges.push({
+                    source: String(l.source),
+                    target: String(l.target),
+                    value: l.value,
+                    type: 'gradient'
+                });
             });
+
+            console.log("ApexSankey Data:", apexSankeyData);
 
             try {
                 // Ensure window.ApexSankey is available from the CDN script
                 if (window.ApexSankey) {
+                    const containerWidth = sankeyContainerRef.current.clientWidth || 800;
                     const sankey = new window.ApexSankey(sankeyContainerRef.current, {
-                        width: sankeyContainerRef.current.clientWidth || 800,
+                        width: containerWidth,
                         height: 450,
                         nodeWidth: 20,
                         colorScheme: 'palette1',
                         edgeOpacity: 0.4
                     });
+                    console.log("Rendering Sankey...");
                     sankey.render(apexSankeyData);
                 } else {
                     console.error("ApexSankey not loaded from CDN");
