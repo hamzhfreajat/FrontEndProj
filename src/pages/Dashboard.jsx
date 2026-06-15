@@ -64,7 +64,6 @@ const Dashboard = () => {
         nodesMap.set("login", "Login");
         nodesMap.set("home", "Home");
         nodesMap.set("search", "Search");
-        nodesMap.set("cat_details", "Category details");
         nodesMap.set("ad_details", "Ads details");
 
         // Add edges helper
@@ -78,8 +77,6 @@ const Dashboard = () => {
         // Outer journey edges
         addEdge("login", "home");
         addEdge("home", "search");
-        addEdge("search", "cat_details");
-        addEdge("cat_details", "ad_details");
 
         // Flatten categories from API
         const allCategories = [];
@@ -100,13 +97,15 @@ const Dashboard = () => {
             realEstateRoots.push(...allCategories.filter(c => c.name && c.name.includes('عقارات')));
         }
 
-        // Track leaf nodes to connect them to "cat_details"
+        // Track leaf nodes to connect them to "ad_details"
         const leafNodes = new Set();
 
         realEstateRoots.forEach(rootCat => {
             nodesMap.set(rootCat.id.toString(), rootCat.name);
             // Connect Home to Real Estate Roots
             addEdge("home", rootCat.id.toString());
+            // Connect Search to Real Estate Roots (sometimes users search and land on a category)
+            addEdge("search", rootCat.id.toString());
 
             // Find immediate children
             const children = allCategories.filter(c => c.parent_id === rootCat.id);
@@ -130,10 +129,13 @@ const Dashboard = () => {
             });
         });
 
-        // Connect all Real Estate leaf nodes directly to "Category details"
+        // Connect all Real Estate leaf nodes directly to "Ads details"
         leafNodes.forEach(leafId => {
-            addEdge(leafId, "cat_details");
+            addEdge(leafId, "ad_details");
         });
+        
+        // Also allow search to connect directly to ad details if they find an ad
+        addEdge("search", "ad_details");
 
         const apexSankeyData = {
             nodes: Array.from(nodesMap.entries()).map(([id, title]) => ({ id, title })),
