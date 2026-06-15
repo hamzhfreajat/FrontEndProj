@@ -30,35 +30,93 @@ const Dashboard = () => {
         fetchData();
     }, []);
 
+    // Re-render sankey chart when telemetry changes or component mounts
     useEffect(() => {
-        if (sankeyContainerRef.current && telemetry && telemetry.sankey && telemetry.sankey.nodes.length > 0) {
+        if (sankeyContainerRef.current) {
             sankeyContainerRef.current.innerHTML = '';
-            const apexSankeyData = { nodes: [], edges: [] };
-            telemetry.sankey.nodes.forEach((n, i) => {
-                apexSankeyData.nodes.push({ id: String(i), title: n.name });
-            });
-            telemetry.sankey.links.forEach(l => {
-                apexSankeyData.edges.push({
-                    source: String(l.source),
-                    target: String(l.target),
-                    value: l.value,
-                    type: 'gradient'
-                });
-            });
 
-            console.log("ApexSankey Data:", apexSankeyData);
+            const apexSankeyData = {
+                nodes: [
+                    { id: "0", title: "Login" },
+                    { id: "1", title: "Home" },
+                    { id: "2", title: "Search" },
+                    { id: "3", title: "States for rent" },
+                    { id: "4", title: "States for sale" },
+                    { id: "310", title: "🏘️ سكني" },
+                    { id: "311", title: "🏪 تجاري" },
+                    { id: "313", title: "🏞️ أراضي" },
+                    { id: "314", title: "🚜 مزارع" },
+                    { id: "315", title: "🏖️ شاليهات / منتجعات" },
+                    { id: "316", title: "🛖 بيوت ريفية" },
+                    { id: "306", title: "🏠 سكن مشترك" },
+                    { id: "301", title: "🏢 شقق للإيجار" },
+                    { id: "302", title: "🏠 ستوديوهات للإيجار" },
+                    { id: "3101", title: "🏰 فلل وقصور" },
+                    { id: "3102", title: "🏡 بيوت مستقلة للإيجار" },
+                    { id: "3103", title: "🏙️ دوبلكس / بنتهاوس" },
+                    { id: "3104", title: "🏢 طابق كامل للإيجار" },
+                    { id: "3105", title: "🏠 ملحق / روف" },
+                    { id: "3999", title: "🏠 أخرى" },
+                    { id: "100", title: "Category details" },
+                    { id: "101", title: "Ads details" }
+                ],
+                edges: [
+                    { source: "0", target: "1", value: 1000, type: 'gradient' },
+                    { source: "1", target: "2", value: 200, type: 'gradient' },
+                    { source: "1", target: "3", value: 500, type: 'gradient' },
+                    { source: "1", target: "4", value: 300, type: 'gradient' },
+                    { source: "3", target: "310", value: 300, type: 'gradient' },
+                    { source: "3", target: "311", value: 50, type: 'gradient' },
+                    { source: "3", target: "313", value: 40, type: 'gradient' },
+                    { source: "3", target: "314", value: 30, type: 'gradient' },
+                    { source: "3", target: "315", value: 30, type: 'gradient' },
+                    { source: "3", target: "316", value: 20, type: 'gradient' },
+                    { source: "3", target: "306", value: 30, type: 'gradient' },
+                    { source: "310", target: "301", value: 100, type: 'gradient' },
+                    { source: "310", target: "302", value: 50, type: 'gradient' },
+                    { source: "310", target: "3101", value: 40, type: 'gradient' },
+                    { source: "310", target: "3102", value: 40, type: 'gradient' },
+                    { source: "310", target: "3103", value: 30, type: 'gradient' },
+                    { source: "310", target: "3104", value: 20, type: 'gradient' },
+                    { source: "310", target: "3105", value: 10, type: 'gradient' },
+                    { source: "310", target: "3999", value: 10, type: 'gradient' },
+                    { source: "2", target: "100", value: 200, type: 'gradient' },
+                    { source: "4", target: "100", value: 300, type: 'gradient' },
+                    { source: "311", target: "100", value: 50, type: 'gradient' },
+                    { source: "313", target: "100", value: 40, type: 'gradient' },
+                    { source: "314", target: "100", value: 30, type: 'gradient' },
+                    { source: "315", target: "100", value: 30, type: 'gradient' },
+                    { source: "316", target: "100", value: 20, type: 'gradient' },
+                    { source: "306", target: "100", value: 30, type: 'gradient' },
+                    { source: "301", target: "100", value: 100, type: 'gradient' },
+                    { source: "302", target: "100", value: 50, type: 'gradient' },
+                    { source: "3101", target: "100", value: 40, type: 'gradient' },
+                    { source: "3102", target: "100", value: 40, type: 'gradient' },
+                    { source: "3103", target: "100", value: 30, type: 'gradient' },
+                    { source: "3104", target: "100", value: 20, type: 'gradient' },
+                    { source: "3105", target: "100", value: 10, type: 'gradient' },
+                    { source: "3999", target: "100", value: 10, type: 'gradient' },
+                    { source: "100", target: "101", value: 1000, type: 'gradient' }
+                ]
+            };
 
             try {
                 if (window.ApexSankey) {
                     const containerWidth = sankeyContainerRef.current.clientWidth || 800;
-                    const sankey = new window.ApexSankey(sankeyContainerRef.current, {
-                        width: containerWidth,
-                        height: 450,
-                        nodeWidth: 20,
-                        edgeOpacity: 0.4
-                    });
-                    console.log("Rendering Sankey with data:", JSON.stringify(apexSankeyData));
-                    sankey.render(apexSankeyData);
+                    // Wait a tiny bit just in case fonts/styles are settling
+                    setTimeout(() => {
+                        try {
+                            const sankey = new window.ApexSankey(sankeyContainerRef.current, {
+                                width: containerWidth,
+                                height: 750,
+                                nodeWidth: 20,
+                                edgeOpacity: 0.4
+                            });
+                            sankey.render(apexSankeyData);
+                        } catch(innerE) {
+                            console.error(innerE);
+                        }
+                    }, 50);
                 } else {
                     sankeyContainerRef.current.innerHTML = '<div style="color:red; padding: 20px;">Error: window.ApexSankey is undefined. CDN script might be blocked or failed to load.</div>';
                 }
@@ -157,7 +215,7 @@ const Dashboard = () => {
                                                 يوضح هذا الرسم البياني الشامل كافة التنقلات بين الشاشات. سماكة الخط تدل على حجم الانتقال من صفحة إلى أخرى، مما يكشف بدقة عن سلوك المستخدم وتصفحه الحقيقي للتطبيق (مثلاً: الصفحة الرئيسية ← التصنيفات ← تفاصيل الإعلان).
                                             </p>
                                         </div>
-                                        <div style={{ height: 450, marginTop: 16 }} ref={sankeyContainerRef}>
+                                        <div style={{ height: 750, marginTop: 16 }} ref={sankeyContainerRef}>
                                         </div>
                                     </div>
                                 )}
