@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sankey Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/apexsankey"></script>
+</head>
+<body>
+    <div id="chart"></div>
+    <script>
+        const data = {
+            nodes: [
+                { id: "A", title: "A" },
+                { id: "B", title: "B" }
+            ],
+            edges: [
+                { source: "A", target: "B", value: 10, type: 'gradient' }
+            ]
+        };
+
+        try {
+            const chart = new window.ApexSankey(document.getElementById('chart'), {
+                width: 800,
+                height: 450
+            });
+            chart.render(data);
+            console.log("Rendered!");
+        } catch (e) {
+            document.body.innerHTML += '<div style="color:red">' + e.message + '</div>';
+        }
+    </script>
+</body>
+</html>
