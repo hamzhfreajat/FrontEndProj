@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
-import { Chart } from "react-google-charts";
+import ApexSankey from 'apexsankey';
 
 const Dashboard = () => {
     const [insights, setInsights] = useState(null);
     const [telemetry, setTelemetry] = useState(null);
     const [loading, setLoading] = useState(true);
+    const sankeyContainerRef = React.useRef(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -30,14 +31,40 @@ const Dashboard = () => {
         fetchData();
     }, []);
 
-    let googleSankeyData = [["From", "To", "Weight"]];
-    if (telemetry && telemetry.sankey && telemetry.sankey.nodes) {
-        telemetry.sankey.links.forEach(link => {
-            const fromName = telemetry.sankey.nodes[link.source].name;
-            const toName = telemetry.sankey.nodes[link.target].name;
-            googleSankeyData.push([fromName, toName, link.value]);
-        });
-    }
+    useEffect(() => {
+        if (sankeyContainerRef.current && telemetry && telemetry.sankey && telemetry.sankey.nodes.length > 0) {
+            sankeyContainerRef.current.innerHTML = '';
+            const apexSankeyData = { nodes: [], edges: [] };
+            telemetry.sankey.nodes.forEach((n) => {
+                apexSankeyData.nodes.push({ id: n.name, title: n.name });
+            });
+            telemetry.sankey.links.forEach(l => {
+                const sourceNode = telemetry.sankey.nodes[l.source];
+                const targetNode = telemetry.sankey.nodes[l.target];
+                if (sourceNode && targetNode) {
+                    apexSankeyData.edges.push({
+                        source: sourceNode.name,
+                        target: targetNode.name,
+                        value: l.value,
+                        type: 'gradient'
+                    });
+                }
+            });
+
+            try {
+                const sankey = new ApexSankey(sankeyContainerRef.current, {
+                    width: sankeyContainerRef.current.clientWidth || 800,
+                    height: 450,
+                    nodeWidth: 20,
+                    colorScheme: 'palette1',
+                    edgeOpacity: 0.4
+                });
+                sankey.render(apexSankeyData);
+            } catch (e) {
+                console.error("ApexSankey render error", e);
+            }
+        }
+    }, [telemetry]);
 
     if (loading) {
         return <div style={{ padding: 40, textAlign: 'center' }}>جاري تحميل البيانات الحية...</div>;
@@ -127,26 +154,7 @@ const Dashboard = () => {
                                                 يوضح هذا الرسم البياني الشامل كافة التنقلات بين الشاشات. سماكة الخط تدل على حجم الانتقال من صفحة إلى أخرى، مما يكشف بدقة عن سلوك المستخدم وتصفحه الحقيقي للتطبيق (مثلاً: الصفحة الرئيسية ← التصنيفات ← تفاصيل الإعلان).
                                             </p>
                                         </div>
-                                        <div style={{ height: 450, marginTop: 16 }}>
-                                            <Chart
-                                                chartType="Sankey"
-                                                width="100%"
-                                                height="100%"
-                                                data={googleSankeyData}
-                                                options={{
-                                                    sankey: {
-                                                        node: {
-                                                            colors: ['#A0AEC0'],
-                                                            label: { fontName: 'system-ui', fontSize: 14, color: '#1E293B' },
-                                                            nodePadding: 40
-                                                        },
-                                                        link: {
-                                                            colorMode: 'gradient',
-                                                            colors: ['#3182CE']
-                                                        }
-                                                    }
-                                                }}
-                                            />
+                                        <div style={{ height: 450, marginTop: 16 }} ref={sankeyContainerRef}>
                                         </div>
                                     </div>
                                 )}
