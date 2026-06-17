@@ -97,76 +97,91 @@ const ScrapingLogs = () => {
         <button className="primary-btn" onClick={fetchLogs}>تحديث السجل</button>
       </div>
 
-      <div className="card filter-card" style={{ marginBottom: '20px', padding: '15px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        <div style={{ flex: '1', minWidth: '200px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>اسم المجموعة</label>
-          <input type="text" name="group_name" value={filters.group_name} onChange={handleFilterChange} placeholder="ابحث باسم المجموعة..." style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-        </div>
-        <div style={{ flex: '1', minWidth: '150px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>الحد الأدنى للمحفوظة</label>
-          <input type="number" name="min_saved_ads" value={filters.min_saved_ads} onChange={handleFilterChange} placeholder="مثال: 5" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-        </div>
-        <div style={{ flex: '1', minWidth: '150px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>الحد الأدنى للأخطاء</label>
-          <input type="number" name="min_errors" value={filters.min_errors} onChange={handleFilterChange} placeholder="مثال: 1" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-        </div>
-        <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-          <button className="primary-btn" onClick={applyFilters}>تطبيق الفلاتر</button>
-          <button className="secondary-btn" onClick={clearFilters} style={{ background: '#f8f9fa', border: '1px solid #ddd', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer' }}>مسح</button>
+      <div className="card filter-card" style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.08)' }}>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1', minWidth: '200px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>ابحث باسم المجموعة أو الصفحة</label>
+            <input type="text" name="group_name" value={filters.group_name} onChange={handleFilterChange} placeholder="مثال: سيارات للبيع..." style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', transition: 'border-color 0.2s' }} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} />
+          </div>
+          <div style={{ flex: '1', minWidth: '150px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>الحد الأدنى للمحفوظة</label>
+            <input type="number" name="min_saved_ads" value={filters.min_saved_ads} onChange={handleFilterChange} placeholder="0" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
+          </div>
+          <div style={{ flex: '1', minWidth: '150px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>الحد الأدنى للأخطاء</label>
+            <input type="number" name="min_errors" value={filters.min_errors} onChange={handleFilterChange} placeholder="0" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
+          </div>
+          
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={applyFilters} style={{ background: '#2563eb', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)' }}>تطبيق الفلاتر</button>
+            <button onClick={clearFilters} style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>مسح</button>
+            
+            {/* Quick Sort Button */}
+            <button 
+              onClick={() => {
+                setSortConfig({ key: 'saved_ads', direction: 'desc' });
+                setPage(1);
+                setTimeout(fetchLogs, 0);
+              }} 
+              style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}
+            >
+              <span>🔥</span> الأعلى حفظاً
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="card table-card">
+      <div className="card table-card" style={{ backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
         {loading ? (
-          <div className="loading-state">جاري تحميل السجل...</div>
+          <div className="loading-state" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>جاري تحميل السجل...</div>
         ) : logs.length === 0 ? (
-          <div className="empty-state">لا يوجد سجلات سحب تطابق الفلاتر</div>
+          <div className="empty-state" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>لا يوجد سجلات سحب تطابق الفلاتر</div>
         ) : (
           <>
             <div className="table-responsive">
-              <table className="data-table">
+              <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
                 <thead>
-                  <tr>
-                    <th onClick={() => handleSort('id')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                  <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <th onClick={() => handleSort('id')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
                       رقم {renderSortIcon('id')}
                     </th>
-                    <th onClick={() => handleSort('group_name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                    <th onClick={() => handleSort('group_name')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
                       اسم المجموعة / الصفحة {renderSortIcon('group_name')}
                     </th>
-                    <th onClick={() => handleSort('saved_ads')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                    <th onClick={() => handleSort('saved_ads')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
                       تم الحفظ {renderSortIcon('saved_ads')}
                     </th>
-                    <th onClick={() => handleSort('skipped_ads')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                    <th onClick={() => handleSort('skipped_ads')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
                       تخطى (مكرر/مرفوض) {renderSortIcon('skipped_ads')}
                     </th>
-                    <th onClick={() => handleSort('errors_count')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                    <th onClick={() => handleSort('errors_count')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
                       أخطاء {renderSortIcon('errors_count')}
                     </th>
-                    <th onClick={() => handleSort('created_at')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                    <th onClick={() => handleSort('created_at')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
                       التاريخ والوقت {renderSortIcon('created_at')}
                     </th>
-                    <th>التفاصيل</th>
+                    <th style={{ padding: '15px', color: '#475569', fontWeight: '600' }}>التفاصيل</th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.map((log) => (
-                    <tr key={log.id}>
-                      <td>#{log.id}</td>
-                      <td><span style={{ fontWeight: 'bold' }}>{log.group_name || 'غير معروف'}</span></td>
-                      <td><span className="badge badge-success">{log.saved_ads}</span></td>
-                      <td><span className="badge badge-warning">{log.skipped_ads}</span></td>
-                      <td><span className="badge badge-danger">{log.errors_count}</span></td>
-                      <td dir="ltr">{formatDate(log.created_at)}</td>
-                      <td>
+                    <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.2s', ':hover': { backgroundColor: '#f8fafc' } }}>
+                      <td style={{ padding: '15px', color: '#64748b' }}>#{log.id}</td>
+                      <td style={{ padding: '15px' }}><span style={{ fontWeight: '600', color: '#0f172a' }}>{log.group_name || 'غير معروف'}</span></td>
+                      <td style={{ padding: '15px' }}><span className="badge badge-success" style={{ background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.saved_ads}</span></td>
+                      <td style={{ padding: '15px' }}><span className="badge badge-warning" style={{ background: '#fef3c7', color: '#92400e', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.skipped_ads}</span></td>
+                      <td style={{ padding: '15px' }}><span className="badge badge-danger" style={{ background: '#fee2e2', color: '#991b1b', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.errors_count}</span></td>
+                      <td dir="ltr" style={{ padding: '15px', color: '#475569', fontSize: '13px' }}>{formatDate(log.created_at)}</td>
+                      <td style={{ padding: '15px' }}>
                         {log.json_data && log.json_data.length > 0 ? (
                           <details style={{ cursor: 'pointer' }}>
-                            <summary style={{ color: '#007bff' }}>عرض</summary>
-                            <pre style={{ textAlign: 'left', direction: 'ltr', fontSize: '11px', maxHeight: '150px', overflowY: 'auto', background: '#f8f9fa', padding: '5px', marginTop: '5px', borderRadius: '4px' }}>
+                            <summary style={{ color: '#2563eb', fontWeight: '500', outline: 'none' }}>عرض</summary>
+                            <pre style={{ textAlign: 'left', direction: 'ltr', fontSize: '11px', maxHeight: '150px', overflowY: 'auto', background: '#f1f5f9', padding: '10px', marginTop: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', color: '#334155' }}>
                               {JSON.stringify(log.json_data, null, 2)}
                             </pre>
                           </details>
                         ) : (
-                          '-'
+                          <span style={{ color: '#94a3b8' }}>-</span>
                         )}
                       </td>
                     </tr>
