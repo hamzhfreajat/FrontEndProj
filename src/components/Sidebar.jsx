@@ -30,6 +30,7 @@ const navItems = [
   { path: '/searches', name: 'عمليات البحث', icon: Search },
   { path: '/scraping-logs', name: 'سجلات السحب', icon: Globe },
   { path: '/change-ads-location', name: 'تغيير موقع الإعلانات', icon: MapPin },
+  { path: '/locations-manager', name: 'إدارة المدن والمناطق', icon: MapPin },
   { path: '/settings', name: 'الإعدادات', icon: Settings },
 ];
 

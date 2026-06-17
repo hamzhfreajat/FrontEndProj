@@ -11,6 +11,7 @@ import Reports from './pages/Reports';
 import SearchLogs from './pages/SearchLogs';
 import ScrapingLogs from './pages/ScrapingLogs';
 import ChangeAdsLocation from './pages/ChangeAdsLocation';
+import LocationsManager from './pages/LocationsManager';
 import Inbox from './pages/Inbox';
 
 import Login from './pages/Login';
@@ -70,6 +71,7 @@ function App() {
           <Route path="searches" element={<SearchLogs />} />
           <Route path="scraping-logs" element={<ScrapingLogs />} />
           <Route path="change-ads-location" element={<ChangeAdsLocation />} />
+          <Route path="locations-manager" element={<LocationsManager />} />
           <Route path="settings" element={<div className="card"><h2>الإعدادات</h2><p>قريباً...</p></div>} />
         </Route>
       </Routes>
