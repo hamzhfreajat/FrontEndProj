@@ -175,7 +175,7 @@ const ChangeAdsLocation = () => {
 
       <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+          <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
             <thead style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
               <tr>
                 <th style={{ padding: '16px', color: '#475569', fontWeight: '600', width: '80px' }}>رقم</th>
@@ -192,9 +192,9 @@ const ChangeAdsLocation = () => {
                 
                 return (
                   <tr key={ad.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s', ':hover': { backgroundColor: '#f8fafc' } }}>
-                    <td style={{ padding: '16px', color: '#64748b' }}>#{ad.id}</td>
-                    <td style={{ padding: '16px', fontWeight: '600', color: '#0f172a' }}>{ad.title}</td>
-                    <td style={{ padding: '16px', color: '#475569', fontSize: '14px' }}>
+                    <td data-label="رقم الإعلان" style={{ padding: '16px', color: '#64748b' }}>#{ad.id}</td>
+                    <td data-label="العنوان" style={{ padding: '16px', fontWeight: '600', color: '#0f172a' }}>{ad.title}</td>
+                    <td data-label="الوصف" style={{ padding: '16px', color: '#475569', fontSize: '14px' }}>
                       <div style={{ display: expandedDesc[ad.id] ? 'block' : '-webkit-box', WebkitLineClamp: expandedDesc[ad.id] ? 'unset' : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'pre-wrap' }}>
                         {ad.description || 'لا يوجد وصف'}
                       </div>
@@ -207,7 +207,7 @@ const ChangeAdsLocation = () => {
                         </button>
                       )}
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td data-label="الموقع الجغرافي" style={{ padding: '16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <MapPin size={16} color="#64748b" style={{ flexShrink: 0 }} />
                         <input
@@ -231,7 +231,7 @@ const ChangeAdsLocation = () => {
                         />
                       </div>
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td data-label="إجراء" style={{ padding: '16px' }}>
                       <button
                         onClick={() => saveLocation(ad.id)}
                         disabled={!isEdited || savingId === ad.id}
@@ -320,6 +320,43 @@ const ChangeAdsLocation = () => {
         @keyframes slideIn {
           from { transform: translateY(100%); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @media (max-width: 768px) {
+          .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+            display: block;
+            width: 100%;
+          }
+          .responsive-table thead {
+            display: none;
+          }
+          .responsive-table tr {
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+          }
+          .responsive-table td {
+            padding: 10px 0 !important;
+            text-align: right;
+            border-bottom: 1px solid #f1f5f9;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+          }
+          .responsive-table td:last-child {
+            border-bottom: none;
+          }
+          .responsive-table td::before {
+            content: attr(data-label);
+            font-weight: bold;
+            color: #64748b;
+            font-size: 13px;
+            display: block;
+          }
         }
       `}</style>
     </div>
