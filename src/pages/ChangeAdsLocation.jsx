@@ -13,6 +13,8 @@ const ChangeAdsLocation = () => {
   const [savingId, setSavingId] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [editedLocations, setEditedLocations] = useState({});
+  const [locationsData, setLocationsData] = useState([]);
+  const [showOnlyOthers, setShowOnlyOthers] = useState(false);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -34,6 +36,9 @@ const ChangeAdsLocation = () => {
       if (searchTerm) {
         queryParams.append('search', searchTerm);
       }
+      if (showOnlyOthers) {
+        queryParams.append('location', 'أخرى');
+      }
 
       const res = await axios.get(`${API_BASE_URL}/ads?${queryParams.toString()}`);
       
@@ -53,8 +58,15 @@ const ChangeAdsLocation = () => {
   };
 
   useEffect(() => {
+    // Fetch locations once
+    axios.get(`${API_BASE_URL}/locations`)
+      .then(res => {
+        setLocationsData(res.data);
+      })
+      .catch(err => console.error("Error fetching locations", err));
+
     fetchAds(1);
-  }, []);
+  }, [showOnlyOthers]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -131,8 +143,8 @@ const ChangeAdsLocation = () => {
       </div>
 
       <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '20px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
+        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '250px' }}>
             <Search size={20} color="#6b7280" style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text" 
@@ -142,7 +154,19 @@ const ChangeAdsLocation = () => {
               style={{ width: '100%', padding: '12px 45px 12px 15px', borderRadius: '8px', border: '1px solid #d1d5db', outline: 'none', fontSize: '15px' }}
             />
           </div>
-          <button type="submit" style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '0 24px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#4b5563', userSelect: 'none' }}>
+            <input 
+              type="checkbox" 
+              checked={showOnlyOthers}
+              onChange={(e) => {
+                setShowOnlyOthers(e.target.checked);
+                setPage(1);
+              }}
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            عرض الإعلانات ذات الموقع "أخرى" فقط
+          </label>
+          <button type="submit" style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
             بحث
           </button>
         </form>
@@ -176,12 +200,10 @@ const ChangeAdsLocation = () => {
                     </td>
                     <td style={{ padding: '16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <MapPin size={16} color="#64748b" />
-                        <input 
-                          type="text"
+                        <MapPin size={16} color="#64748b" style={{ flexShrink: 0 }} />
+                        <select
                           value={currentValue}
                           onChange={(e) => handleLocationChange(ad.id, e.target.value)}
-                          placeholder="أدخل الموقع..."
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -189,9 +211,27 @@ const ChangeAdsLocation = () => {
                             border: isEdited ? '1px solid #3b82f6' : '1px solid #cbd5e1',
                             outline: 'none',
                             backgroundColor: isEdited ? '#eff6ff' : '#ffffff',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            fontFamily: 'inherit',
+                            fontSize: '14px',
+                            color: '#0f172a'
                           }}
-                        />
+                        >
+                          <option value="">-- اختر الموقع --</option>
+                          {currentValue && !locationsData.some(c => c.name_ar === currentValue || c.regions.some(r => `${c.name_ar}, ${r.name_ar}` === currentValue)) && (
+                            <option value={currentValue}>{currentValue} (الحالي)</option>
+                          )}
+                          {locationsData.map(city => (
+                            <optgroup key={city.id} label={city.name_ar}>
+                              <option value={city.name_ar}>{city.name_ar}</option>
+                              {city.regions && city.regions.map(region => (
+                                <option key={region.id} value={`${city.name_ar}, ${region.name_ar}`}>
+                                  {city.name_ar}, {region.name_ar}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
                       </div>
                     </td>
                     <td style={{ padding: '16px' }}>
