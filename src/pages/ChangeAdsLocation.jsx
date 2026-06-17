@@ -15,6 +15,7 @@ const ChangeAdsLocation = () => {
   const [editedLocations, setEditedLocations] = useState({});
   const [locationsData, setLocationsData] = useState([]);
   const [showOnlyOthers, setShowOnlyOthers] = useState(false);
+  const [expandedDesc, setExpandedDesc] = useState({});
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -37,7 +38,7 @@ const ChangeAdsLocation = () => {
         queryParams.append('search', searchTerm);
       }
       if (showOnlyOthers) {
-        queryParams.append('location', 'أخرى');
+        queryParams.append('only_others', 'true');
       }
 
       const res = await axios.get(`${API_BASE_URL}/ads?${queryParams.toString()}`);
@@ -194,16 +195,27 @@ const ChangeAdsLocation = () => {
                     <td style={{ padding: '16px', color: '#64748b' }}>#{ad.id}</td>
                     <td style={{ padding: '16px', fontWeight: '600', color: '#0f172a' }}>{ad.title}</td>
                     <td style={{ padding: '16px', color: '#475569', fontSize: '14px' }}>
-                      <div style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      <div style={{ display: expandedDesc[ad.id] ? 'block' : '-webkit-box', WebkitLineClamp: expandedDesc[ad.id] ? 'unset' : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'pre-wrap' }}>
                         {ad.description || 'لا يوجد وصف'}
                       </div>
+                      {ad.description && ad.description.length > 100 && (
+                        <button 
+                          onClick={() => setExpandedDesc(prev => ({ ...prev, [ad.id]: !prev[ad.id] }))}
+                          style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: '4px 0', marginTop: '4px', fontWeight: 'bold' }}
+                        >
+                          {expandedDesc[ad.id] ? 'عرض أقل' : 'عرض المزيد'}
+                        </button>
+                      )}
                     </td>
                     <td style={{ padding: '16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <MapPin size={16} color="#64748b" style={{ flexShrink: 0 }} />
-                        <select
+                        <input
+                          type="text"
+                          list="locations-list"
                           value={currentValue}
                           onChange={(e) => handleLocationChange(ad.id, e.target.value)}
+                          placeholder="ابحث واختر الموقع..."
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -216,22 +228,7 @@ const ChangeAdsLocation = () => {
                             fontSize: '14px',
                             color: '#0f172a'
                           }}
-                        >
-                          <option value="">-- اختر الموقع --</option>
-                          {currentValue && !locationsData.some(c => c.name_ar === currentValue || c.regions.some(r => `${c.name_ar}, ${r.name_ar}` === currentValue)) && (
-                            <option value={currentValue}>{currentValue} (الحالي)</option>
-                          )}
-                          {locationsData.map(city => (
-                            <optgroup key={city.id} label={city.name_ar}>
-                              <option value={city.name_ar}>{city.name_ar}</option>
-                              {city.regions && city.regions.map(region => (
-                                <option key={region.id} value={`${city.name_ar}, ${region.name_ar}`}>
-                                  {city.name_ar}, {region.name_ar}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
+                        />
                       </div>
                     </td>
                     <td style={{ padding: '16px' }}>
@@ -276,6 +273,17 @@ const ChangeAdsLocation = () => {
               )}
             </tbody>
           </table>
+          
+          <datalist id="locations-list">
+            {locationsData.map(city => (
+              <React.Fragment key={city.id}>
+                <option value={city.name_ar} />
+                {city.regions && city.regions.map(region => (
+                  <option key={region.id} value={`${city.name_ar}, ${region.name_ar}`} />
+                ))}
+              </React.Fragment>
+            ))}
+          </datalist>
         </div>
         
         {loading && (
