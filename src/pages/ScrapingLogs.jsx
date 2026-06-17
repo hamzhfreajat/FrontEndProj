@@ -116,7 +116,7 @@ const ScrapingLogs = () => {
             <button onClick={applyFilters} style={{ background: '#2563eb', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)' }}>تطبيق الفلاتر</button>
             <button onClick={clearFilters} style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>مسح</button>
             
-            {/* Quick Sort Button */}
+            {/* Quick Sort Buttons */}
             <button 
               onClick={() => {
                 setSortConfig({ key: 'saved_ads', direction: 'desc' });
@@ -126,6 +126,16 @@ const ScrapingLogs = () => {
               style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}
             >
               <span>🔥</span> الأعلى حفظاً
+            </button>
+            <button 
+              onClick={() => {
+                setSortConfig({ key: 'saved_ads', direction: 'asc' });
+                setPage(1);
+                setTimeout(fetchLogs, 0);
+              }} 
+              style={{ background: '#ef4444', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)' }}
+            >
+              <span>❄️</span> الأقل حفظاً
             </button>
           </div>
         </div>
