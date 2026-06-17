@@ -12,7 +12,7 @@ const LocationsManager = () => {
   const fetchLocations = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/locations`);
+      const res = await axios.get(`${API_BASE_URL}/locations?t=${new Date().getTime()}`);
       setLocations(res.data);
     } catch (error) {
       console.error('Error fetching locations:', error);

@@ -60,7 +60,7 @@ const ChangeAdsLocation = () => {
 
   useEffect(() => {
     // Fetch locations once
-    axios.get(`${API_BASE_URL}/locations`)
+    axios.get(`${API_BASE_URL}/locations?t=${new Date().getTime()}`)
       .then(res => {
         setLocationsData(res.data);
       })
