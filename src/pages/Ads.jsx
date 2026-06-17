@@ -130,6 +130,8 @@ const Ads = () => {
       if (filters.is_hot !== '') queryParams.append('is_hot', filters.is_hot);
       if (filters.is_published !== '') queryParams.append('is_published', filters.is_published);
       if (filters.source_type) queryParams.append('source_type', filters.source_type);
+      
+      queryParams.append('sort_by', 'strict_newest');
 
       const res = await fetch(`${API_BASE_URL}/ads?${queryParams.toString()}`, { headers: API_HEADERS });
       if (res.ok) {
