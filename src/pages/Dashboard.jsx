@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
+import ReactApexChart from 'react-apexcharts';
 
 const Dashboard = () => {
     const [insights, setInsights] = useState(null);
@@ -68,6 +69,24 @@ const Dashboard = () => {
         nodesMap.set("my_account", "My Account");
         nodesMap.set("ad_details", "Ads details");
 
+        // Add Ad flow nodes
+        const addAdNodes = {
+            "add_ad_wizard": "إضافة إعلان: التصنيف",
+            "add_ad_subcategories": "إضافة إعلان: القسم الفرعي",
+            "add_ad_city": "إضافة إعلان: المدينة",
+            "add_ad_region": "إضافة إعلان: المنطقة",
+            "add_ad_map": "إضافة إعلان: الخريطة",
+            "add_ad_basic_info": "إضافة إعلان: المعلومات الأساسية",
+            "add_ad_details": "إضافة إعلان: التفاصيل",
+            "add_ad_images": "إضافة إعلان: الصور",
+            "add_ad_reels": "إضافة إعلان: الفيديو",
+            "add_ad_preview": "إضافة إعلان: المعاينة"
+        };
+        
+        Object.entries(addAdNodes).forEach(([key, title]) => {
+            nodesMap.set(key, title);
+        });
+
         // Add edges helper
         const addEdge = (source, target) => {
             const val = getFlowValue(source, target);
@@ -83,6 +102,33 @@ const Dashboard = () => {
         addEdge("home", "search");
         addEdge("home", "my_ads");
         addEdge("home", "my_account");
+
+        // Connect to Add Ad flow
+        addEdge("home", "add_ad_images");
+        addEdge("my_account", "add_ad_images");
+        addEdge("my_ads", "add_ad_images");
+
+        // Connect Add Ad internal steps sequentially as one trip
+        const addAdTrip = [
+            "add_ad_images",
+            "add_ad_reels",
+            "add_ad_wizard",
+            "add_ad_subcategories",
+            "add_ad_city",
+            "add_ad_region",
+            "add_ad_map",
+            "add_ad_details",
+            "add_ad_basic_info",
+            "add_ad_preview"
+        ];
+        
+        for (let i = 0; i < addAdTrip.length - 1; i++) {
+            addEdge(addAdTrip[i], addAdTrip[i+1]);
+        }
+        
+        // Connect the end of the trip to home or my_ads
+        addEdge("add_ad_preview", "home");
+        addEdge("add_ad_preview", "my_ads");
 
         // Flatten categories from API
         const allCategories = [];
@@ -191,6 +237,49 @@ const Dashboard = () => {
         return <div style={{ padding: 40, textAlign: 'center' }}>جاري تحميل البيانات الحية...</div>;
     }
 
+    const treemapSeries = insights?.real_estate_stats?.map(cat => ({
+        name: cat.name,
+        data: cat.children ? cat.children.map(child => ({
+            x: child.name,
+            y: child.count
+        })) : []
+    })) || [];
+
+    const treemapOptions = {
+        chart: {
+            type: 'treemap',
+            toolbar: { show: false },
+            fontFamily: 'inherit'
+        },
+        legend: {
+            show: false
+        },
+        title: {
+            align: 'center',
+            style: {
+                fontSize: '18px',
+                fontWeight: 'bold',
+                color: '#1E293B'
+            }
+        },
+        dataLabels: {
+            enabled: true,
+            style: {
+                fontSize: '14px',
+            },
+            formatter: function(text, op) {
+                return [text, op.value + ' إعلان'];
+            }
+        },
+        plotOptions: {
+            treemap: {
+                enableShades: true,
+                shadeIntensity: 0.5,
+                distributed: false, // Ensures each series gets a different color
+            }
+        }
+    };
+
     return (
         <div className="dashboard-container">
             <div className="page-header">
@@ -205,67 +294,7 @@ const Dashboard = () => {
                             <h2 style={{ marginBottom: '20px' }}>إحصائيات التتبع والتحليلات (Telemetry)</h2>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
                                 
-                                <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
-                                    <div style={{ marginBottom: '20px' }}>
-                                        <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>المستخدمين النشطين يومياً (DAU)</h3>
-                                        <p style={{ margin: '8px 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>يوضح هذا الرسم البياني عدد الزوار الفريدين الذين فتحوا التطبيق يومياً.</p>
-                                    </div>
-                                    <div style={{ height: 300, marginTop: 16 }}>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={telemetry.dau} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                                <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} />
-                                                <YAxis tick={{ fontSize: 12, fill: '#64748B' }} allowDecimals={false} axisLine={false} tickLine={false} />
-                                                <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
-                                                <Line type="monotone" dataKey="active_users" stroke="#0075FF" name="مستخدم نشط" strokeWidth={4} dot={{ r: 5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 8 }} />
-                                            </LineChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
 
-                                <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
-                                    <div style={{ marginBottom: '20px' }}>
-                                        <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>أكثر الشاشات زيارة</h3>
-                                        <p style={{ margin: '8px 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>تصنيف لأكثر صفحات التطبيق تفاعلاً من قبل المستخدمين.</p>
-                                    </div>
-                                    <div style={{ height: 300, marginTop: 16 }}>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={telemetry.top_screens} layout="vertical" margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
-                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                                                <XAxis type="number" tick={{ fontSize: 12, fill: '#64748B' }} allowDecimals={false} axisLine={false} tickLine={false} />
-                                                <YAxis dataKey="screen" type="category" tick={{ fontSize: 12, fill: '#334155', fontWeight: 'bold' }} width={140} orientation="right" axisLine={false} tickLine={false} />
-                                                <RechartsTooltip cursor={{fill: '#F8FAFC'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
-                                                <Bar dataKey="views" fill="#E94057" name="مشاهدات" radius={[4, 0, 0, 4]} barSize={28} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-
-                                <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
-                                    <div style={{ marginBottom: '20px' }}>
-                                        <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>مسار المستخدم (قمع التحويل - Sales Funnel)</h3>
-                                        <p style={{ margin: '8px 0 0 0', fontSize: '0.9rem', color: '#64748B', lineHeight: '1.5' }}>
-                                            يتتبع هذا القمع رحلة المستخدم خطوة بخطوة: من لحظة تصفح قسم العقارات، مروراً بفتح تفاصيل إعلان معين، وصولاً إلى اتخاذ قرار بشراء/استئجار العقار والضغط على زر (اتصل بالبائع أو واتساب). يساعدك هذا لمعرفة أين تفقد العملاء المحتملين.
-                                        </p>
-                                    </div>
-                                    <div style={{ height: 350, marginTop: 16 }}>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={telemetry.funnel} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
-                                                <defs>
-                                                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                                <XAxis dataKey="name" tick={{ fontSize: 14, fontWeight: 'bold', fill: '#334155' }} axisLine={false} tickLine={false} />
-                                                <YAxis tick={{ fontSize: 12, fill: '#64748B' }} allowDecimals={false} axisLine={false} tickLine={false} />
-                                                <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
-                                                <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={4} fillOpacity={1} fill="url(#colorValue)" name="عدد المستخدمين" activeDot={{ r: 8, strokeWidth: 2, fill: '#fff' }} />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
 
                                 {/* Sankey Chart is hardcoded, so it should always display regardless of telemetry data */}
                                 <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
@@ -279,46 +308,102 @@ const Dashboard = () => {
                                     </div>
                                 </div>
                                 
+                                {/* Friction Metrics Section */}
+                                {telemetry.friction_metrics && (
+                                    <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
+                                        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem', color: '#1E293B' }}>مشاكل وعوائق الاستخدام (UX Friction)</h3>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }} dir="ltr">
+                                            {/* Rage Taps */}
+                                            <div>
+                                                <h4 style={{ textAlign: 'center', color: '#DC2626' }}>النقر المتكرر بغضب (Rage Taps)</h4>
+                                                <ReactApexChart 
+                                                    options={{
+                                                        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+                                                        colors: ['#EF4444'],
+                                                        xaxis: { categories: telemetry.friction_metrics.rage_taps.map(r => r.location) },
+                                                        dataLabels: { enabled: true }
+                                                    }} 
+                                                    series={[{ name: 'المرات', data: telemetry.friction_metrics.rage_taps.map(r => r.count) }]} 
+                                                    type="bar" height={250} 
+                                                />
+                                            </div>
+
+                                            {/* Dead Clicks */}
+                                            <div>
+                                                <h4 style={{ textAlign: 'center', color: '#EA580C' }}>النقرات الميتة (Dead Clicks)</h4>
+                                                <ReactApexChart 
+                                                    options={{
+                                                        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+                                                        colors: ['#F97316'],
+                                                        xaxis: { categories: telemetry.friction_metrics.dead_clicks.map(r => r.screen) },
+                                                        dataLabels: { enabled: true }
+                                                    }} 
+                                                    series={[{ name: 'المرات', data: telemetry.friction_metrics.dead_clicks.map(r => r.count) }]} 
+                                                    type="bar" height={250} 
+                                                />
+                                            </div>
+
+                                            {/* Form Abandonment */}
+                                            <div>
+                                                <h4 style={{ textAlign: 'center', color: '#D97706' }}>النماذج المتروكة (Form Abandonment)</h4>
+                                                <ReactApexChart 
+                                                    options={{
+                                                        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+                                                        colors: ['#F59E0B'],
+                                                        xaxis: { categories: telemetry.friction_metrics.form_abandonment.map(r => r.form_field) },
+                                                        dataLabels: { enabled: true }
+                                                    }} 
+                                                    series={[{ name: 'المرات', data: telemetry.friction_metrics.form_abandonment.map(r => r.count) }]} 
+                                                    type="bar" height={250} 
+                                                />
+                                            </div>
+
+                                            {/* U-Turns */}
+                                            <div>
+                                                <h4 style={{ textAlign: 'center', color: '#65A30D' }}>العودة السريعة (U-Turns)</h4>
+                                                <ReactApexChart 
+                                                    options={{
+                                                        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+                                                        colors: ['#84CC16'],
+                                                        xaxis: { categories: telemetry.friction_metrics.u_turns.map(r => r.screen) },
+                                                        dataLabels: { enabled: true }
+                                                    }} 
+                                                    series={[{ name: 'المرات', data: telemetry.friction_metrics.u_turns.map(r => r.count) }]} 
+                                                    type="bar" height={250} 
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
                             </div>
                         </div>
                     )}
 
                     <div className="card tracking-card mt-4 mb-4" style={{ marginBottom: '24px' }}>
-                        <h3>توزيع إعلانات فئات العقارات</h3>
-                        <div className="location-stats-list">
-                            {insights?.real_estate_stats?.length > 0 ? (
-                                insights.real_estate_stats.map((cat, i) => (
-                                    <div key={`cat-${i}`} className="location-item">
-                                        <div className="loc-city-header">
-                                            <span className="loc-city-name">{cat.name}</span>
-                                            <span className="loc-city-count badge">{cat.total_count} إعلان مختزن</span>
+                        <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1E293B', marginBottom: '16px', textAlign: 'right' }}>توزيع إعلانات فئات العقارات</h3>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }} dir="ltr">
+                            {treemapSeries.length > 0 ? (
+                                treemapSeries.map((series, idx) => {
+                                    const options = {
+                                        ...treemapOptions,
+                                        title: {
+                                            ...treemapOptions.title,
+                                            text: series.name
+                                        }
+                                    };
+                                    return (
+                                        <div key={idx} style={{ flex: '1 1 300px', minWidth: '300px', height: 350 }}>
+                                            <ReactApexChart options={options} series={[series]} type="treemap" height={350} />
                                         </div>
-                                        {cat.children && (() => {
-                                            const total = cat.children.length;
-                                            const zero = cat.children.filter(c => c.count === 0).length;
-                                            const under10 = cat.children.filter(c => c.count > 0 && c.count < 10).length;
-                                            const under20 = cat.children.filter(c => c.count >= 10 && c.count < 20).length;
-                                            return (
-                                                <div className="stat-summary-row">
-                                                    <span>إجمالي الفئات: <b>{total}</b></span>
-                                                    <span>بدون إعلانات: <b>{zero}</b> فئة</span>
-                                                    <span>أقل من 10: <b>{under10}</b> فئة</span>
-                                                    <span>أقل من 20: <b>{under20}</b> فئة</span>
-                                                </div>
-                                            );
-                                        })()}
-                                        <div className="loc-regions">
-                                            {cat.children && cat.children.map((child, j) => (
-                                                <div key={`child-${j}`} className="loc-region-item">
-                                                    <span className="loc-reg-name">{child.name}</span>
-                                                    <span className="loc-reg-count">{child.count}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             ) : (
-                                <div className="empty-state" style={{ minHeight: '60px' }}>لا توجد بيانات فئات متاحة حالياً...</div>
+                                <div className="empty-state" style={{ minHeight: '60px', width: '100%' }}>لا توجد بيانات فئات متاحة حالياً...</div>
                             )}
                         </div>
                     </div>
