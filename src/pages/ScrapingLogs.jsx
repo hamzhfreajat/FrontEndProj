@@ -182,13 +182,35 @@ const ScrapingLogs = () => {
                       <td style={{ padding: '15px' }}><span className="badge badge-warning" style={{ background: '#fef3c7', color: '#92400e', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.skipped_ads}</span></td>
                       <td style={{ padding: '15px' }}><span className="badge badge-danger" style={{ background: '#fee2e2', color: '#991b1b', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.errors_count}</span></td>
                       <td dir="ltr" style={{ padding: '15px', color: '#475569', fontSize: '13px' }}>{formatDate(log.created_at)}</td>
-                      <td style={{ padding: '15px' }}>
+                      <td style={{ padding: '15px', maxWidth: '350px' }}>
                         {log.json_data && log.json_data.length > 0 ? (
                           <details style={{ cursor: 'pointer' }}>
-                            <summary style={{ color: '#2563eb', fontWeight: '500', outline: 'none' }}>عرض</summary>
-                            <pre style={{ textAlign: 'left', direction: 'ltr', fontSize: '11px', maxHeight: '150px', overflowY: 'auto', background: '#f1f5f9', padding: '10px', marginTop: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', color: '#334155' }}>
-                              {JSON.stringify(log.json_data, null, 2)}
-                            </pre>
+                            <summary style={{ color: '#2563eb', fontWeight: '500', outline: 'none' }}>تفاصيل السحب ({log.json_data.length})</summary>
+                            <div style={{ textAlign: 'right', fontSize: '12px', maxHeight: '180px', overflowY: 'auto', background: '#f1f5f9', padding: '10px', marginTop: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', color: '#334155' }}>
+                              <ul style={{ margin: 0, paddingInlineStart: '20px' }}>
+                                {log.json_data.map((item, idx) => {
+                                  if (item.status === 'skipped' || item.status === 'error') {
+                                    return (
+                                      <li key={idx} style={{ marginBottom: '4px', color: item.status === 'error' ? '#ef4444' : '#d97706' }}>
+                                        <strong>مرفوض/متخطي:</strong> {item.reason || 'بدون سبب'}
+                                      </li>
+                                    );
+                                  } else if (item.status === 'saved') {
+                                    return (
+                                      <li key={idx} style={{ marginBottom: '4px', color: '#10b981' }}>
+                                        <strong>تم الحفظ:</strong> إعلان #{item.ad_id || '-'}
+                                      </li>
+                                    );
+                                  }
+                                  return null;
+                                })}
+                              </ul>
+                              {log.json_data.filter(i => i.status === 'skipped' || i.status === 'error' || i.status === 'saved').length === 0 && (
+                                <pre style={{ textAlign: 'left', direction: 'ltr', fontSize: '11px', margin: 0 }}>
+                                  {JSON.stringify(log.json_data, null, 2)}
+                                </pre>
+                              )}
+                            </div>
                           </details>
                         ) : (
                           <span style={{ color: '#94a3b8' }}>-</span>
