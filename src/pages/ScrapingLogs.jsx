@@ -119,6 +119,16 @@ const ScrapingLogs = () => {
             {/* Quick Sort Buttons */}
             <button 
               onClick={() => {
+                setSortConfig({ key: 'group_name', direction: 'asc' });
+                setPage(1);
+                setTimeout(fetchLogs, 0);
+              }} 
+              style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(139, 92, 246, 0.2)' }}
+            >
+              <span>🗂️</span> تجميع المجموعات أسفل بعضها
+            </button>
+            <button 
+              onClick={() => {
                 setSortConfig({ key: 'saved_ads', direction: 'desc' });
                 setPage(1);
                 setTimeout(fetchLogs, 0);
