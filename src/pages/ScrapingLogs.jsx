@@ -3,10 +3,8 @@ import axios from 'axios';
 
 const ScrapingLogs = () => {
   const [logs, setLogs] = useState([]);
-  const [summaryLogs, setSummaryLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'summary'
 
   // Pagination & Sorting
   const [page, setPage] = useState(1);
@@ -23,38 +21,33 @@ const ScrapingLogs = () => {
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
-      if (viewMode === 'summary') {
-        const res = await axios.get(`https://api.sooq-com.com/api/scraping-logs/summary`);
-        setSummaryLogs(res.data.items);
+      const params = new URLSearchParams({
+        page,
+        limit,
+        sort_by: sortConfig.key,
+        sort_desc: sortConfig.direction === 'desc',
+        t: Date.now()
+      });
+
+      if (filters.group_name) params.append('group_name', filters.group_name);
+      if (filters.min_saved_ads) params.append('min_saved_ads', filters.min_saved_ads);
+      if (filters.min_errors) params.append('min_errors', filters.min_errors);
+
+      const res = await axios.get(`https://api.sooq-com.com/api/scraping-logs?${params.toString()}`);
+      if (res.data.items) {
+        setLogs(res.data.items);
         setTotal(res.data.total);
       } else {
-        const params = new URLSearchParams({
-          page,
-          limit,
-          sort_by: sortConfig.key,
-          sort_desc: sortConfig.direction === 'desc',
-          t: Date.now()
-        });
-
-        if (filters.group_name) params.append('group_name', filters.group_name);
-        if (filters.min_saved_ads) params.append('min_saved_ads', filters.min_saved_ads);
-        if (filters.min_errors) params.append('min_errors', filters.min_errors);
-
-        const res = await axios.get(`https://api.sooq-com.com/api/scraping-logs?${params.toString()}`);
-        if (res.data.items) {
-          setLogs(res.data.items);
-          setTotal(res.data.total);
-        } else {
-          setLogs(res.data);
-          setTotal(res.data.length);
-        }
+        // Fallback if backend isn't updated yet
+        setLogs(res.data);
+        setTotal(res.data.length);
       }
     } catch (err) {
       console.error('Failed to fetch scraping logs', err);
     } finally {
       setLoading(false);
     }
-  }, [page, limit, sortConfig, filters, viewMode]);
+  }, [page, limit, sortConfig, filters]);
 
   useEffect(() => {
     fetchLogs();
@@ -101,94 +94,56 @@ const ScrapingLogs = () => {
     <div className="ads-container">
       <div className="ads-header">
         <h1>سجل سحب فيسبوك</h1>
-        <div style={{display: 'flex', gap: '10px'}}>
-          <button 
-            className="primary-btn" 
-            style={{backgroundColor: viewMode === 'summary' ? '#4b5563' : '#2563eb'}}
-            onClick={() => { setViewMode(viewMode === 'summary' ? 'list' : 'summary'); setPage(1); }}
-          >
-            {viewMode === 'summary' ? 'عرض السجلات المنفصلة' : 'عرض مجاميع المجموعات'}
-          </button>
-          <button className="primary-btn" onClick={fetchLogs}>تحديث السجل</button>
-        </div>
+        <button className="primary-btn" onClick={fetchLogs}>تحديث السجل</button>
       </div>
 
-      {viewMode === 'list' && (
-        <div className="card filter-card" style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.08)' }}>
-          <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1', minWidth: '200px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>ابحث باسم المجموعة أو الصفحة</label>
-              <input type="text" name="group_name" value={filters.group_name} onChange={handleFilterChange} placeholder="مثال: سيارات للبيع..." style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', transition: 'border-color 0.2s' }} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} />
-            </div>
-            <div style={{ flex: '1', minWidth: '150px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>الحد الأدنى للمحفوظة</label>
-              <input type="number" name="min_saved_ads" value={filters.min_saved_ads} onChange={handleFilterChange} placeholder="0" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
-            </div>
-            <div style={{ flex: '1', minWidth: '150px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>الحد الأدنى للأخطاء</label>
-              <input type="number" name="min_errors" value={filters.min_errors} onChange={handleFilterChange} placeholder="0" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
-            </div>
+      <div className="card filter-card" style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.08)' }}>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1', minWidth: '200px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>ابحث باسم المجموعة أو الصفحة</label>
+            <input type="text" name="group_name" value={filters.group_name} onChange={handleFilterChange} placeholder="مثال: سيارات للبيع..." style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', transition: 'border-color 0.2s' }} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} />
+          </div>
+          <div style={{ flex: '1', minWidth: '150px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>الحد الأدنى للمحفوظة</label>
+            <input type="number" name="min_saved_ads" value={filters.min_saved_ads} onChange={handleFilterChange} placeholder="0" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
+          </div>
+          <div style={{ flex: '1', minWidth: '150px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>الحد الأدنى للأخطاء</label>
+            <input type="number" name="min_errors" value={filters.min_errors} onChange={handleFilterChange} placeholder="0" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
+          </div>
+          
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={applyFilters} style={{ background: '#2563eb', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)' }}>تطبيق الفلاتر</button>
+            <button onClick={clearFilters} style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>مسح</button>
             
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={applyFilters} style={{ background: '#2563eb', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)' }}>تطبيق الفلاتر</button>
-              <button onClick={clearFilters} style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>مسح</button>
-              
-              {/* Quick Sort Buttons */}
-              <button 
-                onClick={() => {
-                  setSortConfig({ key: 'saved_ads', direction: 'desc' });
-                  setPage(1);
-                  setTimeout(fetchLogs, 0);
-                }} 
-                style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}
-              >
-                <span>🔥</span> الأعلى حفظاً
-              </button>
-              <button 
-                onClick={() => {
-                  setSortConfig({ key: 'saved_ads', direction: 'asc' });
-                  setPage(1);
-                  setTimeout(fetchLogs, 0);
-                }} 
-                style={{ background: '#ef4444', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)' }}
-              >
-                <span>❄️</span> الأقل حفظاً
-              </button>
-            </div>
+            {/* Quick Sort Buttons */}
+            <button 
+              onClick={() => {
+                setSortConfig({ key: 'saved_ads', direction: 'desc' });
+                setPage(1);
+                setTimeout(fetchLogs, 0);
+              }} 
+              style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}
+            >
+              <span>🔥</span> الأعلى حفظاً
+            </button>
+            <button 
+              onClick={() => {
+                setSortConfig({ key: 'saved_ads', direction: 'asc' });
+                setPage(1);
+                setTimeout(fetchLogs, 0);
+              }} 
+              style={{ background: '#ef4444', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)' }}
+            >
+              <span>❄️</span> الأقل حفظاً
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
       <div className="card table-card" style={{ backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
         {loading ? (
           <div className="loading-state" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>جاري تحميل السجل...</div>
-        ) : viewMode === 'summary' ? (
-          <div className="table-responsive">
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={{ padding: '15px', color: '#475569', fontWeight: '600' }}>اسم المجموعة / الصفحة</th>
-                  <th style={{ padding: '15px', color: '#475569', fontWeight: '600' }}>إجمالي الإعلانات المحفوظة</th>
-                  <th style={{ padding: '15px', color: '#475569', fontWeight: '600' }}>إجمالي الإعلانات المتخطاة</th>
-                  <th style={{ padding: '15px', color: '#475569', fontWeight: '600' }}>إجمالي الأخطاء</th>
-                  <th style={{ padding: '15px', color: '#475569', fontWeight: '600' }}>عدد مرات السحب</th>
-                  <th style={{ padding: '15px', color: '#475569', fontWeight: '600' }}>آخر عملية سحب</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summaryLogs.map((log, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.2s', ':hover': { backgroundColor: '#f8fafc' } }}>
-                    <td style={{ padding: '15px' }}><span style={{ fontWeight: '600', color: '#0f172a' }}>{log.group_name || 'غير معروف'}</span></td>
-                    <td style={{ padding: '15px' }}><span className="badge badge-success" style={{ background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.total_saved}</span></td>
-                    <td style={{ padding: '15px' }}><span className="badge badge-warning" style={{ background: '#fef3c7', color: '#92400e', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.total_skipped}</span></td>
-                    <td style={{ padding: '15px' }}><span className="badge badge-danger" style={{ background: '#fee2e2', color: '#991b1b', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.total_errors}</span></td>
-                    <td style={{ padding: '15px', color: '#64748b', fontWeight: '500' }}>{log.total_runs}</td>
-                    <td dir="ltr" style={{ padding: '15px', color: '#475569', fontSize: '13px' }}>{formatDate(log.last_run)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         ) : logs.length === 0 ? (
           <div className="empty-state" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>لا يوجد سجلات سحب تطابق الفلاتر</div>
         ) : (
