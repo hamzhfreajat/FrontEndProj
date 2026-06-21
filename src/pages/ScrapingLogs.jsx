@@ -121,7 +121,6 @@ const ScrapingLogs = () => {
               onClick={() => {
                 setSortConfig({ key: 'group_name', direction: 'asc' });
                 setPage(1);
-                setTimeout(fetchLogs, 0);
               }} 
               style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(139, 92, 246, 0.2)' }}
             >
@@ -131,7 +130,6 @@ const ScrapingLogs = () => {
               onClick={() => {
                 setSortConfig({ key: 'saved_ads', direction: 'desc' });
                 setPage(1);
-                setTimeout(fetchLogs, 0);
               }} 
               style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}
             >
@@ -141,7 +139,6 @@ const ScrapingLogs = () => {
               onClick={() => {
                 setSortConfig({ key: 'saved_ads', direction: 'asc' });
                 setPage(1);
-                setTimeout(fetchLogs, 0);
               }} 
               style={{ background: '#ef4444', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)' }}
             >
