@@ -1,10 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { 
+  Facebook, 
+  Settings, 
+  Trash2, 
+  Send, 
+  MapPin, 
+  Hash, 
+  MessageSquare, 
+  AlertCircle, 
+  CheckCircle2, 
+  Plus, 
+  Loader2,
+  ChevronDown
+} from 'lucide-react';
 
 const BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com';
 
 const FacebookAutoPost = () => {
   const [rules, setRules] = useState([]);
+  const [availableRegions, setAvailableRegions] = useState([]);
+  
   const [newRegion, setNewRegion] = useState('');
   const [newThreshold, setNewThreshold] = useState(100);
   
@@ -14,19 +30,41 @@ const FacebookAutoPost = () => {
   const [manualText, setManualText] = useState('');
   
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [rulesLoading, setRulesLoading] = useState(true);
+  const [message, setMessage] = useState({ text: '', type: '' });
 
-  const fetchRules = async () => {
+  const fetchData = async () => {
+    setRulesLoading(true);
     try {
-      const res = await axios.get(`${BASE_URL}/api/facebook-rules`);
-      setRules(res.data);
+      const [rulesRes, locRes] = await Promise.all([
+        axios.get(`${BASE_URL}/api/facebook-rules`),
+        axios.get(`${BASE_URL}/api/locations`).catch(() => ({ data: [] }))
+      ]);
+      setRules(rulesRes.data);
+      
+      // Flatten locations
+      const regionsList = [];
+      if (Array.isArray(locRes.data)) {
+        locRes.data.forEach(city => {
+          if (city.name_ar) regionsList.push(city.name_ar);
+          if (city.regions && Array.isArray(city.regions)) {
+            city.regions.forEach(r => {
+              if (r.name_ar) regionsList.push(r.name_ar);
+            });
+          }
+        });
+      }
+      setAvailableRegions([...new Set(regionsList)]);
+      
     } catch (err) {
       console.error(err);
+    } finally {
+      setRulesLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRules();
+    fetchData();
   }, []);
 
   const handleAddRule = async (e) => {
@@ -40,7 +78,10 @@ const FacebookAutoPost = () => {
       });
       setNewRegion('');
       setNewThreshold(100);
-      fetchRules();
+      
+      // Refresh rules silently
+      const res = await axios.get(`${BASE_URL}/api/facebook-rules`);
+      setRules(res.data);
     } catch (err) {
       alert("Error adding rule");
     }
@@ -50,7 +91,8 @@ const FacebookAutoPost = () => {
     if (window.confirm(`هل أنت متأكد من حذف القاعدة لمنطقة ${region_name}؟`)) {
       try {
         await axios.delete(`${BASE_URL}/api/facebook-rules/${region_name}`);
-        fetchRules();
+        const res = await axios.get(`${BASE_URL}/api/facebook-rules`);
+        setRules(res.data);
       } catch (err) {
         alert("Error deleting rule");
       }
@@ -60,12 +102,12 @@ const FacebookAutoPost = () => {
   const handleManualPublish = async (e) => {
     e.preventDefault();
     if (!manualRegion) {
-      alert("يرجى إدخال اسم المنطقة");
+      setMessage({ text: "يرجى إدخال اسم المنطقة", type: "error" });
       return;
     }
     
     setLoading(true);
-    setMessage('');
+    setMessage({ text: '', type: '' });
     
     try {
       const res = await axios.post(`${BASE_URL}/api/facebook/manual-publish`, {
@@ -73,137 +115,231 @@ const FacebookAutoPost = () => {
         count: parseInt(manualCount),
         custom_text: manualText || undefined
       });
-      setMessage(`تم النشر بنجاح! عدد العقارات المرفقة: ${res.data.posted_count}`);
+      setMessage({ text: `تم النشر بنجاح! عدد العقارات المرفقة: ${res.data.posted_count}`, type: "success" });
       setManualText('');
       setManualRegion('');
     } catch (err) {
-      setMessage(`خطأ: ${err.response?.data?.detail || err.message}`);
+      setMessage({ text: `خطأ: ${err.response?.data?.detail || err.message}`, type: "error" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-6 rtl text-right" dir="rtl">
-      <h1 className="text-3xl font-bold mb-8 text-[#0a2342]">نظام النشر التلقائي على فيسبوك 🚀</h1>
+    <div className="p-4 md:p-8 rtl text-right" dir="rtl" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       
-      {/* Section A: Automated Rules */}
-      <div className="bg-white p-6 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.05)] mb-8 border border-gray-100">
-        <h2 className="text-xl font-semibold mb-4 text-[#0a2342]">قواعد النشر التلقائي (حسب المنطقة)</h2>
-        <p className="text-gray-600 mb-6">سيقوم النظام بجمع العقارات التي يتم إضافتها بواسطة البوت، وعندما يصل عددها إلى الرقم المحدد لأي منطقة سيقوم بنشر بوست تلقائياً على فيسبوك.</p>
-        
-        <form onSubmit={handleAddRule} className="flex gap-4 mb-6">
-          <input 
-            type="text" 
-            placeholder="اسم المنطقة (مثال: تلاع العلي)" 
-            className="border border-gray-300 p-2 rounded-lg flex-1 focus:ring-2 focus:ring-[#f0a500] outline-none"
-            value={newRegion}
-            onChange={(e) => setNewRegion(e.target.value)}
-            required
-          />
-          <input 
-            type="number" 
-            placeholder="العدد المطلوب" 
-            className="border border-gray-300 p-2 rounded-lg w-32 focus:ring-2 focus:ring-[#f0a500] outline-none"
-            value={newThreshold}
-            onChange={(e) => setNewThreshold(e.target.value)}
-            required
-          />
-          <button type="submit" className="bg-[#f0a500] text-white px-6 py-2 rounded-lg hover:bg-orange-500 transition shadow">
-            إضافة قاعدة
-          </button>
-        </form>
+      {/* Hidden Datalist for autocomplete */}
+      <datalist id="regions-list">
+        {availableRegions.map((region, idx) => (
+          <option key={idx} value={region} />
+        ))}
+      </datalist>
 
-        <div className="overflow-hidden rounded-lg border border-gray-200">
-          <table className="w-full text-right border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-700 border-b border-gray-200">
-                <th className="p-4">المنطقة</th>
-                <th className="p-4">عدد العقارات المطلوب (Threshold)</th>
-                <th className="p-4">إجراء</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rules.map((rule) => (
-                <tr key={rule.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-[#0a2342]">{rule.region_name}</td>
-                  <td className="p-4 text-gray-600">{rule.threshold} عقار</td>
-                  <td className="p-4">
-                    <button 
-                      onClick={() => handleDeleteRule(rule.region_name)}
-                      className="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded-full text-sm transition"
-                    >
-                      حذف
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {rules.length === 0 && (
-                <tr>
-                  <td colSpan="3" className="text-center p-8 text-gray-500">لا توجد قواعد مضافة حالياً.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* Header Section */}
+      <div className="flex items-center gap-3 mb-8">
+        <div className="bg-blue-600 p-3 rounded-lg shadow-lg shadow-blue-200">
+          <Facebook className="text-white w-8 h-8" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">نظام النشر على فيسبوك</h1>
+          <p className="text-slate-500 mt-1">أتمتة النشر وإدارة الكتالوجات الفورية باحترافية</p>
         </div>
       </div>
-
-      {/* Section B: Manual Trigger */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-lg shadow-sm border border-blue-100 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
-        <h2 className="text-xl font-semibold mb-4 text-[#0a2342] relative z-10">النشر الفوري (نظام القائمة / الكتالوج)</h2>
-        <p className="text-gray-700 mb-6 relative z-10">استخدم هذه الأداة لسحب أحدث عقارات من منطقة معينة ونشرها **فوراً** على صفحة الفيسبوك مع نص مخصص.</p>
+      
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         
-        <form onSubmit={handleManualPublish} className="flex flex-col gap-5 max-w-2xl relative z-10">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm mb-1 text-gray-700 font-medium">المنطقة (مثال: شارع مكة)</label>
-              <input 
-                type="text" 
-                className="border border-gray-300 p-3 rounded-lg w-full focus:ring-2 focus:ring-[#f0a500] outline-none shadow-sm"
-                value={manualRegion}
-                onChange={(e) => setManualRegion(e.target.value)}
-                required
-              />
-            </div>
-            <div className="w-32">
-              <label className="block text-sm mb-1 text-gray-700 font-medium">عدد العقارات</label>
-              <input 
-                type="number" 
-                className="border border-gray-300 p-3 rounded-lg w-full focus:ring-2 focus:ring-[#f0a500] outline-none shadow-sm"
-                value={manualCount}
-                onChange={(e) => setManualCount(e.target.value)}
-                min="1"
-                max="20"
-                required
-              />
-            </div>
+        {/* Section A: Automated Rules */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+            <Settings className="text-slate-400 w-5 h-5" />
+            <h2 className="text-lg font-semibold text-slate-700">قواعد النشر التلقائي</h2>
           </div>
           
-          <div>
-            <label className="block text-sm mb-1 text-gray-700 font-medium">النص الثابت (يظهر في بداية البوست)</label>
-            <textarea 
-              className="border border-gray-300 p-3 rounded-lg w-full h-28 focus:ring-2 focus:ring-[#f0a500] outline-none shadow-sm resize-none"
-              placeholder="مثال: شاهد أقوى العروض الحالية في شارع مكة... (سيتم إرفاق قائمة العقارات وروابطها أسفل هذا النص تلقائياً)"
-              value={manualText}
-              onChange={(e) => setManualText(e.target.value)}
-            />
+          <div className="p-6 flex-1 flex flex-col">
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              سيقوم النظام بجمع العقارات التي يتم إضافتها، وعندما يصل عددها إلى الرقم المحدد لأي منطقة سيتم نشر بوست تلقائياً.
+            </p>
+            
+            <form onSubmit={handleAddRule} className="flex flex-col sm:flex-row gap-3 mb-8">
+              <div className="relative flex-1">
+                <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <input 
+                  type="text" 
+                  list="regions-list"
+                  placeholder="اختر أو اكتب اسم المنطقة..." 
+                  className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                  value={newRegion}
+                  onChange={(e) => setNewRegion(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="relative w-full sm:w-32">
+                <Hash className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <input 
+                  type="number" 
+                  placeholder="العدد" 
+                  className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                  value={newThreshold}
+                  onChange={(e) => setNewThreshold(e.target.value)}
+                  required
+                />
+              </div>
+              <button type="submit" className="flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium">
+                <Plus className="w-4 h-4" /> إضافة
+              </button>
+            </form>
+
+            <div className="flex-1 rounded-xl border border-slate-200 overflow-hidden bg-white">
+              {rulesLoading ? (
+                <div className="flex justify-center items-center h-32">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                </div>
+              ) : (
+                <table className="w-full text-sm text-right">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="py-3 px-4 font-semibold text-slate-600">المنطقة</th>
+                      <th className="py-3 px-4 font-semibold text-slate-600">العدد المطلوب</th>
+                      <th className="py-3 px-4 font-semibold text-slate-600 w-24">إجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {rules.map((rule) => (
+                      <tr key={rule.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-4 text-slate-700 font-medium">{rule.region_name}</td>
+                        <td className="py-3 px-4 text-slate-600">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                            {rule.threshold} عقار
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <button 
+                            type="button"
+                            onClick={() => handleDeleteRule(rule.region_name)}
+                            className="text-slate-400 hover:text-red-500 transition-colors p-1.5 hover:bg-red-50 rounded-md"
+                            title="حذف"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {rules.length === 0 && (
+                      <tr>
+                        <td colSpan="3" className="text-center py-12 text-slate-400 flex flex-col items-center gap-2">
+                          <Settings className="w-8 h-8 opacity-20" />
+                          <span>لا توجد قواعد مضافة حالياً.</span>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Section B: Manual Trigger */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative group">
+          {/* Subtle gradient accent at top */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+          
+          <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+            <Send className="text-blue-500 w-5 h-5" />
+            <h2 className="text-lg font-semibold text-slate-700">النشر الفوري (كتالوج)</h2>
           </div>
           
-          <button 
-            type="submit" 
-            className={`px-8 py-3 rounded-lg text-white font-bold text-lg shadow-md transition transform hover:-translate-y-0.5 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-            disabled={loading}
-          >
-            {loading ? 'جاري النشر...' : 'نشر الآن على فيسبوك! 📤'}
-          </button>
-          
-          {message && (
-            <div className={`p-4 rounded-lg mt-2 font-medium ${message.includes('خطأ') ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-green-100 text-green-800 border border-green-200'}`}>
-              {message}
-            </div>
-          )}
-        </form>
+          <div className="p-6">
+            <p className="text-sm text-slate-500 mb-8 leading-relaxed">
+              اختر منطقة لنشر أحدث عقاراتها فوراً ككتالوج في فيسبوك مع إرفاق صور العقارات.
+            </p>
+            
+            <form onSubmit={handleManualPublish} className="flex flex-col gap-6">
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">المنطقة المُستهدفة</label>
+                  <div className="relative">
+                    <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <input 
+                      type="text" 
+                      list="regions-list"
+                      className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                      placeholder="اختر أو اكتب اسم المنطقة..."
+                      value={manualRegion}
+                      onChange={(e) => setManualRegion(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">العدد الأقصى للعقارات</label>
+                  <div className="relative">
+                    <Hash className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <input 
+                      type="number" 
+                      className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                      value={manualCount}
+                      onChange={(e) => setManualCount(e.target.value)}
+                      min="1"
+                      max="20"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">النص الافتتاحي للبوست (اختياري)</label>
+                <div className="relative">
+                  <MessageSquare className="absolute right-3 top-3 text-slate-400 w-4 h-4" />
+                  <textarea 
+                    className="w-full pl-3 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm h-32 resize-none"
+                    placeholder="اكتب رسالة جذابة... (سيتم إرفاق قائمة العقارات وصورها تلقائياً أسفل هذا النص)"
+                    value={manualText}
+                    onChange={(e) => setManualText(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="pt-2">
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-medium shadow-sm transition-all
+                    ${loading 
+                      ? 'bg-slate-400 cursor-not-allowed' 
+                      : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md hover:-translate-y-0.5'
+                    }`}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" /> جاري النشر...
+                    </>
+                  ) : (
+                    <>
+                      <Facebook className="w-5 h-5" /> نشر الكتالوج الآن
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {message.text && (
+                <div className={`flex items-start gap-3 p-4 rounded-xl mt-2 text-sm font-medium border
+                  ${message.type === 'error' 
+                    ? 'bg-red-50 text-red-700 border-red-100' 
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                  }`}
+                >
+                  {message.type === 'error' ? <AlertCircle className="w-5 h-5 shrink-0" /> : <CheckCircle2 className="w-5 h-5 shrink-0" />}
+                  <p className="pt-0.5">{message.text}</p>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+        
       </div>
     </div>
   );
