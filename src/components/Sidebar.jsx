@@ -15,7 +15,8 @@ import {
   Search,
   Shield,
   MessageSquare,
-  MapPin
+  MapPin,
+  Facebook
 } from 'lucide-react';
 
 const navItems = [
@@ -24,13 +25,14 @@ const navItems = [
   { path: '/ads', name: 'إدارة الإعلانات', icon: FileText },
   { path: '/categories', name: 'الأقسام', icon: Tags },
   { path: '/users', name: 'المستخدمين', icon: Users },
-  { path: '/saved-groups', name: 'ربط الفيسبوك', icon: Globe },
+  { path: '/saved-groups', name: 'رابط فيسبوك', icon: Globe },
   { path: '/send-notification', name: 'إرسال إشعارات', icon: BellRing },
   { path: '/reports', name: 'البلاغات', icon: Flag },
   { path: '/searches', name: 'عمليات البحث', icon: Search },
-  { path: '/scraping-logs', name: 'سجلات السحب', icon: Globe },
+  { path: '/scraping-logs', name: 'سجل السحب', icon: Globe },
   { path: '/change-ads-location', name: 'تغيير موقع الإعلانات', icon: MapPin },
   { path: '/locations-manager', name: 'إدارة المدن والمناطق', icon: MapPin },
+  { path: '/facebook-autopost', name: 'نشر فيسبوك', icon: Facebook },
   { path: '/settings', name: 'الإعدادات', icon: Settings },
 ];
 
