@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { BASE_URL } from '../config';
+
+const BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com';
 
 const FacebookAutoPost = () => {
   const [rules, setRules] = useState([]);
