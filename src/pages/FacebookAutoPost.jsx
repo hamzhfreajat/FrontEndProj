@@ -11,11 +11,10 @@ import {
   AlertCircle, 
   CheckCircle2, 
   Plus, 
-  Loader2,
-  ChevronDown
+  Loader2 
 } from 'lucide-react';
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
 
 const FacebookAutoPost = () => {
   const [rules, setRules] = useState([]);
@@ -37,8 +36,8 @@ const FacebookAutoPost = () => {
     setRulesLoading(true);
     try {
       const [rulesRes, locRes] = await Promise.all([
-        axios.get(`${BASE_URL}/api/facebook-rules`),
-        axios.get(`${BASE_URL}/api/locations`).catch(() => ({ data: [] }))
+        axios.get(`${API_BASE_URL}/facebook-rules`),
+        axios.get(`${API_BASE_URL}/locations`).catch(() => ({ data: [] }))
       ]);
       setRules(rulesRes.data);
       
@@ -57,7 +56,7 @@ const FacebookAutoPost = () => {
       setAvailableRegions([...new Set(regionsList)]);
       
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching data:", err);
     } finally {
       setRulesLoading(false);
     }
@@ -72,15 +71,14 @@ const FacebookAutoPost = () => {
     if (!newRegion) return;
     
     try {
-      await axios.post(`${BASE_URL}/api/facebook-rules`, {
+      await axios.post(`${API_BASE_URL}/facebook-rules`, {
         region_name: newRegion,
         threshold: parseInt(newThreshold)
       });
       setNewRegion('');
       setNewThreshold(100);
       
-      // Refresh rules silently
-      const res = await axios.get(`${BASE_URL}/api/facebook-rules`);
+      const res = await axios.get(`${API_BASE_URL}/facebook-rules`);
       setRules(res.data);
     } catch (err) {
       alert("Error adding rule");
@@ -90,8 +88,8 @@ const FacebookAutoPost = () => {
   const handleDeleteRule = async (region_name) => {
     if (window.confirm(`هل أنت متأكد من حذف القاعدة لمنطقة ${region_name}؟`)) {
       try {
-        await axios.delete(`${BASE_URL}/api/facebook-rules/${region_name}`);
-        const res = await axios.get(`${BASE_URL}/api/facebook-rules`);
+        await axios.delete(`${API_BASE_URL}/facebook-rules/${region_name}`);
+        const res = await axios.get(`${API_BASE_URL}/facebook-rules`);
         setRules(res.data);
       } catch (err) {
         alert("Error deleting rule");
@@ -110,7 +108,7 @@ const FacebookAutoPost = () => {
     setMessage({ text: '', type: '' });
     
     try {
-      const res = await axios.post(`${BASE_URL}/api/facebook/manual-publish`, {
+      const res = await axios.post(`${API_BASE_URL}/facebook/manual-publish`, {
         region_name: manualRegion,
         count: parseInt(manualCount),
         custom_text: manualText || undefined
@@ -125,110 +123,137 @@ const FacebookAutoPost = () => {
     }
   };
 
+  const styles = {
+    container: { padding: '30px', maxWidth: '1400px', margin: '0 auto', direction: 'rtl', fontFamily: "'Cairo', sans-serif" },
+    headerBox: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' },
+    iconBox: { backgroundColor: '#1877F2', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 15px rgba(24, 119, 242, 0.2)' },
+    title: { margin: 0, fontSize: '28px', fontWeight: '800', color: '#1e293b' },
+    subtitle: { margin: '4px 0 0 0', fontSize: '15px', color: '#64748b' },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '30px' },
+    card: { backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+    cardHeader: { padding: '20px 24px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', gap: '10px' },
+    cardTitle: { margin: 0, fontSize: '18px', fontWeight: '700', color: '#334155' },
+    cardBody: { padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' },
+    description: { fontSize: '14px', color: '#64748b', marginBottom: '24px', lineHeight: '1.6' },
+    formRow: { display: 'flex', gap: '15px', marginBottom: '24px', flexWrap: 'wrap' },
+    inputGroup: { position: 'relative', flex: '1 1 auto', minWidth: '200px' },
+    inputLabel: { display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' },
+    input: { width: '100%', padding: '12px 16px 12px 40px', fontSize: '14px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#f8fafc', outline: 'none', transition: 'all 0.2s ease', color: '#334155', fontWeight: '500' },
+    textarea: { width: '100%', padding: '14px 16px 14px 40px', fontSize: '14px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#f8fafc', outline: 'none', transition: 'all 0.2s ease', minHeight: '120px', resize: 'vertical', color: '#334155' },
+    inputIcon: { position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' },
+    textareaIcon: { position: 'absolute', left: '14px', top: '14px', color: '#94a3b8' },
+    buttonPrimary: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: '#1e293b', color: '#ffffff', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 4px 6px rgba(15, 23, 42, 0.1)', height: '46px', minWidth: '120px' },
+    buttonFacebook: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: '#1877F2', color: '#ffffff', border: 'none', padding: '14px 24px', borderRadius: '10px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 6px 12px rgba(24, 119, 242, 0.2)', width: '100%', marginTop: '10px' },
+    tableContainer: { border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' },
+    table: { width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '14px' },
+    th: { padding: '14px 20px', backgroundColor: '#f8fafc', color: '#475569', fontWeight: '700', borderBottom: '1px solid #e2e8f0' },
+    td: { padding: '14px 20px', borderBottom: '1px solid #f1f5f9', color: '#334155', fontWeight: '500' },
+    badge: { display: 'inline-flex', alignItems: 'center', backgroundColor: '#eff6ff', color: '#2563eb', padding: '4px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: '700' },
+    actionBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', border: 'none', backgroundColor: '#fef2f2', color: '#ef4444', cursor: 'pointer', transition: 'all 0.2s ease' },
+    messageAlert: { display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px', borderRadius: '10px', marginTop: '16px', fontWeight: '600', fontSize: '14px' },
+    successAlert: { backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' },
+    errorAlert: { backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }
+  };
+
   return (
-    <div className="p-4 md:p-8 rtl text-right" dir="rtl" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      
-      {/* Hidden Datalist for autocomplete */}
+    <div style={styles.container}>
       <datalist id="regions-list">
         {availableRegions.map((region, idx) => (
           <option key={idx} value={region} />
         ))}
       </datalist>
 
-      {/* Header Section */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="bg-blue-600 p-3 rounded-lg shadow-lg shadow-blue-200">
-          <Facebook className="text-white w-8 h-8" />
+      <div style={styles.headerBox}>
+        <div style={styles.iconBox}>
+          <Facebook size={28} color="white" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">نظام النشر على فيسبوك</h1>
-          <p className="text-slate-500 mt-1">أتمتة النشر وإدارة الكتالوجات الفورية باحترافية</p>
+          <h1 style={styles.title}>نظام النشر على فيسبوك</h1>
+          <p style={styles.subtitle}>أتمتة النشر وإدارة الكتالوجات الفورية باحترافية</p>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+
+      <div style={styles.grid}>
         
-        {/* Section A: Automated Rules */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-            <Settings className="text-slate-400 w-5 h-5" />
-            <h2 className="text-lg font-semibold text-slate-700">قواعد النشر التلقائي</h2>
+        {/* Automated Rules Card */}
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <Settings size={22} color="#64748b" />
+            <h2 style={styles.cardTitle}>قواعد النشر التلقائي</h2>
           </div>
           
-          <div className="p-6 flex-1 flex flex-col">
-            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+          <div style={styles.cardBody}>
+            <p style={styles.description}>
               سيقوم النظام بجمع العقارات التي يتم إضافتها، وعندما يصل عددها إلى الرقم المحدد لأي منطقة سيتم نشر بوست تلقائياً.
             </p>
             
-            <form onSubmit={handleAddRule} className="flex flex-col sm:flex-row gap-3 mb-8">
-              <div className="relative flex-1">
-                <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <form onSubmit={handleAddRule} style={styles.formRow}>
+              <div style={styles.inputGroup}>
+                <MapPin size={18} style={styles.inputIcon} />
                 <input 
                   type="text" 
                   list="regions-list"
                   placeholder="اختر أو اكتب اسم المنطقة..." 
-                  className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                  style={{ ...styles.input, paddingLeft: '40px', paddingRight: '16px' }}
                   value={newRegion}
                   onChange={(e) => setNewRegion(e.target.value)}
                   required
                 />
               </div>
-              <div className="relative w-full sm:w-32">
-                <Hash className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <div style={{ ...styles.inputGroup, flex: '0 1 120px', minWidth: '120px' }}>
+                <Hash size={18} style={styles.inputIcon} />
                 <input 
                   type="number" 
                   placeholder="العدد" 
-                  className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                  style={{ ...styles.input, paddingLeft: '40px', paddingRight: '16px' }}
                   value={newThreshold}
                   onChange={(e) => setNewThreshold(e.target.value)}
                   required
                 />
               </div>
-              <button type="submit" className="flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium">
-                <Plus className="w-4 h-4" /> إضافة
+              <button type="submit" style={styles.buttonPrimary}>
+                <Plus size={18} /> إضافة
               </button>
             </form>
 
-            <div className="flex-1 rounded-xl border border-slate-200 overflow-hidden bg-white">
+            <div style={styles.tableContainer}>
               {rulesLoading ? (
-                <div className="flex justify-center items-center h-32">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+                  <Loader2 size={32} color="#2563eb" className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
                 </div>
               ) : (
-                <table className="w-full text-sm text-right">
-                  <thead className="bg-slate-50 border-b border-slate-200">
+                <table style={styles.table}>
+                  <thead>
                     <tr>
-                      <th className="py-3 px-4 font-semibold text-slate-600">المنطقة</th>
-                      <th className="py-3 px-4 font-semibold text-slate-600">العدد المطلوب</th>
-                      <th className="py-3 px-4 font-semibold text-slate-600 w-24">إجراء</th>
+                      <th style={styles.th}>المنطقة</th>
+                      <th style={styles.th}>العدد المطلوب</th>
+                      <th style={{ ...styles.th, width: '80px', textAlign: 'center' }}>إجراء</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody>
                     {rules.map((rule) => (
-                      <tr key={rule.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 px-4 text-slate-700 font-medium">{rule.region_name}</td>
-                        <td className="py-3 px-4 text-slate-600">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                            {rule.threshold} عقار
-                          </span>
+                      <tr key={rule.id}>
+                        <td style={styles.td}>{rule.region_name}</td>
+                        <td style={styles.td}>
+                          <span style={styles.badge}>{rule.threshold} عقار</span>
                         </td>
-                        <td className="py-3 px-4">
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
                           <button 
                             type="button"
                             onClick={() => handleDeleteRule(rule.region_name)}
-                            className="text-slate-400 hover:text-red-500 transition-colors p-1.5 hover:bg-red-50 rounded-md"
+                            style={styles.actionBtn}
                             title="حذف"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 size={16} />
                           </button>
                         </td>
                       </tr>
                     ))}
                     {rules.length === 0 && (
                       <tr>
-                        <td colSpan="3" className="text-center py-12 text-slate-400 flex flex-col items-center gap-2">
-                          <Settings className="w-8 h-8 opacity-20" />
-                          <span>لا توجد قواعد مضافة حالياً.</span>
+                        <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                          <Settings size={32} style={{ opacity: 0.2, margin: '0 auto 10px auto', display: 'block' }} />
+                          لا توجد قواعد مضافة حالياً.
                         </td>
                       </tr>
                     )}
@@ -239,33 +264,31 @@ const FacebookAutoPost = () => {
           </div>
         </div>
 
-        {/* Section B: Manual Trigger */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative group">
-          {/* Subtle gradient accent at top */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-          
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-            <Send className="text-blue-500 w-5 h-5" />
-            <h2 className="text-lg font-semibold text-slate-700">النشر الفوري (كتالوج)</h2>
+        {/* Manual Trigger Card */}
+        <div style={styles.card}>
+          <div style={{ height: '4px', background: 'linear-gradient(90deg, #1877F2 0%, #8b5cf6 100%)', width: '100%' }}></div>
+          <div style={styles.cardHeader}>
+            <Send size={22} color="#1877F2" />
+            <h2 style={styles.cardTitle}>النشر الفوري (كتالوج)</h2>
           </div>
           
-          <div className="p-6">
-            <p className="text-sm text-slate-500 mb-8 leading-relaxed">
-              اختر منطقة لنشر أحدث عقاراتها فوراً ككتالوج في فيسبوك مع إرفاق صور العقارات.
+          <div style={styles.cardBody}>
+            <p style={styles.description}>
+              اختر منطقة لنشر أحدث عقاراتها فوراً ككتالوج في فيسبوك مع إرفاق صور العقارات بشكل جذاب.
             </p>
             
-            <form onSubmit={handleManualPublish} className="flex flex-col gap-6">
+            <form onSubmit={handleManualPublish} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">المنطقة المُستهدفة</label>
-                  <div className="relative">
-                    <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+                <div>
+                  <label style={styles.inputLabel}>المنطقة المُستهدفة</label>
+                  <div style={{ position: 'relative' }}>
+                    <MapPin size={18} style={styles.inputIcon} />
                     <input 
                       type="text" 
                       list="regions-list"
-                      className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
                       placeholder="اختر أو اكتب اسم المنطقة..."
+                      style={{ ...styles.input, paddingLeft: '40px', paddingRight: '16px' }}
                       value={manualRegion}
                       onChange={(e) => setManualRegion(e.target.value)}
                       required
@@ -273,13 +296,13 @@ const FacebookAutoPost = () => {
                   </div>
                 </div>
                 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">العدد الأقصى للعقارات</label>
-                  <div className="relative">
-                    <Hash className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <div>
+                  <label style={styles.inputLabel}>العدد الأقصى</label>
+                  <div style={{ position: 'relative' }}>
+                    <Hash size={18} style={styles.inputIcon} />
                     <input 
                       type="number" 
-                      className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                      style={{ ...styles.input, paddingLeft: '40px', paddingRight: '16px' }}
                       value={manualCount}
                       onChange={(e) => setManualCount(e.target.value)}
                       min="1"
@@ -290,12 +313,12 @@ const FacebookAutoPost = () => {
                 </div>
               </div>
               
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">النص الافتتاحي للبوست (اختياري)</label>
-                <div className="relative">
-                  <MessageSquare className="absolute right-3 top-3 text-slate-400 w-4 h-4" />
+              <div>
+                <label style={styles.inputLabel}>النص الافتتاحي للبوست (اختياري)</label>
+                <div style={{ position: 'relative' }}>
+                  <MessageSquare size={18} style={styles.textareaIcon} />
                   <textarea 
-                    className="w-full pl-3 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm h-32 resize-none"
+                    style={{ ...styles.textarea, paddingLeft: '40px', paddingRight: '16px' }}
                     placeholder="اكتب رسالة جذابة... (سيتم إرفاق قائمة العقارات وصورها تلقائياً أسفل هذا النص)"
                     value={manualText}
                     onChange={(e) => setManualText(e.target.value)}
@@ -303,37 +326,22 @@ const FacebookAutoPost = () => {
                 </div>
               </div>
               
-              <div className="pt-2">
-                <button 
-                  type="submit" 
-                  disabled={loading}
-                  className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-medium shadow-sm transition-all
-                    ${loading 
-                      ? 'bg-slate-400 cursor-not-allowed' 
-                      : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md hover:-translate-y-0.5'
-                    }`}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" /> جاري النشر...
-                    </>
-                  ) : (
-                    <>
-                      <Facebook className="w-5 h-5" /> نشر الكتالوج الآن
-                    </>
-                  )}
-                </button>
-              </div>
+              <button 
+                type="submit" 
+                disabled={loading}
+                style={{ ...styles.buttonFacebook, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+              >
+                {loading ? (
+                  <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري النشر...</>
+                ) : (
+                  <><Facebook size={20} /> نشر الكتالوج الآن</>
+                )}
+              </button>
               
               {message.text && (
-                <div className={`flex items-start gap-3 p-4 rounded-xl mt-2 text-sm font-medium border
-                  ${message.type === 'error' 
-                    ? 'bg-red-50 text-red-700 border-red-100' 
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                  }`}
-                >
-                  {message.type === 'error' ? <AlertCircle className="w-5 h-5 shrink-0" /> : <CheckCircle2 className="w-5 h-5 shrink-0" />}
-                  <p className="pt-0.5">{message.text}</p>
+                <div style={{ ...styles.messageAlert, ...(message.type === 'error' ? styles.errorAlert : styles.successAlert) }}>
+                  {message.type === 'error' ? <AlertCircle size={20} style={{ flexShrink: 0 }} /> : <CheckCircle2 size={20} style={{ flexShrink: 0 }} />}
+                  <span>{message.text}</span>
                 </div>
               )}
             </form>
@@ -341,6 +349,14 @@ const FacebookAutoPost = () => {
         </div>
         
       </div>
+      
+      {/* Required for simple rotation animation since we don't have Tailwind classes */}
+      <style>
+        {`
+          @keyframes spin { 100% { transform: rotate(360deg); } }
+          .animate-spin { animation: spin 1s linear infinite; }
+        `}
+      </style>
     </div>
   );
 };
