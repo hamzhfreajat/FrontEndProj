@@ -76,10 +76,10 @@ const SearchLogs = () => {
         <div>
           <h1 style={{ fontSize: '24px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Search size={24} color="var(--primary-color)" />
-            ?????? ?????? ?????
+            مراقبة محركات البحث
           </h1>
           <p style={{ color: 'var(--text-gray)', margin: '4px 0 0 0', fontSize: '14px' }}>
-            ???? ???? ?????????? ???????? ?????? ????? ?????? ????? ??????
+            تتبع سلوك المستخدمين والكلمات الأكثر بحثاً لتحسين تجربة المنصة
           </p>
         </div>
         
@@ -94,11 +94,11 @@ const SearchLogs = () => {
             onClick={() => setFilterZero(!filterZero)}
           >
             <Filter size={18} />
-            {filterZero ? '??? ????' : '??? ????? ???'}
+            {filterZero ? 'عرض الكل' : 'صفر نتائج فقط'}
           </button>
           <button className="btn btn-primary" onClick={fetchLogs} disabled={loading}>
             <RefreshCw size={18} className={loading ? 'spin' : ''} />
-            ?????
+            تحديث
           </button>
         </div>
       </div>
@@ -111,7 +111,7 @@ const SearchLogs = () => {
             <Activity size={24} />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-gray)', fontWeight: 'bold' }}>?????? ???????? ????????</p>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-gray)', fontWeight: 'bold' }}>إجمالي العمليات المراقبة</p>
             <h3 style={{ margin: '4px 0 0 0', fontSize: '24px' }}>{stats.total}</h3>
           </div>
         </div>
@@ -121,7 +121,7 @@ const SearchLogs = () => {
             <AlertCircle size={24} />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-gray)', fontWeight: 'bold' }}>?????? ???? ?????</p>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-gray)', fontWeight: 'bold' }}>عمليات بصفر نتائج</p>
             <h3 style={{ margin: '4px 0 0 0', fontSize: '24px' }}>{stats.zero}</h3>
           </div>
         </div>
@@ -131,7 +131,7 @@ const SearchLogs = () => {
             <TrendingUp size={24} />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-gray)', fontWeight: 'bold' }}>???? ?????? (????? ?????)</p>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-gray)', fontWeight: 'bold' }}>نسبة النجاح (إيجاد نتائج)</p>
             <h3 style={{ margin: '4px 0 0 0', fontSize: '24px' }}>{stats.rate}%</h3>
           </div>
         </div>
@@ -141,7 +141,7 @@ const SearchLogs = () => {
             <Search size={24} />
           </div>
           <div style={{ overflow: 'hidden' }}>
-            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-gray)', fontWeight: 'bold' }}>?????? ?????? ?????</p>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-gray)', fontWeight: 'bold' }}>الكلمة الأكثر بحثاً</p>
             <h3 style={{ margin: '4px 0 0 0', fontSize: '20px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
               {stats.popular}
             </h3>
@@ -155,13 +155,13 @@ const SearchLogs = () => {
         
         {/* Table Toolbar */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FAFAFA' }}>
-          <h2 style={{ fontSize: '16px', margin: 0 }}>??? ????? ????????</h2>
+          <h2 style={{ fontSize: '16px', margin: 0 }}>سجل البحث التفصيلي</h2>
           <div style={{ position: 'relative', width: '300px' }}>
             <Search size={16} color="var(--text-gray)" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text" 
               className="form-control" 
-              placeholder="???? ?? ????? (???? ?? ??????)..." 
+              placeholder="ابحث في السجل (كلمة أو مستخدم)..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ paddingRight: '36px', height: '40px' }}
@@ -173,23 +173,23 @@ const SearchLogs = () => {
         {loading ? (
           <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-gray)' }}>
             <RefreshCw size={32} className="spin" style={{ marginBottom: '16px' }} />
-            <p>???? ????? ????????...</p>
+            <p>جاري تحميل البيانات...</p>
           </div>
         ) : filteredLogs.length === 0 ? (
           <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-gray)' }}>
             <AlertCircle size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
-            <p>?? ???? ?????? ?????? ?????</p>
+            <p>لا توجد بيانات مطابقة للبحث</p>
           </div>
         ) : (
           <div className="table-responsive">
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
               <thead>
                 <tr style={{ background: '#F3F4F6', color: 'var(--text-gray)', fontSize: '13px' }}>
-                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>???</th>
-                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>?? ?????</th>
-                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>????????</th>
-                  <th style={{ padding: '12px 20px', fontWeight: 'bold', textAlign: 'center' }}>???????</th>
-                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>?????</th>
+                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>رقم</th>
+                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>نص البحث</th>
+                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>المستخدم</th>
+                  <th style={{ padding: '12px 20px', fontWeight: 'bold', textAlign: 'center' }}>النتائج</th>
+                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>الوقت</th>
                 </tr>
               </thead>
               <tbody>
@@ -213,7 +213,7 @@ const SearchLogs = () => {
                             {log.user.name ? log.user.name.charAt(0).toUpperCase() : 'U'}
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-dark)' }}>{log.user.name || '??????'}</span>
+                            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-dark)' }}>{log.user.name || 'مستخدم'}</span>
                             <span style={{ fontSize: '11px', color: 'var(--text-gray)' }}>{log.user.email}</span>
                           </div>
                         </div>
@@ -222,7 +222,7 @@ const SearchLogs = () => {
                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#F3F4F6', color: '#9CA3AF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <User size={14} />
                           </div>
-                          <span style={{ fontSize: '13px', color: 'var(--text-gray)' }}>???? (Guest)</span>
+                          <span style={{ fontSize: '13px', color: 'var(--text-gray)' }}>زائر (Guest)</span>
                         </div>
                       )}
                     </td>
@@ -238,7 +238,7 @@ const SearchLogs = () => {
                           color: log.results_count === 0 ? 'var(--danger-color)' : 'var(--success-color)'
                         }}
                       >
-                        {log.results_count} ?????
+                        {log.results_count} إعلان
                       </span>
                     </td>
 
