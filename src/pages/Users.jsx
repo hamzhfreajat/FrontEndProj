@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Ban, UserX, MessageSquare, Image as ImageIcon, X, CheckCircle, XCircle } from 'lucide-react';
 import './Users.css';
 
-const API_BASE_URL = 'http://localhost:8000/api/admin/users';
+const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/admin/users`;
 
 const Users = () => {
     const [users, setUsers] = useState([]);
