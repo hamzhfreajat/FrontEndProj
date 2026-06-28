@@ -256,7 +256,7 @@ const SearchLogs = () => {
         )}
       </div>
 
-      <style jsx>{
+      <style>{`
         .table-row-hover:hover {
           background-color: var(--secondary-color) !important;
         }
@@ -281,7 +281,7 @@ const SearchLogs = () => {
             font-size: 12px !important;
           }
         }
-      }</style>
+      `}</style>
     </div>
   );
 };
