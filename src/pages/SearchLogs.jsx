@@ -4,15 +4,20 @@ import axios from 'axios';
 const SearchLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterZero, setFilterZero] = useState(false);
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [filterZero]);
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('https://api.sooq-com.com/api/admin/search_logs');
+      let url = 'https://api.sooq-com.com/api/admin/search_logs?limit=200';
+      if (filterZero) {
+        url += '&results_count=0';
+      }
+      const res = await axios.get(url);
       setLogs(res.data);
     } catch (err) {
       console.error('Failed to fetch search logs', err);
@@ -29,8 +34,14 @@ const SearchLogs = () => {
 
   return (
     <div className="ads-container">
-      <div className="ads-header">
-        <button className="primary-btn" onClick={fetchLogs}>تحديث السجل</button>
+      <div className="ads-header" style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '20px' }}>
+        <button className="btn btn-primary" onClick={fetchLogs}>تحديث السجل</button>
+        <button 
+          className={`btn ${filterZero ? 'btn-danger' : 'btn-outline'}`}
+          onClick={() => setFilterZero(!filterZero)}
+        >
+          {filterZero ? 'إظهار جميع عمليات البحث' : 'عرض عمليات البحث بصفر نتائج'}
+        </button>
       </div>
 
       <div className="card table-card">
@@ -45,6 +56,7 @@ const SearchLogs = () => {
                 <tr>
                   <th>رقم</th>
                   <th>نص البحث</th>
+                  <th>عدد النتائج</th>
                   <th>التاريخ والوقت</th>
                 </tr>
               </thead>
@@ -53,6 +65,11 @@ const SearchLogs = () => {
                   <tr key={log.id}>
                     <td>#{log.id}</td>
                     <td><span style={{ fontWeight: 'bold' }}>{log.query_text}</span></td>
+                    <td>
+                      <span className={`badge ${log.results_count === 0 ? 'badge-danger' : 'badge-success'}`}>
+                        {log.results_count !== undefined ? log.results_count : '-'}
+                      </span>
+                    </td>
                     <td dir="ltr">{formatDate(log.created_at)}</td>
                   </tr>
                 ))}
