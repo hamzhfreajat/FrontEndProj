@@ -7,6 +7,7 @@ const SearchLogs = () => {
   const [loading, setLoading] = useState(true);
   const [filterZero, setFilterZero] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
   useEffect(() => {
     fetchLogs();
@@ -34,6 +35,14 @@ const SearchLogs = () => {
     return date.toLocaleDateString('ar-JO') + ' ' + date.toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   // Derived stats
   const stats = useMemo(() => {
     if (!logs.length) return { total: 0, zero: 0, popular: '-', rate: 0 };
@@ -59,14 +68,31 @@ const SearchLogs = () => {
     };
   }, [logs]);
 
-  // Client-side search filter
-  const filteredLogs = useMemo(() => {
-    if (!searchTerm) return logs;
-    return logs.filter(l => 
-      l.query_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (l.user && l.user.name && l.user.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [logs, searchTerm]);
+  // Client-side search and sort filter
+  const filteredAndSortedLogs = useMemo(() => {
+    let result = [...logs];
+
+    // Filter
+    if (searchTerm) {
+      result = result.filter(l => 
+        l.query_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.user && l.user.name && l.user.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      if (a[sortConfig.key] < b[sortConfig.key]) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (a[sortConfig.key] > b[sortConfig.key]) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [logs, searchTerm, sortConfig]);
 
   return (
     <div className="search-logs-page animate-fade-in" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
@@ -175,7 +201,7 @@ const SearchLogs = () => {
             <RefreshCw size={32} className="spin" style={{ marginBottom: '16px' }} />
             <p>جاري تحميل البيانات...</p>
           </div>
-        ) : filteredLogs.length === 0 ? (
+        ) : filteredAndSortedLogs.length === 0 ? (
           <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-gray)' }}>
             <AlertCircle size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
             <p>لا توجد بيانات مطابقة للبحث</p>
@@ -185,15 +211,23 @@ const SearchLogs = () => {
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
               <thead>
                 <tr style={{ background: '#F3F4F6', color: 'var(--text-gray)', fontSize: '13px' }}>
-                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>رقم</th>
-                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>نص البحث</th>
+                  <th onClick={() => handleSort('id')} style={{ padding: '12px 20px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    رقم {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th onClick={() => handleSort('query_text')} style={{ padding: '12px 20px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    نص البحث {sortConfig.key === 'query_text' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  </th>
                   <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>المستخدم</th>
-                  <th style={{ padding: '12px 20px', fontWeight: 'bold', textAlign: 'center' }}>النتائج</th>
-                  <th style={{ padding: '12px 20px', fontWeight: 'bold' }}>الوقت</th>
+                  <th onClick={() => handleSort('results_count')} style={{ padding: '12px 20px', fontWeight: 'bold', textAlign: 'center', cursor: 'pointer' }}>
+                    النتائج {sortConfig.key === 'results_count' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th onClick={() => handleSort('created_at')} style={{ padding: '12px 20px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    الوقت {sortConfig.key === 'created_at' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredLogs.map((log) => (
+                {filteredAndSortedLogs.map((log) => (
                   <tr key={log.id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} className="table-row-hover">
                     <td style={{ padding: '12px 20px', color: 'var(--text-gray)', fontSize: '13px' }}>#{log.id}</td>
                     
