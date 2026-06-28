@@ -168,9 +168,7 @@ const FacebookAutoPost = () => {
           <Facebook size={28} color="white" />
         </div>
         <div>
-          <h1 style={styles.title}>نظام النشر على فيسبوك</h1>
-          <p style={styles.subtitle}>أتمتة النشر وإدارة الكتالوجات الفورية باحترافية</p>
-        </div>
+          </div>
       </div>
 
       <div style={styles.grid}>

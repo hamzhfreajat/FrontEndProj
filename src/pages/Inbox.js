@@ -217,10 +217,7 @@ export default function Inbox() {
 
   return (
     <div className={`inbox-container animate-fade-in ${selectedThread ? 'chat-active' : ''}`}>
-      <div className="inbox-header">
-        <h1>البريد الوارد (خدمة العملاء)</h1>
-        <p>إدارة محادثات الدعم الفني واستفسارات المستخدمين</p>
-      </div>
+      
 
       <div className="inbox-card glass-panel">
         {/* LEFT PANE - THREADS */}

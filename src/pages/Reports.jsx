@@ -30,7 +30,6 @@ const Reports = () => {
   return (
     <div className="ads-container">
       <div className="ads-header">
-        <h1>بلاغات الإعلانات</h1>
         <button className="primary-btn" onClick={fetchReports}>تحديث البلاغات</button>
       </div>
 

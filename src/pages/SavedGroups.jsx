@@ -86,9 +86,7 @@ export default function SavedGroups() {
         <div className="page-container">
             <div className="page-header">
                 <div>
-                    <h1 className="page-title">صفحات ومجموعات السحب</h1>
-                    <p className="page-subtitle">إدارة روابط مجموعات فيسبوك التي يتم سحب إعلاناتها تلقائياً</p>
-                </div>
+                    </div>
                 <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
                     <Plus size={20} />
                     إضافة رابط جديد

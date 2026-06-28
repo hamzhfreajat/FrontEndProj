@@ -368,8 +368,6 @@ const Ads = () => {
     <div className="ads-container">
       <div className="page-header d-flex justify-content-between align-items-center">
         <div>
-          <h1>إدارة الإعلانات</h1>
-          <p>مراجعة، موافقة، أو حذف الإعلانات المنشورة</p>
           <div className="badge" style={{ marginTop: '10px', background: 'var(--primary-light)', color: 'var(--primary-color)', fontSize: '0.9rem', display: 'inline-block', padding: '6px 12px' }}>
             إجمالي الإعلانات: <strong>{totalCount}</strong>
           </div>

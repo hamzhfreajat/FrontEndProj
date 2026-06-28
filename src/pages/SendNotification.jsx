@@ -74,10 +74,7 @@ const SendNotification = () => {
 
     return (
         <div className="send-notification-page">
-            <div className="page-header">
-                <h1 className="page-title">إرسال إشعارات</h1>
-                <p className="page-subtitle">أرسل إشعارات مخصصة للمستخدمين أو إشعار عام للجميع</p>
-            </div>
+            
 
             <div className="card form-card">
                 {status && (

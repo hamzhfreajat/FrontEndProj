@@ -501,6 +501,8 @@
 @media (max-width: 992px) {
   .inbox-container {
     height: calc(100vh - 80px);
+    margin: -16px; /* Offset the 16px padding from .page-content */
+    width: calc(100% + 32px);
   }
   
   .inbox-header {
@@ -512,8 +514,8 @@
     border-radius: 0;
     border: none;
     box-shadow: none;
-    margin: -16px; /* Reset standard container padding if any */
-    height: 100vh;
+    margin: 0; /* Reset */
+    height: 100%;
   }
   
   /* Threads pane takes full width when visible */

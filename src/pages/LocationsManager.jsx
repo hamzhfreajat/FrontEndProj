@@ -43,11 +43,6 @@ const LocationsManager = () => {
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-          <Map size={28} color="#2563eb" />
-          إدارة المدن والمناطق
-        </h1>
-        
         <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
           <Search size={20} color="#6b7280" style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)' }} />
           <input 

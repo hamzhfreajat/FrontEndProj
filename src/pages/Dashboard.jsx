@@ -282,10 +282,7 @@ const Dashboard = () => {
 
     return (
         <div className="dashboard-container">
-            <div className="page-header">
-                <h1>لوحة القيادة ونشاط المستخدمين</h1>
-                <p>تتبع حي لسلوك المستخدمين والفلاتر النشطة</p>
-            </div>
+            
 
             <div className="dashboard-content" style={{ display: 'block' }}>
 

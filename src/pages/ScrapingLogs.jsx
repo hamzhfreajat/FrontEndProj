@@ -93,7 +93,6 @@ const ScrapingLogs = () => {
   return (
     <div className="ads-container">
       <div className="ads-header">
-        <h1>سجل سحب فيسبوك</h1>
         <button className="primary-btn" onClick={fetchLogs}>تحديث السجل</button>
       </div>
 

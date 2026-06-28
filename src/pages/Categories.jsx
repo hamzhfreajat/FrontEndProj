@@ -471,9 +471,7 @@ export default function Categories() {
 
             <div className="page-header justify-content-between align-items-center">
                 <div>
-                    <h1 className="page-title">إدارة الأقسام والتصنيفات</h1>
-                    <p className="page-subtitle">اسحب الأقسام لإعادة ترتيبها أو نقلها بين الفئات</p>
-                </div>
+                    </div>
                 <button className="btn btn-primary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} onClick={() => openAddModal(null)}>
                     <Plus size={18} /> إضافة قسم رئيسي
                 </button>

@@ -153,9 +153,7 @@ const Users = () => {
         <div className="users-page">
             <div className="users-header">
                 <div>
-                    <h1>إدارة المستخدمين</h1>
-                    <p>إدارة الحسابات، الإعلانات، ومحادثات الدعم الفني</p>
-                </div>
+                    </div>
             </div>
 
             <div className="users-actions">
