@@ -32,44 +32,13 @@ export const DashboardLayout = () => {
         <div className="layout-wrapper">
             <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
             <main className="main-content">
-                <div className="top-bar glass-panel">
-                    <button 
-                        className="mobile-menu-toggle"
-                        onClick={() => setIsMobileMenuOpen(true)}
-                    >
-                        <Menu size={24} />
-                    </button>
-                    <div className="search-container">
-                        <input
-                            type="text"
-                            placeholder="ابحث في الإعلانات، الأقسام، المستخدمين..."
-                            className="search-input"
-                        />
-                    </div>
-                    <div className="user-profile-wrapper">
-                        <div className="user-profile" onClick={toggleDropdown}>
-                            <div className="avatar">{initial}</div>
-                            <div className="user-info">
-                                <span className="user-name">{username}</span>
-                                <span className="user-role">Admin</span>
-                            </div>
-                        </div>
-                        
-                        {isDropdownOpen && (
-                            <div className="profile-dropdown">
-                                <button 
-                                    onClick={() => {
-                                        localStorage.removeItem('adminToken');
-                                        window.location.href = '/login';
-                                    }}
-                                    className="dropdown-item logout-btn"
-                                >
-                                    تسجيل خروج
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                {/* Mobile Menu Toggle - Floating on small screens */}
+                <button 
+                    className="mobile-menu-toggle-floating"
+                    onClick={() => setIsMobileMenuOpen(true)}
+                >
+                    <Menu size={24} />
+                </button>
 
                 <div className="page-content animate-fade-in">
                     <Outlet />
@@ -89,73 +58,23 @@ export const DashboardLayout = () => {
           flex-direction: column;
         }
 
-        .top-bar {
-          height: 80px;
-          padding: 0 32px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          position: sticky;
-          top: 0;
-          z-index: 90;
-          border-bottom: 1px solid var(--border-color);
-          gap: 16px;
-        }
-
-        .mobile-menu-toggle {
+        .mobile-menu-toggle-floating {
           display: none;
-          background: transparent;
-          border: none;
+          position: fixed;
+          top: 12px;
+          right: 16px;
+          z-index: 100;
+          background: #ffffff;
+          border: 1px solid var(--border-color);
           color: var(--text-dark);
           cursor: pointer;
           padding: 8px;
           border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
-        .mobile-menu-toggle:hover {
+        .mobile-menu-toggle-floating:hover {
           background: var(--secondary-color);
-        }
-
-        .search-container {
-          flex: 1;
-          max-width: 480px;
-        }
-
-        .search-input {
-          width: 100%;
-          padding: 12px 20px;
-          border-radius: 30px;
-          border: 1px solid var(--border-color);
-          background-color: var(--secondary-color);
-          font-size: 0.95rem;
-          transition: var(--transition);
-        }
-
-        .search-input:focus {
-          outline: none;
-          background-color: var(--white);
-          border-color: var(--primary-color);
-          box-shadow: 0 0 0 4px var(--primary-light);
-        }
-
-        .user-profile {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          cursor: pointer;
-        }
-
-        .avatar {
-          width: 44px;
-          height: 44px;
-          border-radius: var(--radius-round);
-          background-color: var(--primary-light);
-          color: var(--primary-color);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          font-size: 1.2rem;
         }
 
         .user-info {
@@ -214,7 +133,7 @@ export const DashboardLayout = () => {
         }
 
         .page-content {
-          padding: 32px;
+          padding: 20px;
           flex: 1;
         }
 
@@ -222,17 +141,11 @@ export const DashboardLayout = () => {
           .main-content {
             margin-right: 0;
           }
-          .mobile-menu-toggle {
+          .mobile-menu-toggle-floating {
             display: flex;
           }
-          .top-bar {
-            padding: 0 16px;
-          }
           .page-content {
-            padding: 16px;
-          }
-          .user-info {
-            display: none;
+            padding: 12px;
           }
         }
       `}</style>

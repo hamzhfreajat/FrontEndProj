@@ -82,7 +82,7 @@ a:hover {
   background-color: var(--white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  padding: 24px;
+  padding: 16px;
   border: 1px solid var(--border-color);
   transition: var(--transition);
 }
@@ -97,10 +97,10 @@ a:hover {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
+  padding: 8px 16px;
   border-radius: var(--radius-lg);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   cursor: pointer;
   border: none;
   transition: var(--transition);
@@ -154,11 +154,11 @@ a:hover {
 
 .form-control {
   width: 100%;
-  padding: 14px 16px;
+  padding: 10px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background-color: var(--secondary-color);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-family: inherit;
   transition: var(--transition);
   color: var(--text-dark);
