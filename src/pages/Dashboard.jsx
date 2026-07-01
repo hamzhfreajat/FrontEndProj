@@ -71,16 +71,16 @@ const Dashboard = () => {
 
         // Add Ad flow nodes
         const addAdNodes = {
-            "add_ad_wizard": "إضافة إعلان: التصنيف",
-            "add_ad_subcategories": "إضافة إعلان: القسم الفرعي",
-            "add_ad_city": "إضافة إعلان: المدينة",
-            "add_ad_region": "إضافة إعلان: المنطقة",
-            "add_ad_map": "إضافة إعلان: الخريطة",
-            "add_ad_basic_info": "إضافة إعلان: المعلومات الأساسية",
-            "add_ad_details": "إضافة إعلان: التفاصيل",
-            "add_ad_images": "إضافة إعلان: الصور",
-            "add_ad_reels": "إضافة إعلان: الفيديو",
-            "add_ad_preview": "إضافة إعلان: المعاينة"
+            "add_ad_wizard": "التصنيف",
+            "add_ad_subcategories": "القسم الفرعي",
+            "add_ad_city": "المدينة",
+            "add_ad_region": "المنطقة",
+            "add_ad_map": "الخريطة",
+            "add_ad_basic_info": "معلومات أساسية",
+            "add_ad_details": "التفاصيل",
+            "add_ad_images": "الصور",
+            "add_ad_reels": "الفيديو",
+            "add_ad_preview": "المعاينة"
         };
         
         Object.entries(addAdNodes).forEach(([key, title]) => {
@@ -452,7 +452,7 @@ const Dashboard = () => {
         }
         
         /* Force ApexSankey Tooltip to correctly render Arabic text Right-to-Left */
-        :global(.apexcharts-tooltip), :global(.sankey-tooltip), :global(.apexcharts-theme-light) {
+        :global(.apexcharts-tooltip), :global(.sankey-tooltip) {
             direction: rtl !important;
             text-align: right !important;
         }
