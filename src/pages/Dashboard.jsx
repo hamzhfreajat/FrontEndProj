@@ -83,6 +83,7 @@ const Dashboard = () => {
         nodesMap.set("my_ads", "My Ads");
         nodesMap.set("my_account", "My Account");
         nodesMap.set("ad_details", "Ads details");
+        nodesMap.set("categories_tab", "الأقسام (Tab)");
 
         // Add Ad flow nodes
         const addAdNodes = {
@@ -124,9 +125,11 @@ const Dashboard = () => {
         addEdge("login", "home");
         addEdge("login", "my_ads");
         addEdge("login", "my_account");
+        addEdge("login", "categories_tab", "Login", "Categories");
         addEdge("home", "search");
         addEdge("home", "my_ads");
         addEdge("home", "my_account");
+        addEdge("home", "categories_tab", "Home", "Categories");
 
         // Connect to Add Ad flow
         addEdge("home", "add_ad_images");
@@ -196,6 +199,10 @@ const Dashboard = () => {
                 
                 addEdge(parentCat.id.toString(), child.id.toString(), parentCat.name, child.name);
                 
+                // Track direct jumps from Categories tab or Search to any subcategory!
+                addEdge("categories_tab", child.id.toString(), "Categories", child.name);
+                addEdge("search", child.id.toString(), "Search", child.name);
+                
                 // Recurse to find further descendents (great-grandchildren, etc.)
                 processCategoryLevel(child, childSuffix);
             });
@@ -206,8 +213,10 @@ const Dashboard = () => {
             
             // Connect Home to Real Estate Roots
             addEdge("home", rootCat.id.toString(), null, rootCat.name);
-            // Connect Search to Real Estate Roots (sometimes users search and land on a category)
+            // Connect Search to Real Estate Roots
             addEdge("search", rootCat.id.toString(), "Search", rootCat.name);
+            // Connect Categories Tab to Real Estate Roots
+            addEdge("categories_tab", rootCat.id.toString(), "Categories", rootCat.name);
 
             // Determine root suffix
             const rootSuffix = rootCat.id === 2 ? ' (للبيع)' : rootCat.id === 3 ? ' (للايجار)' : '';
