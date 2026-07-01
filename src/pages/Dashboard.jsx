@@ -173,9 +173,13 @@ const Dashboard = () => {
             }
         }
         
-        // Connect the end of the trip to home or my_ads
-        addEdge("add_ad_preview", "home");
-        addEdge("add_ad_preview", "my_ads");
+        // Connect the end of the trip to a terminal node to avoid cycles (Sankey charts crash on cycles)
+        nodesMap.set("ad_published_return", "عودة بعد إضافة الإعلان");
+        
+        let previewReturnVal = getFlowValue("add_ad_preview", "home") + getFlowValue("add_ad_preview", "my_ads");
+        if (previewReturnVal > 0) {
+            edges.push({ source: "add_ad_preview", target: "ad_published_return", value: previewReturnVal });
+        }
 
         // Flatten categories from API
         const allCategories = [];
