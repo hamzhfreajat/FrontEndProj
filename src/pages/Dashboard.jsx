@@ -451,6 +451,12 @@ const Dashboard = () => {
           margin-bottom: 32px;
         }
         
+        /* Force ApexSankey Tooltip to correctly render Arabic text Right-to-Left */
+        :global(.apexcharts-tooltip), :global(.sankey-tooltip), :global(.apexcharts-theme-light) {
+            direction: rtl !important;
+            text-align: right !important;
+        }
+        
         .location-stats-list {
           margin-top: 16px;
           display: grid;
