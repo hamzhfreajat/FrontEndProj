@@ -437,19 +437,15 @@ const Dashboard = () => {
     const treemapOptions = {
         chart: {
             type: 'treemap',
-            toolbar: { show: false },
+            toolbar: { show: true },
             fontFamily: 'inherit'
         },
         legend: {
-            show: false
+            show: true,
+            position: 'top'
         },
         title: {
-            align: 'center',
-            style: {
-                fontSize: '18px',
-                fontWeight: 'bold',
-                color: '#1E293B'
-            }
+            text: ''
         },
         dataLabels: {
             enabled: true,
@@ -466,7 +462,8 @@ const Dashboard = () => {
                 shadeIntensity: 0.5,
                 distributed: false, // Ensures each series gets a different color
             }
-        }
+        },
+        colors: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899']
     };
 
     return (
@@ -584,22 +581,11 @@ const Dashboard = () => {
 
                     <div className="card tracking-card mt-4 mb-4" style={{ marginBottom: '24px' }}>
                         <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1E293B', marginBottom: '16px', textAlign: 'right' }}>توزيع إعلانات فئات العقارات</h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }} dir="ltr">
+                        <div style={{ display: 'block', width: '100%' }} dir="ltr">
                             {treemapSeries.length > 0 ? (
-                                treemapSeries.map((series, idx) => {
-                                    const options = {
-                                        ...treemapOptions,
-                                        title: {
-                                            ...treemapOptions.title,
-                                            text: series.name
-                                        }
-                                    };
-                                    return (
-                                        <div key={idx} style={{ flex: '1 1 300px', minWidth: '300px', height: 350 }}>
-                                            <ReactApexChart options={options} series={[series]} type="treemap" height={350} />
-                                        </div>
-                                    );
-                                })
+                                <div style={{ width: '100%', minHeight: '500px' }}>
+                                    <ReactApexChart options={treemapOptions} series={treemapSeries} type="treemap" height={550} />
+                                </div>
                             ) : (
                                 <div className="empty-state" style={{ minHeight: '60px', width: '100%' }}>لا توجد بيانات فئات متاحة حالياً...</div>
                             )}
