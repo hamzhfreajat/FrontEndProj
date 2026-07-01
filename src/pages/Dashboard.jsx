@@ -133,7 +133,8 @@ const Dashboard = () => {
         addEdge("my_account", "add_ad_images");
         addEdge("my_ads", "add_ad_images");
 
-        // Connect Add Ad internal steps sequentially as one trip
+        // Connect Add Ad internal steps dynamically based on actual flow
+        // Users might skip steps (like the map), so we allow any forward jump
         const addAdTrip = [
             "add_ad_images",
             "add_ad_reels",
@@ -147,8 +148,10 @@ const Dashboard = () => {
             "add_ad_preview"
         ];
         
-        for (let i = 0; i < addAdTrip.length - 1; i++) {
-            addEdge(addAdTrip[i], addAdTrip[i+1]);
+        for (let i = 0; i < addAdTrip.length; i++) {
+            for (let j = i + 1; j < addAdTrip.length; j++) {
+                addEdge(addAdTrip[i], addAdTrip[j]);
+            }
         }
         
         // Connect the end of the trip to home or my_ads
@@ -238,10 +241,11 @@ const Dashboard = () => {
                     }
 
                     // Force a completely fresh DOM node for the charting library
-                    sankeyContainerRef.current.innerHTML = '<div id="fresh-sankey-wrapper" style="width:100%; height:100%;" dir="ltr"></div>';
+                    // Added overflowX auto and minimum width so the chart doesn't squish nodes horizontally
+                    sankeyContainerRef.current.innerHTML = '<div style="width:100%; height:100%; overflow-x: auto; padding-bottom: 20px;"><div id="fresh-sankey-wrapper" style="min-width: 1400px; height:100%;" dir="ltr"></div></div>';
                     const freshContainer = sankeyContainerRef.current.querySelector('#fresh-sankey-wrapper');
                     
-                    const containerWidth = sankeyContainerRef.current.clientWidth || 800;
+                    const containerWidth = Math.max(sankeyContainerRef.current.clientWidth || 800, 1400);
                     const sankey = new window.ApexSankey(freshContainer, {
                         width: containerWidth,
                         height: 750
