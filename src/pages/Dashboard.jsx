@@ -88,8 +88,18 @@ const Dashboard = () => {
         });
 
         // Add edges helper
-        const addEdge = (source, target) => {
-            const val = getFlowValue(source, target);
+        const addEdge = (source, target, altSource = null, altTarget = null) => {
+            let val = getFlowValue(source, target);
+            if (altSource) val += getFlowValue(altSource, target);
+            if (altTarget) val += getFlowValue(source, altTarget);
+            if (altSource && altTarget) val += getFlowValue(altSource, altTarget);
+            
+            // Add case-insensitive home fallbacks
+            if (source === 'home' || altSource === 'home') {
+                val += getFlowValue('Home', target);
+                if (altTarget) val += getFlowValue('Home', altTarget);
+            }
+            
             if (val > 0) {
                 edges.push({ source, target, value: val });
             }
@@ -155,9 +165,9 @@ const Dashboard = () => {
         realEstateRoots.forEach(rootCat => {
             nodesMap.set(rootCat.id.toString(), rootCat.name);
             // Connect Home to Real Estate Roots
-            addEdge("home", rootCat.id.toString());
+            addEdge("home", rootCat.id.toString(), null, rootCat.name);
             // Connect Search to Real Estate Roots (sometimes users search and land on a category)
-            addEdge("search", rootCat.id.toString());
+            addEdge("search", rootCat.id.toString(), "Search", rootCat.name);
 
             // Find immediate children
             const children = allCategories.filter(c => c.parent_id === rootCat.id);
@@ -165,7 +175,7 @@ const Dashboard = () => {
             
             children.forEach(child => {
                 nodesMap.set(child.id.toString(), child.name);
-                addEdge(rootCat.id.toString(), child.id.toString());
+                addEdge(rootCat.id.toString(), child.id.toString(), rootCat.name, child.name);
                 
                 // Find grandchildren
                 const grandChildren = allCategories.filter(c => c.parent_id === child.id);
@@ -173,7 +183,7 @@ const Dashboard = () => {
                 
                 grandChildren.forEach(gc => {
                     nodesMap.set(gc.id.toString(), gc.name);
-                    addEdge(child.id.toString(), gc.id.toString());
+                    addEdge(child.id.toString(), gc.id.toString(), child.name, gc.name);
                     
                     // Grandchildren are typically leaf nodes in this DB
                     leafNodes.add(gc.id.toString());
@@ -183,7 +193,7 @@ const Dashboard = () => {
 
         // Connect all Real Estate leaf nodes directly to "Ads details"
         leafNodes.forEach(leafId => {
-            addEdge(leafId, "ad_details");
+            addEdge(leafId, "ad_details", nodesMap.get(leafId), null);
         });
         
         // Also allow search to connect directly to ad details if they find an ad
