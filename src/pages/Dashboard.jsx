@@ -26,9 +26,13 @@ const SCREEN_NAMES = {
     "Categories": "التصنيفات"
 };
 
-const getScreenName = (s) => SCREEN_NAMES[s] || s;
+const getScreenName = (s) => {
+    if (s === 'Unknown' || !s) return 'شاشة غير معروفة';
+    return SCREEN_NAMES[s] || s;
+};
 
-const HeatmapChart = ({ data, title, color }) => {
+const HeatmapChart = ({ data, title, color, getScreenNameProp }) => {
+    const resolveName = getScreenNameProp || getScreenName;
     const screens = ['All', ...new Set(data.map(d => d.screen || 'Unknown'))];
     const [selectedScreen, setSelectedScreen] = useState('All');
     
@@ -54,7 +58,7 @@ const HeatmapChart = ({ data, title, color }) => {
                 onChange={e => setSelectedScreen(e.target.value)}
                 style={{ padding: '8px', marginBottom: '20px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '250px', textAlign: 'center', backgroundColor: '#fff', fontFamily: 'inherit' }}
             >
-                {screens.map(s => <option key={s} value={s}>{s === 'All' ? 'جميع الشاشات' : getScreenName(s)}</option>)}
+                {screens.map(s => <option key={s} value={s}>{s === 'All' ? 'جميع الشاشات' : resolveName(s)}</option>)}
             </select>
 
             <div style={{
@@ -82,7 +86,7 @@ const HeatmapChart = ({ data, title, color }) => {
                             custom: function({series, seriesIndex, dataPointIndex, w}) {
                                 const dp = w.globals.initialSeries[seriesIndex].data[dataPointIndex];
                                 return `<div style="padding: 10px; text-align: right;" dir="rtl">
-                                    <b>الشاشة:</b> ${getScreenName(w.globals.initialSeries[seriesIndex].name)}<br/>
+                                    <b>الشاشة:</b> ${resolveName(w.globals.initialSeries[seriesIndex].name)}<br/>
                                     <span dir="ltr"><b>X:</b> ${dp[0]}</span><br/>
                                     <span dir="ltr"><b>Y:</b> ${dp[1]}</span>
                                 </div>`;
@@ -495,23 +499,47 @@ const Dashboard = () => {
                                     <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
                                         <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem', color: '#1E293B' }}>مشاكل وعوائق الاستخدام (UX Friction)</h3>
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }} dir="ltr">
-                                            {/* Rage Taps Scatter Plot */}
-                                            <div>
-                                                <HeatmapChart 
-                                                    data={telemetry.friction_metrics.rage_taps || []} 
-                                                    title="أماكن النقر المتكرر بغضب (Rage Taps Heatmap)" 
-                                                    color="#DC2626" 
-                                                />
-                                            </div>
+                                            {(() => {
+                                                const categoryMap = new Map();
+                                                if (categories) {
+                                                    const flatten = (list) => {
+                                                        list.forEach(c => {
+                                                            categoryMap.set(c.id.toString(), c.name);
+                                                            if (c.children) flatten(c.children);
+                                                        });
+                                                    };
+                                                    flatten(categories);
+                                                }
+                                                const resolveScreenName = (s) => {
+                                                    if (s === 'Unknown' || !s) return 'شاشة غير معروفة';
+                                                    if (categoryMap.has(s.toString())) return categoryMap.get(s.toString());
+                                                    return SCREEN_NAMES[s] || s;
+                                                };
 
-                                            {/* Dead Clicks Scatter Plot */}
-                                            <div>
-                                                <HeatmapChart 
-                                                    data={telemetry.friction_metrics.dead_clicks || []} 
-                                                    title="أماكن النقرات الميتة (Dead Clicks Heatmap)" 
-                                                    color="#EA580C" 
-                                                />
-                                            </div>
+                                                return (
+                                                    <>
+                                                        {/* Rage Taps Scatter Plot */}
+                                                        <div>
+                                                            <HeatmapChart 
+                                                                data={telemetry.friction_metrics.rage_taps || []} 
+                                                                title="أماكن النقر المتكرر بغضب (Rage Taps Heatmap)" 
+                                                                color="#DC2626" 
+                                                                getScreenNameProp={resolveScreenName}
+                                                            />
+                                                        </div>
+
+                                                        {/* Dead Clicks Scatter Plot */}
+                                                        <div>
+                                                            <HeatmapChart 
+                                                                data={telemetry.friction_metrics.dead_clicks || []} 
+                                                                title="أماكن النقرات الميتة (Dead Clicks Heatmap)" 
+                                                                color="#EA580C" 
+                                                                getScreenNameProp={resolveScreenName}
+                                                            />
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
 
                                             {/* Form Abandonment */}
                                             <div>
