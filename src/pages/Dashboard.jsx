@@ -49,11 +49,26 @@ const Dashboard = () => {
         const nodesMap = new Map();
         const edges = [];
 
+        // Normalize Arabic text to handle variations in hamza and taa marbuta
+        const normalizeArabic = (text) => {
+            if (!text) return text;
+            return text.toString().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه');
+        };
+
         const getFlowValue = (sourceName, targetName) => {
             if (!telemetry || !telemetry.sankey || !telemetry.sankey.nodes) return 0; // Return 0 if no data
             
-            const sIdx = telemetry.sankey.nodes.findIndex(n => n.name === sourceName);
-            const tIdx = telemetry.sankey.nodes.findIndex(n => n.name === targetName);
+            const sIdx = telemetry.sankey.nodes.findIndex(n => 
+                n.name === sourceName || 
+                n.name === sourceName.toString() ||
+                normalizeArabic(n.name) === normalizeArabic(sourceName)
+            );
+            
+            const tIdx = telemetry.sankey.nodes.findIndex(n => 
+                n.name === targetName || 
+                n.name === targetName.toString() ||
+                normalizeArabic(n.name) === normalizeArabic(targetName)
+            );
             
             if (sIdx === -1 || tIdx === -1) return 0;
             
