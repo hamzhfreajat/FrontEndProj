@@ -3,6 +3,31 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import ReactApexChart from 'react-apexcharts';
 
+const SCREEN_NAMES = {
+    "login": "تسجيل الدخول",
+    "home": "الرئيسية",
+    "search": "البحث",
+    "my_ads": "إعلاناتي",
+    "my_account": "حسابي",
+    "ad_details": "تفاصيل الإعلان",
+    "categories_tab": "الأقسام (شريط التنقل)",
+    "add_ad_wizard": "إضافة إعلان: التصنيف الرئيسي",
+    "add_ad_subcategories": "إضافة إعلان: القسم الفرعي",
+    "add_ad_city": "إضافة إعلان: المدينة",
+    "add_ad_region": "إضافة إعلان: المنطقة",
+    "add_ad_map": "إضافة إعلان: الخريطة",
+    "add_ad_basic_info": "إضافة إعلان: معلومات أساسية",
+    "add_ad_details": "إضافة إعلان: التفاصيل",
+    "add_ad_images": "إضافة إعلان: الصور",
+    "add_ad_reels": "إضافة إعلان: الفيديو",
+    "add_ad_preview": "إضافة إعلان: المعاينة",
+    "premium_chat_screen": "المحادثات المميزة",
+    "premium_inbox_screen": "صندوق الوارد المميز",
+    "Categories": "التصنيفات"
+};
+
+const getScreenName = (s) => SCREEN_NAMES[s] || s;
+
 const HeatmapChart = ({ data, title, color }) => {
     const screens = ['All', ...new Set(data.map(d => d.screen || 'Unknown'))];
     const [selectedScreen, setSelectedScreen] = useState('All');
@@ -27,9 +52,9 @@ const HeatmapChart = ({ data, title, color }) => {
             <select 
                 value={selectedScreen} 
                 onChange={e => setSelectedScreen(e.target.value)}
-                style={{ padding: '8px', marginBottom: '20px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '250px', textAlign: 'center', backgroundColor: '#fff' }}
+                style={{ padding: '8px', marginBottom: '20px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '250px', textAlign: 'center', backgroundColor: '#fff', fontFamily: 'inherit' }}
             >
-                {screens.map(s => <option key={s} value={s}>{s === 'All' ? 'جميع الشاشات' : s}</option>)}
+                {screens.map(s => <option key={s} value={s}>{s === 'All' ? 'جميع الشاشات' : getScreenName(s)}</option>)}
             </select>
 
             <div style={{
@@ -52,14 +77,14 @@ const HeatmapChart = ({ data, title, color }) => {
                         yaxis: { min: 0, max: 900, reversed: true, tickAmount: 5, labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
                         grid: { show: true, strokeDashArray: 4, borderColor: '#e2e8f0' },
                         markers: { size: selectedScreen === 'All' ? 4 : 8, opacity: 0.7 },
-                        legend: { show: selectedScreen === 'All', position: 'bottom', markers: { radius: 12 } },
+                        legend: { show: false },
                         tooltip: {
                             custom: function({series, seriesIndex, dataPointIndex, w}) {
                                 const dp = w.globals.initialSeries[seriesIndex].data[dataPointIndex];
-                                return `<div style="padding: 10px; text-align: left;" dir="ltr">
-                                    <b>Screen:</b> ${w.globals.initialSeries[seriesIndex].name}<br/>
-                                    <b>X:</b> ${dp[0]}<br/>
-                                    <b>Y:</b> ${dp[1]}
+                                return `<div style="padding: 10px; text-align: right;" dir="rtl">
+                                    <b>الشاشة:</b> ${getScreenName(w.globals.initialSeries[seriesIndex].name)}<br/>
+                                    <span dir="ltr"><b>X:</b> ${dp[0]}</span><br/>
+                                    <span dir="ltr"><b>Y:</b> ${dp[1]}</span>
                                 </div>`;
                             }
                         }
