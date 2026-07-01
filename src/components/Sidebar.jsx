@@ -16,7 +16,8 @@ import {
   Shield,
   MessageSquare,
   MapPin,
-  Facebook
+  Facebook,
+  AlertCircle
 } from 'lucide-react';
 
 const navItems = [
@@ -33,6 +34,7 @@ const navItems = [
   { path: '/change-ads-location', name: 'تغيير موقع الإعلانات', icon: MapPin },
   { path: '/locations-manager', name: 'إدارة المدن والمناطق', icon: MapPin },
   { path: '/facebook-autopost', name: 'نشر فيسبوك', icon: Facebook },
+  { path: '/errors', name: 'سجل الأخطاء', icon: AlertCircle },
   { path: '/settings', name: 'الإعدادات', icon: Settings },
 ];
 

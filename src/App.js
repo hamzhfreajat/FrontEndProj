@@ -14,6 +14,7 @@ import ChangeAdsLocation from './pages/ChangeAdsLocation';
 import LocationsManager from './pages/LocationsManager';
 import Inbox from './pages/Inbox';
 import FacebookAutoPost from './pages/FacebookAutoPost';
+import ErrorLogs from './pages/ErrorLogs';
 
 import Login from './pages/Login';
 import axios from 'axios';
@@ -74,6 +75,7 @@ function App() {
           <Route path="change-ads-location" element={<ChangeAdsLocation />} />
           <Route path="locations-manager" element={<LocationsManager />} />
           <Route path="facebook-autopost" element={<FacebookAutoPost />} />
+          <Route path="errors" element={<ErrorLogs />} />
           <Route path="settings" element={<div className="card"><h2>الإعدادات</h2><p>قريباً...</p></div>} />
         </Route>
       </Routes>
