@@ -212,13 +212,39 @@ const Dashboard = () => {
             });
         });
 
+        // Add drop_off node
+        nodesMap.set("drop_off", "تصفح الأقسام (بدون النقر على إعلان)");
+
         // Connect all Real Estate leaf nodes directly to "Ads details"
         leafNodes.forEach(leafId => {
-            addEdge(leafId, "ad_details", nodesMap.get(leafId), null);
+            let val = getFlowValue(leafId, "ad_details");
+            let altVal = getFlowValue(nodesMap.get(leafId), "ad_details");
+            
+            if (val + altVal > 0) {
+                addEdge(leafId, "ad_details", nodesMap.get(leafId), null);
+            }
         });
         
         // Also allow search to connect directly to ad details if they find an ad
         addEdge("search", "ad_details");
+
+        // BALANCE THE GRAPH TO PREVENT CULLING:
+        // Sankey charts will completely delete branches that are "dead ends" (e.g. users who didn't click an ad).
+        // To prevent this mathematical culling and force the chart to render all visits, we route dropped-off traffic.
+        const nodeFlows = {};
+        edges.forEach(e => {
+            nodeFlows[e.target] = (nodeFlows[e.target] || 0) + e.value;
+            nodeFlows[e.source] = (nodeFlows[e.source] || 0) - e.value;
+        });
+        
+        Object.keys(nodeFlows).forEach(nodeId => {
+            if (!["drop_off", "ad_details", "home", "login", "search"].includes(nodeId)) {
+                if (nodeFlows[nodeId] > 0) {
+                    // Node has excess incoming traffic. Route it to the drop-off bucket.
+                    edges.push({ source: nodeId, target: "drop_off", value: nodeFlows[nodeId] });
+                }
+            }
+        });
 
         const apexSankeyData = {
             nodes: Array.from(nodesMap.entries()).map(([id, title]) => ({ id, title })),
