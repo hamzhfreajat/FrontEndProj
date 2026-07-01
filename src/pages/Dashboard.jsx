@@ -192,7 +192,8 @@ const Dashboard = () => {
             if (children.length === 0) leafNodes.add(rootCat.id.toString());
             
             children.forEach(child => {
-                nodesMap.set(child.id.toString(), child.name);
+                const suffix = rootCat.id === 2 ? ' (للبيع)' : rootCat.id === 3 ? ' (للايجار)' : '';
+                nodesMap.set(child.id.toString(), child.name + suffix);
                 addEdge(rootCat.id.toString(), child.id.toString(), rootCat.name, child.name);
                 
                 // Find grandchildren
@@ -200,7 +201,9 @@ const Dashboard = () => {
                 if (grandChildren.length === 0) leafNodes.add(child.id.toString());
                 
                 grandChildren.forEach(gc => {
-                    nodesMap.set(gc.id.toString(), gc.name);
+                    // Only add suffix if it's not already explicitly clear
+                    const gcSuffix = gc.name.includes('للبيع') || gc.name.includes('للايجار') || gc.name.includes('للإيجار') ? '' : suffix;
+                    nodesMap.set(gc.id.toString(), gc.name + gcSuffix);
                     addEdge(child.id.toString(), gc.id.toString(), child.name, gc.name);
                     
                     // Grandchildren are typically leaf nodes in this DB
