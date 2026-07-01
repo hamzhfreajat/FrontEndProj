@@ -180,36 +180,40 @@ const Dashboard = () => {
         // Track leaf nodes to connect them to "ad_details"
         const leafNodes = new Set();
 
+        const processCategoryLevel = (parentCat, currentSuffix) => {
+            const children = allCategories.filter(c => c.parent_id === parentCat.id);
+            
+            if (children.length === 0) {
+                // If it has no children, it's a leaf node
+                leafNodes.add(parentCat.id.toString());
+                return;
+            }
+            
+            children.forEach(child => {
+                // Only add suffix if it's not already explicitly clear
+                const childSuffix = child.name.includes('للبيع') || child.name.includes('للايجار') || child.name.includes('للإيجار') ? '' : currentSuffix;
+                nodesMap.set(child.id.toString(), child.name + childSuffix);
+                
+                addEdge(parentCat.id.toString(), child.id.toString(), parentCat.name, child.name);
+                
+                // Recurse to find further descendents (great-grandchildren, etc.)
+                processCategoryLevel(child, childSuffix);
+            });
+        };
+
         realEstateRoots.forEach(rootCat => {
             nodesMap.set(rootCat.id.toString(), rootCat.name);
+            
             // Connect Home to Real Estate Roots
             addEdge("home", rootCat.id.toString(), null, rootCat.name);
             // Connect Search to Real Estate Roots (sometimes users search and land on a category)
             addEdge("search", rootCat.id.toString(), "Search", rootCat.name);
 
-            // Find immediate children
-            const children = allCategories.filter(c => c.parent_id === rootCat.id);
-            if (children.length === 0) leafNodes.add(rootCat.id.toString());
+            // Determine root suffix
+            const rootSuffix = rootCat.id === 2 ? ' (للبيع)' : rootCat.id === 3 ? ' (للايجار)' : '';
             
-            children.forEach(child => {
-                const suffix = rootCat.id === 2 ? ' (للبيع)' : rootCat.id === 3 ? ' (للايجار)' : '';
-                nodesMap.set(child.id.toString(), child.name + suffix);
-                addEdge(rootCat.id.toString(), child.id.toString(), rootCat.name, child.name);
-                
-                // Find grandchildren
-                const grandChildren = allCategories.filter(c => c.parent_id === child.id);
-                if (grandChildren.length === 0) leafNodes.add(child.id.toString());
-                
-                grandChildren.forEach(gc => {
-                    // Only add suffix if it's not already explicitly clear
-                    const gcSuffix = gc.name.includes('للبيع') || gc.name.includes('للايجار') || gc.name.includes('للإيجار') ? '' : suffix;
-                    nodesMap.set(gc.id.toString(), gc.name + gcSuffix);
-                    addEdge(child.id.toString(), gc.id.toString(), child.name, gc.name);
-                    
-                    // Grandchildren are typically leaf nodes in this DB
-                    leafNodes.add(gc.id.toString());
-                });
-            });
+            // Start recursive traversal
+            processCategoryLevel(rootCat, rootSuffix);
         });
 
         // Add drop_off node
