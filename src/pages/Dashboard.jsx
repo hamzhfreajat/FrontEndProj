@@ -407,13 +407,14 @@ const Dashboard = () => {
                                                 <ReactApexChart 
                                                     options={{
                                                         chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'bottom' } } },
                                                         colors: ['#EF4444'],
-                                                        xaxis: { categories: telemetry.friction_metrics.rage_taps.map(r => r.location) },
-                                                        dataLabels: { enabled: true }
+                                                        xaxis: { categories: telemetry.friction_metrics.rage_taps.map(r => r.location ? (r.location.length > 20 ? r.location.substring(0, 20) + '...' : r.location) : 'Unknown') },
+                                                        dataLabels: { enabled: true, textAnchor: 'start', offsetX: 0, style: { colors: ['#fff'] } },
+                                                        yaxis: { labels: { maxWidth: 150, style: { fontSize: '11px' } } }
                                                     }} 
                                                     series={[{ name: 'المرات', data: telemetry.friction_metrics.rage_taps.map(r => r.count) }]} 
-                                                    type="bar" height={250} 
+                                                    type="bar" height={Math.max(250, telemetry.friction_metrics.rage_taps.length * 25 + 50)} 
                                                 />
                                             </div>
 
@@ -423,13 +424,14 @@ const Dashboard = () => {
                                                 <ReactApexChart 
                                                     options={{
                                                         chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'bottom' } } },
                                                         colors: ['#F97316'],
-                                                        xaxis: { categories: telemetry.friction_metrics.dead_clicks.map(r => r.screen) },
-                                                        dataLabels: { enabled: true }
+                                                        xaxis: { categories: telemetry.friction_metrics.dead_clicks.map(r => r.screen ? (r.screen.length > 20 ? r.screen.substring(0, 20) + '...' : r.screen) : 'Unknown') },
+                                                        dataLabels: { enabled: true, textAnchor: 'start', offsetX: 0, style: { colors: ['#fff'] } },
+                                                        yaxis: { labels: { maxWidth: 150, style: { fontSize: '11px' } } }
                                                     }} 
                                                     series={[{ name: 'المرات', data: telemetry.friction_metrics.dead_clicks.map(r => r.count) }]} 
-                                                    type="bar" height={250} 
+                                                    type="bar" height={Math.max(250, telemetry.friction_metrics.dead_clicks.length * 25 + 50)} 
                                                 />
                                             </div>
 
@@ -439,13 +441,14 @@ const Dashboard = () => {
                                                 <ReactApexChart 
                                                     options={{
                                                         chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'bottom' } } },
                                                         colors: ['#F59E0B'],
-                                                        xaxis: { categories: telemetry.friction_metrics.form_abandonment.map(r => r.form_field) },
-                                                        dataLabels: { enabled: true }
+                                                        xaxis: { categories: telemetry.friction_metrics.form_abandonment.map(r => r.form_field ? (r.form_field.length > 20 ? r.form_field.substring(0, 20) + '...' : r.form_field) : 'Unknown') },
+                                                        dataLabels: { enabled: true, textAnchor: 'start', offsetX: 0, style: { colors: ['#fff'] } },
+                                                        yaxis: { labels: { maxWidth: 150, style: { fontSize: '11px' } } }
                                                     }} 
                                                     series={[{ name: 'المرات', data: telemetry.friction_metrics.form_abandonment.map(r => r.count) }]} 
-                                                    type="bar" height={250} 
+                                                    type="bar" height={Math.max(250, telemetry.friction_metrics.form_abandonment.length * 25 + 50)} 
                                                 />
                                             </div>
 
@@ -455,13 +458,14 @@ const Dashboard = () => {
                                                 <ReactApexChart 
                                                     options={{
                                                         chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'bottom' } } },
                                                         colors: ['#84CC16'],
-                                                        xaxis: { categories: telemetry.friction_metrics.u_turns.map(r => r.screen) },
-                                                        dataLabels: { enabled: true }
+                                                        xaxis: { categories: telemetry.friction_metrics.u_turns.map(r => r.screen ? (r.screen.length > 20 ? r.screen.substring(0, 20) + '...' : r.screen) : 'Unknown') },
+                                                        dataLabels: { enabled: true, textAnchor: 'start', offsetX: 0, style: { colors: ['#fff'] } },
+                                                        yaxis: { labels: { maxWidth: 150, style: { fontSize: '11px' } } }
                                                     }} 
                                                     series={[{ name: 'المرات', data: telemetry.friction_metrics.u_turns.map(r => r.count) }]} 
-                                                    type="bar" height={250} 
+                                                    type="bar" height={Math.max(250, telemetry.friction_metrics.u_turns.length * 25 + 50)} 
                                                 />
                                             </div>
                                         </div>
