@@ -55,25 +55,41 @@ const Dashboard = () => {
             return text.toString().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه');
         };
 
+        // PRECOMPUTE LOOKUP TABLES FOR O(1) PERFORMANCE
+        const nodeNameToIdx = new Map();
+        const normalizedNameToIdx = new Map();
+        
+        if (telemetry && telemetry.sankey && telemetry.sankey.nodes) {
+            telemetry.sankey.nodes.forEach((n, idx) => {
+                nodeNameToIdx.set(n.name, idx);
+                if (n.name) {
+                    nodeNameToIdx.set(n.name.toString(), idx);
+                    normalizedNameToIdx.set(normalizeArabic(n.name), idx);
+                }
+            });
+        }
+        
+        const linkMap = new Map();
+        if (telemetry && telemetry.sankey && telemetry.sankey.links) {
+            telemetry.sankey.links.forEach(l => {
+                linkMap.set(`${l.source}-${l.target}`, l.value);
+            });
+        }
+
         const getFlowValue = (sourceName, targetName) => {
-            if (!telemetry || !telemetry.sankey || !telemetry.sankey.nodes) return 0; // Return 0 if no data
+            if (!telemetry || !telemetry.sankey || !telemetry.sankey.nodes) return 0;
             
-            const sIdx = telemetry.sankey.nodes.findIndex(n => 
-                n.name === sourceName || 
-                n.name === sourceName.toString() ||
-                normalizeArabic(n.name) === normalizeArabic(sourceName)
-            );
+            let sIdx = nodeNameToIdx.get(sourceName);
+            if (sIdx === undefined && sourceName != null) sIdx = nodeNameToIdx.get(sourceName.toString());
+            if (sIdx === undefined && sourceName != null) sIdx = normalizedNameToIdx.get(normalizeArabic(sourceName));
             
-            const tIdx = telemetry.sankey.nodes.findIndex(n => 
-                n.name === targetName || 
-                n.name === targetName.toString() ||
-                normalizeArabic(n.name) === normalizeArabic(targetName)
-            );
+            let tIdx = nodeNameToIdx.get(targetName);
+            if (tIdx === undefined && targetName != null) tIdx = nodeNameToIdx.get(targetName.toString());
+            if (tIdx === undefined && targetName != null) tIdx = normalizedNameToIdx.get(normalizeArabic(targetName));
             
-            if (sIdx === -1 || tIdx === -1) return 0;
+            if (sIdx === undefined || tIdx === undefined) return 0;
             
-            const link = telemetry.sankey.links.find(l => l.source === sIdx && l.target === tIdx);
-            return link ? link.value : 0;
+            return linkMap.get(`${sIdx}-${tIdx}`) || 0;
         };
 
         // Add static outer journey nodes
