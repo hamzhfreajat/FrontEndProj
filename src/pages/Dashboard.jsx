@@ -3,6 +3,75 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import ReactApexChart from 'react-apexcharts';
 
+const HeatmapChart = ({ data, title, color }) => {
+    const screens = ['All', ...new Set(data.map(d => d.screen || 'Unknown'))];
+    const [selectedScreen, setSelectedScreen] = useState('All');
+    
+    const filteredData = selectedScreen === 'All' 
+        ? data 
+        : data.filter(d => (d.screen || 'Unknown') === selectedScreen);
+
+    const seriesData = {};
+    filteredData.forEach(item => {
+        const s = item.screen || 'Unknown';
+        if (!seriesData[s]) seriesData[s] = [];
+        seriesData[s].push([item.x, item.y]);
+    });
+    
+    const series = Object.keys(seriesData).map(s => ({ name: s, data: seriesData[s] }));
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <h4 style={{ textAlign: 'center', color: color, marginBottom: '10px' }}>{title}</h4>
+            
+            <select 
+                value={selectedScreen} 
+                onChange={e => setSelectedScreen(e.target.value)}
+                style={{ padding: '8px', marginBottom: '20px', borderRadius: '4px', border: '1px solid #CBD5E1', width: '250px', textAlign: 'center', backgroundColor: '#fff' }}
+            >
+                {screens.map(s => <option key={s} value={s}>{s === 'All' ? 'جميع الشاشات' : s}</option>)}
+            </select>
+
+            <div style={{
+                width: '300px', 
+                height: '600px', 
+                border: '12px solid #1E293B', 
+                borderRadius: '36px', 
+                padding: '20px 5px 5px 5px', 
+                position: 'relative',
+                backgroundColor: '#F8FAFC',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+            }}>
+                {/* Phone Notch */}
+                <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', width: '100px', height: '24px', backgroundColor: '#1E293B', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px', zIndex: 10 }}></div>
+                
+                <ReactApexChart 
+                    options={{
+                        chart: { type: 'scatter', toolbar: { show: false }, zoom: { type: 'xy' }, fontFamily: 'inherit' },
+                        xaxis: { min: 0, max: 400, tickAmount: 4, labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
+                        yaxis: { min: 0, max: 900, reversed: true, tickAmount: 5, labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
+                        grid: { show: true, strokeDashArray: 4, borderColor: '#e2e8f0' },
+                        markers: { size: selectedScreen === 'All' ? 4 : 8, opacity: 0.7 },
+                        legend: { show: selectedScreen === 'All', position: 'bottom', markers: { radius: 12 } },
+                        tooltip: {
+                            custom: function({series, seriesIndex, dataPointIndex, w}) {
+                                const dp = w.globals.initialSeries[seriesIndex].data[dataPointIndex];
+                                return `<div style="padding: 10px; text-align: left;" dir="ltr">
+                                    <b>Screen:</b> ${w.globals.initialSeries[seriesIndex].name}<br/>
+                                    <b>X:</b> ${dp[0]}<br/>
+                                    <b>Y:</b> ${dp[1]}
+                                </div>`;
+                            }
+                        }
+                    }} 
+                    series={series} 
+                    type="scatter" height="100%" 
+                />
+            </div>
+        </div>
+    );
+};
+
 const Dashboard = () => {
     const [insights, setInsights] = useState(null);
     const [telemetry, setTelemetry] = useState(null);
@@ -401,37 +470,21 @@ const Dashboard = () => {
                                     <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
                                         <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem', color: '#1E293B' }}>مشاكل وعوائق الاستخدام (UX Friction)</h3>
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }} dir="ltr">
-                                            {/* Rage Taps */}
+                                            {/* Rage Taps Scatter Plot */}
                                             <div>
-                                                <h4 style={{ textAlign: 'center', color: '#DC2626' }}>النقر المتكرر بغضب (Rage Taps)</h4>
-                                                <ReactApexChart 
-                                                    options={{
-                                                        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'bottom' } } },
-                                                        colors: ['#EF4444'],
-                                                        xaxis: { categories: telemetry.friction_metrics.rage_taps.map(r => r.location ? (r.location.length > 20 ? r.location.substring(0, 20) + '...' : r.location) : 'Unknown') },
-                                                        dataLabels: { enabled: true, textAnchor: 'start', offsetX: 0, style: { colors: ['#fff'] } },
-                                                        yaxis: { labels: { maxWidth: 150, style: { fontSize: '11px' } } }
-                                                    }} 
-                                                    series={[{ name: 'المرات', data: telemetry.friction_metrics.rage_taps.map(r => r.count) }]} 
-                                                    type="bar" height={Math.max(250, telemetry.friction_metrics.rage_taps.length * 25 + 50)} 
+                                                <HeatmapChart 
+                                                    data={telemetry.friction_metrics.rage_taps || []} 
+                                                    title="أماكن النقر المتكرر بغضب (Rage Taps Heatmap)" 
+                                                    color="#DC2626" 
                                                 />
                                             </div>
 
-                                            {/* Dead Clicks */}
+                                            {/* Dead Clicks Scatter Plot */}
                                             <div>
-                                                <h4 style={{ textAlign: 'center', color: '#EA580C' }}>النقرات الميتة (Dead Clicks)</h4>
-                                                <ReactApexChart 
-                                                    options={{
-                                                        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'bottom' } } },
-                                                        colors: ['#F97316'],
-                                                        xaxis: { categories: telemetry.friction_metrics.dead_clicks.map(r => r.screen ? (r.screen.length > 20 ? r.screen.substring(0, 20) + '...' : r.screen) : 'Unknown') },
-                                                        dataLabels: { enabled: true, textAnchor: 'start', offsetX: 0, style: { colors: ['#fff'] } },
-                                                        yaxis: { labels: { maxWidth: 150, style: { fontSize: '11px' } } }
-                                                    }} 
-                                                    series={[{ name: 'المرات', data: telemetry.friction_metrics.dead_clicks.map(r => r.count) }]} 
-                                                    type="bar" height={Math.max(250, telemetry.friction_metrics.dead_clicks.length * 25 + 50)} 
+                                                <HeatmapChart 
+                                                    data={telemetry.friction_metrics.dead_clicks || []} 
+                                                    title="أماكن النقرات الميتة (Dead Clicks Heatmap)" 
+                                                    color="#EA580C" 
                                                 />
                                             </div>
 
