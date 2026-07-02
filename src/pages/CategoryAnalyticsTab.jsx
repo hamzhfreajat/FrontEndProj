@@ -12,8 +12,13 @@ const CategoryAnalyticsTab = ({ data }) => {
         active_categories = 0,
         total_classifications = 0,
         failed_rate = 0,
-        classification_volume = []
+        classification_volume = [],
+        charts = {}
     } = data;
+
+    const {
+        trend = { categories: [], data: [] }
+    } = charts;
 
     // 1. Classification Volume by Category (Bar Chart)
     const volumeChartOptions = {
@@ -38,16 +43,17 @@ const CategoryAnalyticsTab = ({ data }) => {
     };
     const donutSeries = classification_volume.map(v => v.volume);
 
-    // Mock trend data since we don't have historical classifications over time in the endpoint yet
+    // 3. Classification Trend Line Chart (Real Data)
     const trendOptions = {
-        chart: { type: 'line', toolbar: { show: false }, fontFamily: 'inherit' },
+        chart: { type: 'area', toolbar: { show: false }, fontFamily: 'inherit' },
         stroke: { curve: 'smooth', width: 3 },
         colors: ['#8B5CF6'],
-        xaxis: { categories: ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
-        title: { text: 'اتجاه التصنيفات (Classification Trend - Mock)', align: 'right', style: { fontFamily: 'inherit' } },
-        grid: { show: true, strokeDashArray: 4, borderColor: '#e2e8f0' }
+        xaxis: { categories: trend.categories },
+        title: { text: 'حجم التصنيفات اليومي (آخر 7 أيام)', align: 'right', style: { fontFamily: 'inherit' } },
+        grid: { show: true, strokeDashArray: 4, borderColor: '#e2e8f0' },
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 100] } }
     };
-    const trendSeries = [{ name: 'طلبات الذكاء الاصطناعي', data: [120, 150, 180, 160, 210, 240, 280] }];
+    const trendSeries = [{ name: 'طلبات الذكاء الاصطناعي', data: trend.data }];
 
     return (
         <div style={{ width: '100%', direction: 'rtl', fontFamily: 'inherit', paddingTop: '20px' }}>
@@ -58,8 +64,6 @@ const CategoryAnalyticsTab = ({ data }) => {
                 <MetricCard title="الأقسام النشطة" value={active_categories.toLocaleString()} subtext="أقسام تحتوي إعلانات (آخر 30 يوم)" color="#10B981" />
                 <MetricCard title="إجمالي تصنيفات الذكاء الاصطناعي" value={total_classifications.toLocaleString()} subtext="عمليات تمت معالجتها" color="#8B5CF6" />
                 <MetricCard title="معدل فشل التصنيف" value={`${failed_rate}%`} subtext="الطلبات غير الناجحة" color="#EF4444" isGood={failed_rate < 5} />
-                <MetricCard title="معدل الثقة (Confidence)" value="94.2%" subtext="متوسط ثقة النموذج (Mock)" color="#F59E0B" />
-                <MetricCard title="سرعة المعالجة (Processing)" value="1.2s" subtext="متوسط وقت الاستجابة (Mock)" color="#64748B" />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '24px', marginBottom: '24px' }}>
@@ -77,7 +81,7 @@ const CategoryAnalyticsTab = ({ data }) => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '24px', marginBottom: '24px' }}>
                 {/* Trend Line Chart */}
                 <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                    <ReactApexChart options={trendOptions} series={trendSeries} type="line" height={300} />
+                    <ReactApexChart options={trendOptions} series={trendSeries} type="area" height={300} />
                 </div>
             </div>
 
