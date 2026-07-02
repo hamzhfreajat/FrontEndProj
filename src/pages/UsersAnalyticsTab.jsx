@@ -16,7 +16,16 @@ const mockData = {
     csat: "4.6/5"
 };
 
-const UsersAnalyticsTab = () => {
+const UsersAnalyticsTab = ({ data }) => {
+    // Merge real data with mock data where real data isn't available yet
+    const displayData = {
+        ...mockData,
+        totalUsers: data?.total_users || mockData.totalUsers,
+        dau: data?.dau || mockData.dau,
+        mau: data?.mau || mockData.mau,
+        stickiness: data?.stickiness ? `${data.stickiness}%` : mockData.stickiness
+    };
+
     // 1. DAU/MAU Growth Chart
     const activeUsersChartOptions = {
         chart: { type: 'area', toolbar: { show: false }, fontFamily: 'inherit' },
@@ -29,8 +38,8 @@ const UsersAnalyticsTab = () => {
         fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 100] } }
     };
     const activeUsersSeries = [
-        { name: 'المستخدمين النشطين شهرياً (MAU)', data: [25000, 28000, 31000, 33500, 35000, 37200, 38450] },
-        { name: 'المستخدمين النشطين يومياً (DAU)', data: [4500, 5200, 6100, 6500, 7100, 7800, 8240] }
+        { name: 'المستخدمين النشطين شهرياً (MAU)', data: [25000, 28000, 31000, 33500, 35000, 37200, displayData.mau] },
+        { name: 'المستخدمين النشطين يومياً (DAU)', data: [4500, 5200, 6100, 6500, 7100, 7800, displayData.dau] }
     ];
 
     // 2. Cohort Retention Heatmap
@@ -89,11 +98,11 @@ const UsersAnalyticsTab = () => {
             
             {/* KPI Metric Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
-                <MetricCard title="إجمالي المستخدمين (Total)" value={mockData.totalUsers.toLocaleString()} subtext={`${mockData.growthRate} هذا الشهر`} color="#3B82F6" />
-                <MetricCard title="نشطين يومياً (DAU)" value={mockData.dau.toLocaleString()} subtext="من إجمالي النشطين شهرياً" color="#10B981" />
-                <MetricCard title="تفاعل المستخدم (Stickiness)" value={mockData.stickiness} subtext="نسبة DAU / MAU" color="#F59E0B" />
-                <MetricCard title="معدل التسرب (Churn Rate)" value={mockData.churnRate} subtext="مقارنة بـ 3.5% الشهر الماضي" color="#EF4444" isGood={true} />
-                <MetricCard title="وقت إدراك القيمة (TTV)" value={mockData.ttv} subtext="متوسط الوقت لإضافة أول إعلان" color="#8B5CF6" />
+                <MetricCard title="إجمالي المستخدمين (Total)" value={displayData.totalUsers.toLocaleString()} subtext={`${displayData.growthRate} هذا الشهر`} color="#3B82F6" />
+                <MetricCard title="نشطين يومياً (DAU)" value={displayData.dau.toLocaleString()} subtext="من إجمالي النشطين شهرياً" color="#10B981" />
+                <MetricCard title="تفاعل المستخدم (Stickiness)" value={displayData.stickiness} subtext="نسبة DAU / MAU" color="#F59E0B" />
+                <MetricCard title="معدل التسرب (Churn Rate)" value={displayData.churnRate} subtext="مقارنة بـ 3.5% الشهر الماضي" color="#EF4444" isGood={true} />
+                <MetricCard title="وقت إدراك القيمة (TTV)" value={displayData.ttv} subtext="متوسط الوقت لإضافة أول إعلان" color="#8B5CF6" />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '24px', marginBottom: '24px' }}>
@@ -127,12 +136,12 @@ const UsersAnalyticsTab = () => {
                     <h3 style={{ margin: '0 0 24px 0', fontSize: '18px', color: '#1E293B', textAlign: 'center' }}>مؤشرات رضا المستخدمين</h3>
                     <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '48px', fontWeight: 'bold', color: '#10B981' }}>{mockData.nps}</div>
+                            <div style={{ fontSize: '48px', fontWeight: 'bold', color: '#10B981' }}>{displayData.nps}</div>
                             <div style={{ color: '#64748B', fontSize: '14px', marginTop: '8px' }}>مؤشر صافي الترويج (NPS)</div>
                         </div>
                         <div style={{ width: '1px', height: '80px', backgroundColor: '#E2E8F0' }}></div>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '48px', fontWeight: 'bold', color: '#3B82F6' }}>{mockData.csat}</div>
+                            <div style={{ fontSize: '48px', fontWeight: 'bold', color: '#3B82F6' }}>{displayData.csat}</div>
                             <div style={{ color: '#64748B', fontSize: '14px', marginTop: '8px' }}>رضا العملاء (CSAT)</div>
                         </div>
                     </div>

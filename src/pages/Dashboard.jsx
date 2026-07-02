@@ -3,6 +3,7 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import ReactApexChart from 'react-apexcharts';
 import UsersAnalyticsTab from './UsersAnalyticsTab';
+import CategoryAnalyticsTab from './CategoryAnalyticsTab';
 
 const SCREEN_NAMES = {
     "login": "تسجيل الدخول",
@@ -216,6 +217,7 @@ const LocationStatsChart = ({ data }) => {
 const Dashboard = () => {
     const [insights, setInsights] = useState(null);
     const [telemetry, setTelemetry] = useState(null);
+    const [advancedAnalytics, setAdvancedAnalytics] = useState(null);
     const [categories, setCategories] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('telemetry');
@@ -227,15 +229,17 @@ const Dashboard = () => {
                 // Adjust base URL if needed based on your environment
                 // Hardcode API URL to production as requested
                 const API_URL = 'https://api.sooq-com.com/api';
-                const [resInsights, resTelemetry, resCategories] = await Promise.all([
+                const [resInsights, resTelemetry, resCategories, resAdvanced] = await Promise.all([
                     axios.get(`${API_URL}/tracking/insights`).catch(() => ({ data: null })),
                     axios.get(`${API_URL}/telemetry/analytics`).catch(() => ({ data: null })),
-                    axios.get(`${API_URL}/categories`).catch(() => ({ data: null }))
+                    axios.get(`${API_URL}/categories`).catch(() => ({ data: null })),
+                    axios.get(`${API_URL}/telemetry/advanced-analytics`).catch(() => ({ data: null }))
                 ]);
                 
                 if (resInsights.data) setInsights(resInsights.data);
                 if (resTelemetry.data) setTelemetry(resTelemetry.data);
                 if (resCategories.data) setCategories(resCategories.data);
+                if (resAdvanced.data) setAdvancedAnalytics(resAdvanced.data);
             } catch (err) {
                 console.error("Error fetching dashboard data:", err);
             } finally {
@@ -619,11 +623,31 @@ const Dashboard = () => {
                 >
                     👥 تفاعل المستخدمين (Users Analytics)
                 </button>
+                <button 
+                    onClick={() => setActiveTab('categories')}
+                    style={{ 
+                        padding: '12px 24px', 
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        borderBottom: activeTab === 'categories' ? '3px solid #3B82F6' : '3px solid transparent',
+                        color: activeTab === 'categories' ? '#3B82F6' : '#64748B',
+                        fontWeight: activeTab === 'categories' ? 'bold' : '500',
+                        fontSize: '16px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        marginBottom: '-2px',
+                        fontFamily: 'inherit'
+                    }}
+                >
+                    📑 تحليلات الأقسام (Category Analytics)
+                </button>
             </div>
 
             <div className="dashboard-content" style={{ display: 'block' }}>
                 {activeTab === 'users' ? (
-                    <UsersAnalyticsTab />
+                    <UsersAnalyticsTab data={advancedAnalytics?.users} />
+                ) : activeTab === 'categories' ? (
+                    <CategoryAnalyticsTab data={advancedAnalytics?.categories} />
                 ) : (
                     <>
                     {telemetry && (
