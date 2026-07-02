@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import ReactApexChart from 'react-apexcharts';
+import UsersAnalyticsTab from './UsersAnalyticsTab';
 
 const SCREEN_NAMES = {
     "login": "تسجيل الدخول",
@@ -217,6 +218,7 @@ const Dashboard = () => {
     const [telemetry, setTelemetry] = useState(null);
     const [categories, setCategories] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('telemetry');
     const sankeyContainerRef = React.useRef(null);
 
     useEffect(() => {
@@ -578,11 +580,52 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="dashboard-container">
-            
+        <div className="dashboard-container" style={{ padding: '20px' }}>
+            {/* Top Level Navigation Tabs */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', borderBottom: '2px solid #E2E8F0', paddingBottom: '0' }} dir="rtl">
+                <button 
+                    onClick={() => setActiveTab('telemetry')}
+                    style={{ 
+                        padding: '12px 24px', 
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        borderBottom: activeTab === 'telemetry' ? '3px solid #3B82F6' : '3px solid transparent',
+                        color: activeTab === 'telemetry' ? '#3B82F6' : '#64748B',
+                        fontWeight: activeTab === 'telemetry' ? 'bold' : '500',
+                        fontSize: '16px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        marginBottom: '-2px',
+                        fontFamily: 'inherit'
+                    }}
+                >
+                    📊 تحليلات التتبع والإعلانات (Telemetry & Ads)
+                </button>
+                <button 
+                    onClick={() => setActiveTab('users')}
+                    style={{ 
+                        padding: '12px 24px', 
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        borderBottom: activeTab === 'users' ? '3px solid #3B82F6' : '3px solid transparent',
+                        color: activeTab === 'users' ? '#3B82F6' : '#64748B',
+                        fontWeight: activeTab === 'users' ? 'bold' : '500',
+                        fontSize: '16px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        marginBottom: '-2px',
+                        fontFamily: 'inherit'
+                    }}
+                >
+                    👥 تفاعل المستخدمين (Users Analytics)
+                </button>
+            </div>
 
             <div className="dashboard-content" style={{ display: 'block' }}>
-
+                {activeTab === 'users' ? (
+                    <UsersAnalyticsTab />
+                ) : (
+                    <>
                     {telemetry && (
                         <div className="telemetry-section" style={{ marginBottom: '40px' }}>
                             <h2 style={{ marginBottom: '20px' }}>إحصائيات التتبع والتحليلات (Telemetry)</h2>
@@ -709,6 +752,8 @@ const Dashboard = () => {
                             <LocationStatsChart data={insights?.location_stats} />
                         </div>
                     </div>
+                    </>
+                )}
             </div>
 
             <style jsx>{`
