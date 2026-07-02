@@ -101,6 +101,117 @@ const HeatmapChart = ({ data, title, color, getScreenNameProp }) => {
     );
 };
 
+const LocationStatsChart = ({ data }) => {
+    const [activeCityIndex, setActiveCityIndex] = useState(0);
+
+    if (!data || data.length === 0) {
+        return <div className="empty-state" style={{ minHeight: '100px', width: '100%' }}>لا توجد بيانات جغرافية متاحة حالياً...</div>;
+    }
+
+    const activeLoc = data[activeCityIndex];
+    const total = activeLoc.regions ? activeLoc.regions.length : 0;
+    const zero = activeLoc.regions ? activeLoc.regions.filter(r => r.count === 0).length : 0;
+    const under10 = activeLoc.regions ? activeLoc.regions.filter(r => r.count > 0 && r.count < 10).length : 0;
+    const under20 = activeLoc.regions ? activeLoc.regions.filter(r => r.count >= 10 && r.count < 20).length : 0;
+    const active = total - zero - under10 - under20;
+
+    const sortedRegions = [...(activeLoc.regions || [])].sort((a, b) => b.count - a.count);
+    const chartRegions = sortedRegions.slice(0, 50); // Show top 50 for performance and UI cleanlines
+    const chartHeight = Math.max(400, chartRegions.length * 28);
+
+    const chartOptions = {
+        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+        plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'top' } } },
+        colors: ['#3B82F6'],
+        xaxis: { categories: chartRegions.map(r => r.name), labels: { style: { fontSize: '12px', fontFamily: 'inherit' } } },
+        yaxis: { labels: { style: { fontSize: '13px', fontWeight: 500, fontFamily: 'inherit' } } },
+        dataLabels: {
+            enabled: true,
+            offsetX: 30,
+            style: { fontSize: '13px', colors: ['#0F172A'], fontFamily: 'inherit' },
+            formatter: (val) => val + ' إعلان'
+        },
+        tooltip: { y: { formatter: (val) => val + ' إعلان' } },
+        grid: { show: true, strokeDashArray: 4, borderColor: '#e2e8f0', xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } }
+    };
+
+    const chartSeries = [{ name: 'الإعلانات', data: chartRegions.map(r => r.count) }];
+
+    return (
+        <div style={{ width: '100%', direction: 'rtl' }}>
+            {/* City Selector Tabs */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap', borderBottom: '1px solid #E2E8F0', paddingBottom: '16px' }}>
+                {data.map((loc, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => setActiveCityIndex(idx)}
+                        style={{
+                            padding: '10px 24px',
+                            borderRadius: '9999px',
+                            border: 'none',
+                            backgroundColor: activeCityIndex === idx ? '#3B82F6' : '#F1F5F9',
+                            color: activeCityIndex === idx ? 'white' : '#475569',
+                            fontWeight: '600',
+                            fontSize: '15px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontFamily: 'inherit'
+                        }}
+                    >
+                        {loc.city}
+                        <span style={{ 
+                            backgroundColor: activeCityIndex === idx ? 'rgba(255,255,255,0.2)' : '#E2E8F0', 
+                            padding: '2px 8px', 
+                            borderRadius: '9999px', 
+                            fontSize: '12px' 
+                        }}>
+                            {loc.total_ads}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Summary Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+                <div style={{ backgroundColor: '#F8FAFC', padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0', textAlign: 'center' }}>
+                    <div style={{ color: '#64748B', fontSize: '13px', marginBottom: '8px' }}>إجمالي المناطق</div>
+                    <div style={{ color: '#0F172A', fontSize: '24px', fontWeight: 'bold' }}>{total}</div>
+                </div>
+                <div style={{ backgroundColor: '#FEF2F2', padding: '16px', borderRadius: '12px', border: '1px solid #FECACA', textAlign: 'center' }}>
+                    <div style={{ color: '#DC2626', fontSize: '13px', marginBottom: '8px' }}>مناطق خالية (0 إعلان)</div>
+                    <div style={{ color: '#991B1B', fontSize: '24px', fontWeight: 'bold' }}>{zero}</div>
+                </div>
+                <div style={{ backgroundColor: '#FFFBEB', padding: '16px', borderRadius: '12px', border: '1px solid #FDE68A', textAlign: 'center' }}>
+                    <div style={{ color: '#D97706', fontSize: '13px', marginBottom: '8px' }}>تفاعل ضعيف (أقل من 20)</div>
+                    <div style={{ color: '#B45309', fontSize: '24px', fontWeight: 'bold' }}>{under10 + under20}</div>
+                </div>
+                <div style={{ backgroundColor: '#F0FDF4', padding: '16px', borderRadius: '12px', border: '1px solid #BBF7D0', textAlign: 'center' }}>
+                    <div style={{ color: '#16A34A', fontSize: '13px', marginBottom: '8px' }}>مناطق نشطة (+20 إعلان)</div>
+                    <div style={{ color: '#15803D', fontSize: '24px', fontWeight: 'bold' }}>{active}</div>
+                </div>
+            </div>
+
+            {/* Chart Container */}
+            <div style={{ 
+                border: '1px solid #E2E8F0', 
+                borderRadius: '16px', 
+                padding: '24px', 
+                backgroundColor: '#fff',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+            }}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#1E293B', fontSize: '18px', fontWeight: 'bold' }}>أكثر المناطق كثافة بالإعلانات</h4>
+                <p style={{ margin: '0 0 20px 0', color: '#64748B', fontSize: '14px' }}>يتم عرض أعلى 50 منطقة في {activeLoc.city}</p>
+                <div style={{ maxHeight: '600px', overflowY: 'auto', paddingRight: '10px' }} className="custom-scrollbar">
+                    <ReactApexChart options={chartOptions} series={chartSeries} type="bar" height={chartHeight} />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const Dashboard = () => {
     const [insights, setInsights] = useState(null);
     const [telemetry, setTelemetry] = useState(null);
@@ -594,41 +705,8 @@ const Dashboard = () => {
 
                     <div className="card tracking-card mt-4">
                         <h3>توزيع الإعلانات المباشر (توزيع المحافظات والمناطق)</h3>
-                        <div className="location-stats-list">
-                            {insights?.location_stats?.length > 0 ? (
-                                insights.location_stats.map((loc, i) => (
-                                    <div key={i} className="location-item">
-                                        <div className="loc-city-header">
-                                            <span className="loc-city-name">{loc.city}</span>
-                                            <span className="loc-city-count badge">{loc.total_ads} إعلان مختزن</span>
-                                        </div>
-                                        {loc.regions && (() => {
-                                            const total = loc.regions.length;
-                                            const zero = loc.regions.filter(r => r.count === 0).length;
-                                            const under10 = loc.regions.filter(r => r.count > 0 && r.count < 10).length;
-                                            const under20 = loc.regions.filter(r => r.count >= 10 && r.count < 20).length;
-                                            return (
-                                                <div className="stat-summary-row">
-                                                    <span>إجمالي المناطق: <b>{total}</b></span>
-                                                    <span>بدون إعلانات: <b>{zero}</b> منطقة</span>
-                                                    <span>أقل من 10: <b>{under10}</b> منطقة</span>
-                                                    <span>أقل من 20: <b>{under20}</b> منطقة</span>
-                                                </div>
-                                            );
-                                        })()}
-                                        <div className="loc-regions">
-                                            {loc.regions.map((reg, j) => (
-                                                <div key={j} className="loc-region-item">
-                                                    <span className="loc-reg-name">{reg.name}</span>
-                                                    <span className="loc-reg-count">{reg.count}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="empty-state" style={{ minHeight: '100px' }}>لا توجد بيانات جغرافية متاحة حالياً، ربما لم يتم رفع التعديلات للخادم بعد...</div>
-                            )}
+                        <div style={{ display: 'block', width: '100%', padding: '10px 0' }} dir="ltr">
+                            <LocationStatsChart data={insights?.location_stats} />
                         </div>
                     </div>
             </div>
