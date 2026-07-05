@@ -585,62 +585,80 @@ const Dashboard = () => {
 
     return (
         <div className="dashboard-container" style={{ padding: '20px' }}>
-            {/* Top Level Navigation Tabs */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', borderBottom: '2px solid #E2E8F0', paddingBottom: '0' }} dir="rtl">
-                <button 
-                    onClick={() => setActiveTab('telemetry')}
-                    style={{ 
-                        padding: '12px 24px', 
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        borderBottom: activeTab === 'telemetry' ? '3px solid #3B82F6' : '3px solid transparent',
-                        color: activeTab === 'telemetry' ? '#3B82F6' : '#64748B',
-                        fontWeight: activeTab === 'telemetry' ? 'bold' : '500',
-                        fontSize: '16px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        marginBottom: '-2px',
-                        fontFamily: 'inherit'
-                    }}
-                >
-                    📊 تحليلات التتبع والإعلانات (Telemetry & Ads)
-                </button>
-                <button 
-                    onClick={() => setActiveTab('users')}
-                    style={{ 
-                        padding: '12px 24px', 
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        borderBottom: activeTab === 'users' ? '3px solid #3B82F6' : '3px solid transparent',
-                        color: activeTab === 'users' ? '#3B82F6' : '#64748B',
-                        fontWeight: activeTab === 'users' ? 'bold' : '500',
-                        fontSize: '16px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        marginBottom: '-2px',
-                        fontFamily: 'inherit'
-                    }}
-                >
-                    👥 تفاعل المستخدمين (Users Analytics)
-                </button>
-                <button 
-                    onClick={() => setActiveTab('categories')}
-                    style={{ 
-                        padding: '12px 24px', 
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        borderBottom: activeTab === 'categories' ? '3px solid #3B82F6' : '3px solid transparent',
-                        color: activeTab === 'categories' ? '#3B82F6' : '#64748B',
-                        fontWeight: activeTab === 'categories' ? 'bold' : '500',
-                        fontSize: '16px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        marginBottom: '-2px',
-                        fontFamily: 'inherit'
-                    }}
-                >
-                    📑 تحليلات الأقسام (Category Analytics)
-                </button>
+            {/* Top Level Navigation Tabs - Premium Redesign */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }} dir="rtl">
+                <div style={{ 
+                    display: 'inline-flex', 
+                    backgroundColor: '#F1F5F9', 
+                    padding: '6px', 
+                    borderRadius: '16px', 
+                    gap: '8px',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
+                }}>
+                    <button 
+                        onClick={() => setActiveTab('telemetry')}
+                        style={{ 
+                            padding: '12px 24px', 
+                            backgroundColor: activeTab === 'telemetry' ? '#FFFFFF' : 'transparent',
+                            border: 'none',
+                            borderRadius: '12px',
+                            color: activeTab === 'telemetry' ? '#3B82F6' : '#64748B',
+                            fontWeight: activeTab === 'telemetry' ? '700' : '600',
+                            fontSize: '15px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            boxShadow: activeTab === 'telemetry' ? '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)' : 'none',
+                            fontFamily: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}
+                    >
+                        <span>📊</span> تحليلات التتبع (Telemetry)
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('users')}
+                        style={{ 
+                            padding: '12px 24px', 
+                            backgroundColor: activeTab === 'users' ? '#FFFFFF' : 'transparent',
+                            border: 'none',
+                            borderRadius: '12px',
+                            color: activeTab === 'users' ? '#3B82F6' : '#64748B',
+                            fontWeight: activeTab === 'users' ? '700' : '600',
+                            fontSize: '15px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            boxShadow: activeTab === 'users' ? '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)' : 'none',
+                            fontFamily: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}
+                    >
+                        <span>👥</span> تفاعل المستخدمين (Users)
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('categories')}
+                        style={{ 
+                            padding: '12px 24px', 
+                            backgroundColor: activeTab === 'categories' ? '#FFFFFF' : 'transparent',
+                            border: 'none',
+                            borderRadius: '12px',
+                            color: activeTab === 'categories' ? '#3B82F6' : '#64748B',
+                            fontWeight: activeTab === 'categories' ? '700' : '600',
+                            fontSize: '15px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            boxShadow: activeTab === 'categories' ? '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)' : 'none',
+                            fontFamily: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}
+                    >
+                        <span>📑</span> تحليلات الأقسام (Categories)
+                    </button>
+                </div>
             </div>
 
             <div className="dashboard-content" style={{ display: 'block' }}>
