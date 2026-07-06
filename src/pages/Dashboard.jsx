@@ -223,6 +223,7 @@ const Dashboard = () => {
     const [activeTab, setActiveTab] = useState('telemetry');
     const [userSankeySearchEmail, setUserSankeySearchEmail] = useState('');
     const [userSankeyData, setUserSankeyData] = useState(null);
+    const [userFrictionData, setUserFrictionData] = useState(null);
     const [userSankeyLoading, setUserSankeyLoading] = useState(false);
     const [userSankeyError, setUserSankeyError] = useState(null);
     const sankeyContainerRef = React.useRef(null);
@@ -257,6 +258,7 @@ const Dashboard = () => {
     const fetchUserSankey = async () => {
         if (!userSankeySearchEmail) {
             setUserSankeyData(null);
+            setUserFrictionData(null);
             setUserSankeyError(null);
             sankeyDrawn.current = false;
             return;
@@ -267,11 +269,13 @@ const Dashboard = () => {
             const API_URL = 'https://api.sooq-com.com/api';
             const res = await axios.get(`${API_URL}/telemetry/user-sankey?email=${encodeURIComponent(userSankeySearchEmail)}`);
             setUserSankeyData(res.data.sankey);
+            if (res.data.friction_metrics) setUserFrictionData(res.data.friction_metrics);
             sankeyDrawn.current = false; // force redraw
         } catch (err) {
             console.error("Error fetching user sankey", err);
-            setUserSankeyError("لم يتم العثور على مسار لهذا المستخدم.");
+            setUserSankeyError("لم يتم العثور على بيانات لهذا المستخدم.");
             setUserSankeyData(null);
+            setUserFrictionData(null);
         } finally {
             setUserSankeyLoading(false);
         }
@@ -714,16 +718,48 @@ const Dashboard = () => {
                                             يوضح هذا الرسم البياني الشامل كافة التنقلات بين الشاشات. سماكة الخط تدل على حجم الانتقال من صفحة إلى أخرى، مما يكشف بدقة عن سلوك المستخدم وتصفحه الحقيقي للتطبيق (مثلاً: الصفحة الرئيسية ← التصنيفات ← تفاصيل الإعلان).
                                         </p>
                                     </div>
+                                    <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center', background: '#F8FAFC', padding: '16px', borderRadius: '8px' }}>
+                                        <div style={{ flex: 1, maxWidth: '400px' }}>
+                                            <input 
+                                                type="email" 
+                                                placeholder="ابحث بالبريد الإلكتروني للمستخدم..." 
+                                                value={userSankeySearchEmail}
+                                                onChange={(e) => setUserSankeySearchEmail(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && fetchUserSankey()}
+                                                style={{ width: '100%', padding: '10px 16px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '1rem', outline: 'none' }}
+                                                dir="ltr"
+                                            />
+                                        </div>
+                                        <button 
+                                            onClick={fetchUserSankey}
+                                            disabled={userSankeyLoading}
+                                            style={{ padding: '10px 24px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '6px', cursor: userSankeyLoading ? 'not-allowed' : 'pointer', fontSize: '1rem', fontWeight: '500' }}
+                                        >
+                                            {userSankeyLoading ? 'جاري البحث...' : 'بحث عن مستخدم'}
+                                        </button>
+                                        <button 
+                                            onClick={() => { setUserSankeySearchEmail(''); setUserSankeyData(null); setUserFrictionData(null); }}
+                                            style={{ padding: '10px 24px', background: '#E2E8F0', color: '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '1rem', fontWeight: '500' }}
+                                        >
+                                            إلغاء التصفية
+                                        </button>
+                                    </div>
+                                    {userSankeyError && (
+                                        <div style={{ padding: '12px', background: '#FEE2E2', color: '#EF4444', borderRadius: '6px', marginBottom: '16px' }}>
+                                            {userSankeyError}
+                                        </div>
+                                    )}
                                     <div style={{ height: 750, marginTop: 16 }} dir="ltr" ref={sankeyContainerRef}>
                                     </div>
                                 </div>
                                 
                                 {/* Friction Metrics Section */}
-                                {telemetry.friction_metrics && (
+                                {(userFrictionData || telemetry.friction_metrics) && (
                                     <div className="card tracking-card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
-                                        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem', color: '#1E293B' }}>مشاكل وعوائق الاستخدام (UX Friction)</h3>
+                                        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem', color: '#1E293B' }}>مشاكل وعوائق الاستخدام (UX Friction) {userFrictionData ? `(للمستخدم المختار)` : ''}</h3>
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }} dir="ltr">
                                             {(() => {
+                                                const activeFriction = userFrictionData || telemetry.friction_metrics;
                                                 const categoryMap = new Map();
                                                 if (categories) {
                                                     const flatten = (list) => {
@@ -737,6 +773,16 @@ const Dashboard = () => {
                                                 const resolveScreenName = (s) => {
                                                     if (s === 'Unknown' || !s) return 'شاشة غير معروفة';
                                                     if (categoryMap.has(s.toString())) return categoryMap.get(s.toString());
+                                                    
+                                                    const SCREEN_NAMES = {
+                                                        'home': 'الرئيسية',
+                                                        'categories': 'الأقسام',
+                                                        'add_ad': 'إضافة إعلان',
+                                                        'messages': 'الرسائل',
+                                                        'profile': 'حسابي',
+                                                        'search': 'البحث'
+                                                    };
+                                                    
                                                     return SCREEN_NAMES[s] || s;
                                                 };
 
@@ -745,7 +791,7 @@ const Dashboard = () => {
                                                         {/* Rage Taps Scatter Plot */}
                                                         <div>
                                                             <HeatmapChart 
-                                                                data={telemetry.friction_metrics.rage_taps || []} 
+                                                                data={activeFriction.rage_taps || []} 
                                                                 title="أماكن النقر المتكرر بغضب (Rage Taps Heatmap)" 
                                                                 color="#DC2626" 
                                                                 getScreenNameProp={resolveScreenName}
@@ -755,11 +801,53 @@ const Dashboard = () => {
                                                         {/* Dead Clicks Scatter Plot */}
                                                         <div>
                                                             <HeatmapChart 
-                                                                data={telemetry.friction_metrics.dead_clicks || []} 
+                                                                data={activeFriction.dead_clicks || []} 
                                                                 title="أماكن النقرات الميتة (Dead Clicks Heatmap)" 
                                                                 color="#EA580C" 
                                                                 getScreenNameProp={resolveScreenName}
                                                             />
+                                                        </div>
+
+                                                        {/* Form Abandonment */}
+                                                        <div>
+                                                            <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', color: '#334155' }}>التخلي عن تعبئة النماذج (Form Abandonment)</h4>
+                                                            {(!activeFriction.form_abandonment || activeFriction.form_abandonment.length === 0) ? (
+                                                                <div style={{ height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC', borderRadius: '8px', color: '#94A3B8' }}>لا توجد بيانات متاحة</div>
+                                                            ) : (
+                                                                <ReactApexChart 
+                                                                    options={{
+                                                                        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+                                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'bottom' } } },
+                                                                        colors: ['#F59E0B'],
+                                                                        xaxis: { categories: activeFriction.form_abandonment.map(r => r.form_field ? (r.form_field.length > 20 ? r.form_field.substring(0, 20) + '...' : r.form_field) : 'Unknown') },
+                                                                        dataLabels: { enabled: true, textAnchor: 'start', offsetX: 0, style: { colors: ['#fff'] } },
+                                                                        yaxis: { labels: { maxWidth: 150, style: { fontSize: '11px' } } }
+                                                                    }} 
+                                                                    series={[{ name: 'المرات', data: activeFriction.form_abandonment.map(r => r.count) }]} 
+                                                                    type="bar" height={Math.max(250, activeFriction.form_abandonment.length * 25 + 50)} 
+                                                                />
+                                                            )}
+                                                        </div>
+
+                                                        {/* U-Turns */}
+                                                        <div>
+                                                            <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', color: '#334155' }}>التراجع الفوري (U-Turns)</h4>
+                                                            {(!activeFriction.u_turns || activeFriction.u_turns.length === 0) ? (
+                                                                <div style={{ height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC', borderRadius: '8px', color: '#94A3B8' }}>لا توجد بيانات متاحة</div>
+                                                            ) : (
+                                                                <ReactApexChart 
+                                                                    options={{
+                                                                        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+                                                                        plotOptions: { bar: { horizontal: true, borderRadius: 4, dataLabels: { position: 'bottom' } } },
+                                                                        colors: ['#84CC16'],
+                                                                        xaxis: { categories: activeFriction.u_turns.map(r => r.screen ? (r.screen.length > 20 ? r.screen.substring(0, 20) + '...' : r.screen) : 'Unknown') },
+                                                                        dataLabels: { enabled: true, textAnchor: 'start', offsetX: 0, style: { colors: ['#fff'] } },
+                                                                        yaxis: { labels: { maxWidth: 150, style: { fontSize: '11px' } } }
+                                                                    }} 
+                                                                    series={[{ name: 'المرات', data: activeFriction.u_turns.map(r => r.count) }]} 
+                                                                    type="bar" height={Math.max(250, activeFriction.u_turns.length * 25 + 50)} 
+                                                                />
+                                                            )}
                                                         </div>
                                                     </>
                                                 );
