@@ -221,6 +221,10 @@ const Dashboard = () => {
     const [categories, setCategories] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('telemetry');
+    const [userSankeySearchEmail, setUserSankeySearchEmail] = useState('');
+    const [userSankeyData, setUserSankeyData] = useState(null);
+    const [userSankeyLoading, setUserSankeyLoading] = useState(false);
+    const [userSankeyError, setUserSankeyError] = useState(null);
     const sankeyContainerRef = React.useRef(null);
 
     useEffect(() => {
@@ -250,6 +254,29 @@ const Dashboard = () => {
         fetchData();
     }, []);
 
+    const fetchUserSankey = async () => {
+        if (!userSankeySearchEmail) {
+            setUserSankeyData(null);
+            setUserSankeyError(null);
+            sankeyDrawn.current = false;
+            return;
+        }
+        setUserSankeyLoading(true);
+        setUserSankeyError(null);
+        try {
+            const API_URL = 'https://api.sooq-com.com/api';
+            const res = await axios.get(`${API_URL}/telemetry/user-sankey?email=${encodeURIComponent(userSankeySearchEmail)}`);
+            setUserSankeyData(res.data.sankey);
+            sankeyDrawn.current = false; // force redraw
+        } catch (err) {
+            console.error("Error fetching user sankey", err);
+            setUserSankeyError("لم يتم العثور على مسار لهذا المستخدم.");
+            setUserSankeyData(null);
+        } finally {
+            setUserSankeyLoading(false);
+        }
+    };
+
     const sankeyDrawn = useRef(false);
 
     // Re-render sankey chart when telemetry changes or component mounts
@@ -260,6 +287,10 @@ const Dashboard = () => {
         if (!categories || categories.length === 0) {
             return; // Wait for categories to load
         }
+        
+        const activeSankeyData = userSankeyData || (telemetry && telemetry.sankey ? telemetry.sankey : null);
+        if (!activeSankeyData) return;
+
 
         const nodesMap = new Map();
         const edges = [];
@@ -274,8 +305,8 @@ const Dashboard = () => {
         const nodeNameToIdx = new Map();
         const normalizedNameToIdx = new Map();
         
-        if (telemetry && telemetry.sankey && telemetry.sankey.nodes) {
-            telemetry.sankey.nodes.forEach((n, idx) => {
+        if (activeSankeyData && activeSankeyData.nodes) {
+            activeSankeyData.nodes.forEach((n, idx) => {
                 nodeNameToIdx.set(n.name, idx);
                 if (n.name) {
                     nodeNameToIdx.set(n.name.toString(), idx);
@@ -285,14 +316,14 @@ const Dashboard = () => {
         }
         
         const linkMap = new Map();
-        if (telemetry && telemetry.sankey && telemetry.sankey.links) {
-            telemetry.sankey.links.forEach(l => {
+        if (activeSankeyData && activeSankeyData.links) {
+            activeSankeyData.links.forEach(l => {
                 linkMap.set(`${l.source}-${l.target}`, l.value);
             });
         }
 
         const getFlowValue = (sourceName, targetName) => {
-            if (!telemetry || !telemetry.sankey || !telemetry.sankey.nodes) return 0;
+            if (!activeSankeyData || !activeSankeyData.nodes) return 0;
             
             let sIdx = nodeNameToIdx.get(sourceName);
             if (sIdx === undefined && sourceName != null) sIdx = nodeNameToIdx.get(sourceName.toString());

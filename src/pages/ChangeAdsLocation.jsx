@@ -16,6 +16,7 @@ const ChangeAdsLocation = () => {
   const [locationsData, setLocationsData] = useState([]);
   const [showOnlyOthers, setShowOnlyOthers] = useState(false);
   const [expandedDesc, setExpandedDesc] = useState({});
+  const [totalCount, setTotalCount] = useState(0);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -33,15 +34,21 @@ const ChangeAdsLocation = () => {
         limit: '20',
         sort_by: 'strict_newest'
       });
+      const countParams = new URLSearchParams();
 
       if (searchTerm) {
-        queryParams.append('search', searchTerm);
+        queryParams.append('location_search', searchTerm);
+        countParams.append('location_search', searchTerm);
       }
       if (showOnlyOthers) {
         queryParams.append('only_others', 'true');
+        countParams.append('only_others', 'true');
       }
 
       const res = await axios.get(`${API_BASE_URL}/ads?${queryParams.toString()}`);
+      
+      const countRes = await axios.get(`${API_BASE_URL}/ads/count?${countParams.toString()}`);
+      setTotalCount(countRes.data.total_count || 0);
       
       if (pageNum === 1) {
         setAds(res.data);
@@ -145,7 +152,7 @@ const ChangeAdsLocation = () => {
             <Search size={20} color="#6b7280" style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text" 
-              placeholder="ابحث عن إعلان بالعنوان أو الوصف..." 
+              placeholder="ابحث عن إعلان بالموقع (أو المدينة)..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: '100%', padding: '12px 45px 12px 15px', borderRadius: '8px', border: '1px solid #d1d5db', outline: 'none', fontSize: '15px' }}
@@ -163,9 +170,14 @@ const ChangeAdsLocation = () => {
             />
             عرض الإعلانات ذات الموقع "أخرى" فقط
           </label>
-          <button type="submit" style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-            بحث
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <button type="submit" style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+              بحث
+            </button>
+            <div style={{ padding: '8px 16px', backgroundColor: '#f1f5f9', borderRadius: '8px', fontWeight: 'bold', color: '#334155' }}>
+              إجمالي الإعلانات: {totalCount}
+            </div>
+          </div>
         </form>
       </div>
 
