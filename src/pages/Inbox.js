@@ -189,7 +189,7 @@ export default function Inbox() {
 
       // 3. Trigger Push Notification to User
       try {
-        const token = localStorage.getItem('adminToken');
+        const token = localStorage.getItem('adminLoggedIn');
         await axios.post(`${API_BASE_URL}/notifications/chat-alert`, {
           target_user_id: parseInt(selectedThread.otherUserId),
           sender_name: 'فريق الدعم الفني',

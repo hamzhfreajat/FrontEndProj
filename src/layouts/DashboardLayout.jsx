@@ -11,7 +11,7 @@ export const DashboardLayout = () => {
 
     useEffect(() => {
         try {
-            const token = localStorage.getItem('adminToken');
+            const token = localStorage.getItem('adminLoggedIn');
             if (token) {
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 if (payload.username) {

@@ -21,8 +21,8 @@ const Login = () => {
                 password
             });
 
-            if (res.data && res.data.token) {
-                localStorage.setItem('adminToken', res.data.token);
+            if (res.data) {
+                localStorage.setItem('adminLoggedIn', 'true');
                 // Force a page reload to reset everything and properly boot the internal router
                 window.location.href = '/';
             }
