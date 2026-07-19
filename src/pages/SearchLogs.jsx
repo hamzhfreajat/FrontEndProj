@@ -221,6 +221,8 @@ const SearchLogs = () => {
                   <th onClick={() => handleSort('results_count')} style={{ padding: '12px 20px', fontWeight: 'bold', textAlign: 'center', cursor: 'pointer' }}>
                     النتائج {sortConfig.key === 'results_count' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                   </th>
+                  <th style={{ padding: '12px 20px', fontWeight: 'bold', textAlign: 'center' }}>التصنيف</th>
+                  <th style={{ padding: '12px 20px', fontWeight: 'bold', textAlign: 'center' }}>الفلاتر المستخرجة</th>
                   <th onClick={() => handleSort('created_at')} style={{ padding: '12px 20px', fontWeight: 'bold', cursor: 'pointer' }}>
                     الوقت {sortConfig.key === 'created_at' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                   </th>
@@ -274,6 +276,26 @@ const SearchLogs = () => {
                       >
                         {log.results_count} إعلان
                       </span>
+                    </td>
+
+                    <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: '13px' }}>
+                      {log.category_name ? (
+                        <span style={{ background: '#F3F4F6', padding: '4px 8px', borderRadius: '4px', fontWeight: '500' }}>
+                          {log.category_name}
+                        </span>
+                      ) : '-'}
+                    </td>
+                    
+                    <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: '13px' }}>
+                      {log.extracted_tags ? (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                          {log.extracted_tags.split(',').map((tag, i) => (
+                            <span key={i} style={{ background: 'var(--primary-light)', color: 'var(--primary-color)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>
+                              {tag.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      ) : '-'}
                     </td>
 
                     <td style={{ padding: '12px 20px', color: 'var(--text-gray)', fontSize: '13px', direction: 'ltr', textAlign: 'right' }}>
