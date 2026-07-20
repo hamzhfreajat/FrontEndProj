@@ -22,7 +22,7 @@ import axios from 'axios';
 // Configure Axios auth interceptor
 axios.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('adminLoggedIn');
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -37,6 +37,7 @@ axios.interceptors.response.use(
     // If 401, token expired or invalid
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('adminLoggedIn');
+      localStorage.removeItem('token');
       // Only redirect if we are not already on login
       if (window.location.pathname !== '/login') {
           window.location.href = '/login';

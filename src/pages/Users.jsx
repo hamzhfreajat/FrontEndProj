@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Search, Ban, UserX, MessageSquare, Image as ImageIcon, X, CheckCircle, XCircle } from 'lucide-react';
 import './Users.css';
 
@@ -24,15 +25,8 @@ const Users = () => {
     const fetchUsers = async (query = '') => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE_URL}?q=${query}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            if (!res.ok) throw new Error('فشل في جلب البيانات');
-            const data = await res.json();
-            setUsers(data);
+            const res = await axios.get(`${API_BASE_URL}?q=${query}`);
+            setUsers(res.data);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -49,16 +43,8 @@ const Users = () => {
 
     const toggleUserStatus = async (userId, currentStatus) => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE_URL}/${userId}/status`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ is_active: !currentStatus })
-            });
-            if (res.ok) {
+            const res = await axios.put(`${API_BASE_URL}/${userId}/status`, { is_active: !currentStatus });
+            if (res.status === 200) {
                 setUsers(users.map(u => u.id === userId ? { ...u, is_active: !currentStatus } : u));
             }
         } catch (err) {
@@ -68,16 +54,8 @@ const Users = () => {
 
     const toggleUserBan = async (userId, currentBanStatus) => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE_URL}/${userId}/ban`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ is_banned: !currentBanStatus })
-            });
-            if (res.ok) {
+            const res = await axios.put(`${API_BASE_URL}/${userId}/ban`, { is_banned: !currentBanStatus });
+            if (res.status === 200) {
                 setUsers(users.map(u => u.id === userId ? { ...u, is_banned: !currentBanStatus } : u));
             }
         } catch (err) {
@@ -89,12 +67,8 @@ const Users = () => {
         setSelectedUser(user);
         setModalType('ads');
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE_URL}/${user.id}/ads`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            setUserAds(data);
+            const res = await axios.get(`${API_BASE_URL}/${user.id}/ads`);
+            setUserAds(res.data);
         } catch (err) {
             console.error(err);
         }
@@ -108,12 +82,8 @@ const Users = () => {
 
     const fetchChatMessages = async (userId) => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE_URL}/${userId}/chats`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            setChatMessages(data);
+            const res = await axios.get(`${API_BASE_URL}/${userId}/chats`);
+            setChatMessages(res.data);
         } catch (err) {
             console.error(err);
         }
@@ -124,17 +94,8 @@ const Users = () => {
         if (!newMessage.trim()) return;
         
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE_URL}/${selectedUser.id}/chats`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ message: newMessage })
-            });
-            const data = await res.json();
-            setChatMessages([...chatMessages, data]);
+            const res = await axios.post(`${API_BASE_URL}/${selectedUser.id}/chats`, { message: newMessage });
+            setChatMessages([...chatMessages, res.data]);
             setNewMessage('');
         } catch (err) {
             console.error(err);
