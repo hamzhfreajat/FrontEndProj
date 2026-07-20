@@ -31,16 +31,75 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 axios.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
     // If 401, token expired or invalid
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('adminLoggedIn');
-      localStorage.removeItem('token');
-      // Only redirect if we are not already on login
-      if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise(function(resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers['Authorization'] = 'Bearer ' + token;
+          return axios(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (refreshToken) {
+        try {
+          const apiUrl = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com';
+          const { data } = await axios.post(`${apiUrl}/api/auth/refresh`, { refresh_token: refreshToken });
+          
+          localStorage.setItem('token', data.token);
+          if (data.refresh_token) {
+              localStorage.setItem('refresh_token', data.refresh_token);
+          }
+          
+          originalRequest.headers['Authorization'] = 'Bearer ' + data.token;
+          
+          processQueue(null, data.token);
+          return axios(originalRequest);
+        } catch (err) {
+          processQueue(err, null);
+          localStorage.removeItem('adminLoggedIn');
+          localStorage.removeItem('token');
+          localStorage.removeItem('refresh_token');
+          if (window.location.pathname !== '/login') {
+              window.location.href = '/login';
+          }
+          return Promise.reject(err);
+        } finally {
+          isRefreshing = false;
+        }
+      } else {
+        localStorage.removeItem('adminLoggedIn');
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
+        if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
