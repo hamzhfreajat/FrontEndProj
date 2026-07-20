@@ -43,7 +43,25 @@ const FacebookAutoPost = () => {
         axios.get(`${API_BASE_URL}/categories`).catch(() => ({ data: [] }))
       ]);
       setRules(rulesRes.data);
-      setAvailableCategories(catRes.data || []);
+      const catData = catRes.data || [];
+      const rootIds = catData
+        .filter(c => c.name && (c.name.includes("عقارات للايجار") || c.name.includes("عقارات للبيع")))
+        .map(c => c.id);
+        
+      const descendantIds = new Set(rootIds);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        catData.forEach(c => {
+          if (c.parent_id && descendantIds.has(c.parent_id) && !descendantIds.has(c.id)) {
+            descendantIds.add(c.id);
+            changed = true;
+          }
+        });
+      }
+      
+      const filteredCategories = catData.filter(c => descendantIds.has(c.id));
+      setAvailableCategories(filteredCategories);
       
       // Flatten locations
       const regionsList = [];
