@@ -25,9 +25,11 @@ const FacebookAutoPost = () => {
   
   // Manual trigger state
   const [manualRegion, setManualRegion] = useState('');
+  const [manualCategory, setManualCategory] = useState('');
   const [manualCount, setManualCount] = useState(10);
   const [manualText, setManualText] = useState('');
   
+  const [availableCategories, setAvailableCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [rulesLoading, setRulesLoading] = useState(true);
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -35,11 +37,13 @@ const FacebookAutoPost = () => {
   const fetchData = async () => {
     setRulesLoading(true);
     try {
-      const [rulesRes, locRes] = await Promise.all([
+      const [rulesRes, locRes, catRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/facebook-rules`),
-        axios.get(`${API_BASE_URL}/locations`).catch(() => ({ data: [] }))
+        axios.get(`${API_BASE_URL}/locations`).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/categories`).catch(() => ({ data: [] }))
       ]);
       setRules(rulesRes.data);
+      setAvailableCategories(catRes.data || []);
       
       // Flatten locations
       const regionsList = [];
@@ -65,6 +69,18 @@ const FacebookAutoPost = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (manualRegion || manualCategory) {
+      const categoryPart = manualCategory ? `/category/${manualCategory}` : '';
+      const locationPart = manualRegion ? `?locations=${encodeURIComponent(manualRegion)}` : '';
+      const link = `https://share.sooq-com.com${categoryPart}${locationPart}`;
+      
+      const text = `<ar>\nتبحث عن عقار في ${manualRegion || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل العقارات المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\nيمكنك تصفح المزيد عبر التطبيق:\n${link}\n</ar>`;
+      
+      setManualText(text);
+    }
+  }, [manualRegion, manualCategory]);
 
   const handleAddRule = async (e) => {
     e.preventDefault();
@@ -111,7 +127,8 @@ const FacebookAutoPost = () => {
       const res = await axios.post(`${API_BASE_URL}/facebook/manual-publish`, {
         region_name: manualRegion,
         count: parseInt(manualCount),
-        custom_text: manualText || undefined
+        custom_text: manualText || undefined,
+        category_id: manualCategory ? parseInt(manualCategory) : undefined
       });
       setMessage({ text: `تم النشر بنجاح! عدد العقارات المرفقة: ${res.data.posted_count}`, type: "success" });
       setManualText('');
@@ -277,7 +294,7 @@ const FacebookAutoPost = () => {
             
             <form onSubmit={handleManualPublish} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
                 <div>
                   <label style={styles.inputLabel}>المنطقة المُستهدفة</label>
                   <div style={{ position: 'relative' }}>
@@ -285,12 +302,28 @@ const FacebookAutoPost = () => {
                     <input 
                       type="text" 
                       list="regions-list"
-                      placeholder="اختر أو اكتب اسم المنطقة..."
+                      placeholder="اختر اسم المنطقة..."
                       style={{ ...styles.input, paddingLeft: '40px', paddingRight: '16px' }}
                       value={manualRegion}
                       onChange={(e) => setManualRegion(e.target.value)}
                       required
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={styles.inputLabel}>القسم (اختياري)</label>
+                  <div style={{ position: 'relative' }}>
+                    <select 
+                      style={{ ...styles.input, paddingLeft: '16px', paddingRight: '16px' }}
+                      value={manualCategory}
+                      onChange={(e) => setManualCategory(e.target.value)}
+                    >
+                      <option value="">كل الأقسام</option>
+                      {availableCategories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name_ar}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 
