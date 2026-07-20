@@ -321,7 +321,7 @@ const FacebookAutoPost = () => {
                     >
                       <option value="">كل الأقسام</option>
                       {availableCategories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name_ar}</option>
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
                       ))}
                     </select>
                   </div>
