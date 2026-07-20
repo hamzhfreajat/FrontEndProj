@@ -76,7 +76,7 @@ const FacebookAutoPost = () => {
       const locationPart = manualRegion ? `?locations=${encodeURIComponent(manualRegion)}` : '';
       const link = `https://share.sooq-com.com${categoryPart}${locationPart}`;
       
-      const text = `<ar>\nتبحث عن عقار في ${manualRegion || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل العقارات المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\nيمكنك تصفح المزيد عبر التطبيق:\n${link}\n</ar>`;
+      const text = `تبحث عن عقار في ${manualRegion || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل العقارات المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\nيمكنك تصفح المزيد عبر التطبيق:\n${link}`;
       
       setManualText(text);
     }
