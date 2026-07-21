@@ -102,7 +102,12 @@ const FacebookAutoPost = () => {
         if (found) categoryId = found.id;
       }
       
-      const text = `تبحث عن ${categoryName} في ${manualRegion || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل ${categoryNamePlural} المعروضة لدينا في هذه المجموعة المميزة! 🌟`;
+      const categoryHashtag = categoryName.replace(/\s+/g, '_');
+      const regionHashtag = manualRegion ? manualRegion.replace(/\s+/g, '_') : 'الاردن';
+      
+      const hashtags = `#${categoryHashtag} #${regionHashtag} #عقارات #عقارات_الاردن #سوقكم`;
+      
+      const text = `تبحث عن ${categoryName} في ${manualRegion || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل ${categoryNamePlural} المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\n${hashtags}`;
       
       setManualText(text);
     }
