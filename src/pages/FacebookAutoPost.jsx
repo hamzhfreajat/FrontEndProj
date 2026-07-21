@@ -44,23 +44,24 @@ const FacebookAutoPost = () => {
       ]);
       setRules(rulesRes.data);
       const catData = catRes.data || [];
+      // Normalizing checking for "عقارات" to catch variations like "عقارات للإيجار"
       const rootIds = catData
-        .filter(c => c.name && (c.name.includes("عقارات للايجار") || c.name.includes("عقارات للبيع")))
-        .map(c => c.id);
+        .filter(c => c.name && c.name.includes("عقار"))
+        .map(c => String(c.id));
         
       const descendantIds = new Set(rootIds);
       let changed = true;
       while (changed) {
         changed = false;
         catData.forEach(c => {
-          if (c.parent_id && descendantIds.has(c.parent_id) && !descendantIds.has(c.id)) {
-            descendantIds.add(c.id);
+          if (c.parent_id && descendantIds.has(String(c.parent_id)) && !descendantIds.has(String(c.id))) {
+            descendantIds.add(String(c.id));
             changed = true;
           }
         });
       }
       
-      const filteredCategories = catData.filter(c => descendantIds.has(c.id));
+      const filteredCategories = catData.filter(c => descendantIds.has(String(c.id)));
       setAvailableCategories(filteredCategories);
       
       // Flatten locations
