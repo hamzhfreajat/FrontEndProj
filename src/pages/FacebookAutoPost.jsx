@@ -142,11 +142,18 @@ const FacebookAutoPost = () => {
     setMessage({ text: '', type: '' });
     
     try {
+      let category_id = undefined;
+      if (manualCategory) {
+        const foundCat = availableCategories.find(c => c.name === manualCategory);
+        if (foundCat) category_id = foundCat.id;
+      }
+
       const res = await axios.post(`${API_BASE_URL}/facebook/manual-publish`, {
         region_name: manualRegion,
         count: parseInt(manualCount),
         custom_text: manualText || undefined,
-        category_id: manualCategory ? parseInt(manualCategory) : undefined
+        category_id: category_id
+
       });
       setMessage({ text: `تم النشر بنجاح! عدد العقارات المرفقة: ${res.data.posted_count}`, type: "success" });
       setManualText('');
@@ -332,16 +339,19 @@ const FacebookAutoPost = () => {
                 <div>
                   <label style={styles.inputLabel}>القسم (اختياري)</label>
                   <div style={{ position: 'relative' }}>
-                    <select 
+                    <input 
+                      type="text" 
+                      list="categories-list"
+                      placeholder="اختر أو اكتب القسم..."
                       style={{ ...styles.input, paddingLeft: '16px', paddingRight: '16px' }}
                       value={manualCategory}
                       onChange={(e) => setManualCategory(e.target.value)}
-                    >
-                      <option value="">كل الأقسام</option>
+                    />
+                    <datalist id="categories-list">
                       {availableCategories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        <option key={cat.id} value={cat.name} />
                       ))}
-                    </select>
+                    </datalist>
                   </div>
                 </div>
                 
