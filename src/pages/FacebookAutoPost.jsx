@@ -90,11 +90,23 @@ const FacebookAutoPost = () => {
 
   useEffect(() => {
     if (manualRegion || manualCategory) {
-      const categoryPart = manualCategory ? `/category/${manualCategory}` : '';
+      let categoryId = '';
+      let categoryName = 'عقار';
+      let categoryNamePlural = 'العقارات';
+
+      if (manualCategory) {
+        categoryName = manualCategory;
+        categoryNamePlural = manualCategory; // In Arabic "شقق للبيع" fits well in both singular and plural contexts here
+        const found = availableCategories.find(c => c.name === manualCategory);
+        if (found) categoryId = found.id;
+      }
+
+      const categoryPart = categoryId ? `/category/${categoryId}` : '';
       const locationPart = manualRegion ? `?locations=${encodeURIComponent(manualRegion)}` : '';
+      // If no category is selected, the URL should just be the base URL with locations, or /category/2? wait, if no category is selected, usually we just don't append it, or we use a general link. The original code did `categoryPart = ''`.
       const link = `https://share.sooq-com.com${categoryPart}${locationPart}`;
       
-      const text = `تبحث عن عقار في ${manualRegion || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل العقارات المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\nيمكنك تصفح المزيد عبر التطبيق:\n${link}`;
+      const text = `تبحث عن ${categoryName} في ${manualRegion || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل ${categoryNamePlural} المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\nيمكنك تصفح المزيد عبر التطبيق:\n${link}`;
       
       setManualText(text);
     }
