@@ -28,6 +28,7 @@ const FacebookAutoPost = () => {
   const [manualCategory, setManualCategory] = useState('');
   const [manualCount, setManualCount] = useState(10);
   const [manualText, setManualText] = useState('');
+  const [postFormat, setPostFormat] = useState('catalog');
   
   const [availableCategories, setAvailableCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -165,8 +166,8 @@ const FacebookAutoPost = () => {
         region_name: manualRegion,
         count: parseInt(manualCount),
         custom_text: manualText || undefined,
-        category_id: category_id
-
+        category_id: category_id,
+        format: postFormat
       });
       setMessage({ text: `تم النشر بنجاح! عدد العقارات المرفقة: ${res.data.posted_count}`, type: "success" });
       setManualText('');
@@ -332,7 +333,7 @@ const FacebookAutoPost = () => {
             
             <form onSubmit={handleManualPublish} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px' }}>
                 <div>
                   <label style={styles.inputLabel}>المنطقة المُستهدفة</label>
                   <div style={{ position: 'relative' }}>
@@ -365,6 +366,24 @@ const FacebookAutoPost = () => {
                         <option key={cat.id} value={cat.name} />
                       ))}
                     </datalist>
+                  </div>
+                </div>
+                
+                <div>
+                  <label style={styles.inputLabel}>نوع النشر</label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      style={{ ...styles.input, paddingLeft: '16px', paddingRight: '16px', cursor: 'pointer' }}
+                      value={postFormat}
+                      onChange={(e) => setPostFormat(e.target.value)}
+                    >
+                      <option value="catalog">نص مع كتالوج روابط (افتراضي)</option>
+                      <option value="images">نص مع ألبوم صور (بدون روابط)</option>
+                      <option value="link">نص مع رابط واحد فقط (صورة عرض الرابط)</option>
+                      <option value="text_only">بوست نصي فقط</option>
+                      <option value="text_link_catalog">نص (يحتوي رابط) + كتالوج روابط</option>
+                      <option value="text_link_images">نص (يحتوي رابط) + ألبوم صور</option>
+                    </select>
                   </div>
                 </div>
                 
