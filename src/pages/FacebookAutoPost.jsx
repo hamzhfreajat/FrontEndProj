@@ -11,7 +11,9 @@ import {
   AlertCircle, 
   CheckCircle2, 
   Plus, 
-  Loader2 
+  Loader2,
+  Copy,
+  FileText
 } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
@@ -29,6 +31,9 @@ const FacebookAutoPost = () => {
   const [manualCount, setManualCount] = useState(10);
   const [manualText, setManualText] = useState('');
   const [postFormat, setPostFormat] = useState('catalog');
+  const [generatedText, setGeneratedText] = useState(null);
+  const [generatedLink, setGeneratedLink] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   const [availableCategories, setAvailableCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -142,6 +147,51 @@ const FacebookAutoPost = () => {
       } catch (err) {
         alert("Error deleting rule");
       }
+    }
+  };
+
+  const handleGenerateText = async () => {
+    if (!manualRegion) {
+      setMessage({ text: "يرجى إدخال اسم المنطقة لتوليد النص", type: "error" });
+      return;
+    }
+    
+    setIsGenerating(true);
+    setMessage({ text: '', type: '' });
+    setGeneratedText(null);
+    setGeneratedLink(null);
+    
+    try {
+      let category_id = undefined;
+      if (manualCategory) {
+        const foundCat = availableCategories.find(c => c.name === manualCategory);
+        if (foundCat) category_id = foundCat.id;
+      }
+
+      const res = await axios.post(`${API_BASE_URL}/facebook/generate-text`, {
+        region_name: manualRegion,
+        count: parseInt(manualCount),
+        custom_text: manualText || undefined,
+        category_id: category_id
+      });
+      setGeneratedText(res.data.text);
+      setGeneratedLink(res.data.main_link);
+      setMessage({ text: `تم توليد النص بنجاح لـ ${res.data.count} عقار`, type: "success" });
+    } catch (err) {
+      setMessage({ text: `خطأ: ${err.response?.data?.detail || err.message}`, type: "error" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (generatedText) {
+      let textToCopy = generatedText;
+      if (generatedLink && postFormat !== 'text_only') {
+        textToCopy += `\n\nالرابط: ${generatedLink}`;
+      }
+      navigator.clipboard.writeText(textToCopy);
+      setMessage({ text: "تم نسخ النص إلى الحافظة!", type: "success" });
     }
   };
 
@@ -417,17 +467,62 @@ const FacebookAutoPost = () => {
                 </div>
               </div>
               
-              <button 
-                type="submit" 
-                disabled={loading}
-                style={{ ...styles.buttonFacebook, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
-              >
-                {loading ? (
-                  <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري النشر...</>
-                ) : (
-                  <><Facebook size={20} /> نشر الكتالوج الآن</>
-                )}
-              </button>
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <button 
+                  type="submit" 
+                  disabled={loading || isGenerating}
+                  style={{ ...styles.buttonFacebook, flex: 2, opacity: (loading || isGenerating) ? 0.7 : 1, cursor: (loading || isGenerating) ? 'not-allowed' : 'pointer' }}
+                >
+                  {loading ? (
+                    <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري النشر...</>
+                  ) : (
+                    <><Facebook size={20} /> نشر البوست الآن</>
+                  )}
+                </button>
+                
+                <button 
+                  type="button" 
+                  onClick={handleGenerateText}
+                  disabled={loading || isGenerating}
+                  style={{ ...styles.buttonFacebook, flex: 1, backgroundColor: '#64748b', opacity: (loading || isGenerating) ? 0.7 : 1, cursor: (loading || isGenerating) ? 'not-allowed' : 'pointer' }}
+                >
+                  {isGenerating ? (
+                    <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري التوليد...</>
+                  ) : (
+                    <><FileText size={20} /> توليد النص للنسخ</>
+                  )}
+                </button>
+              </div>
+              
+              {generatedText && (
+                <div style={{ marginTop: '20px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', backgroundColor: '#f8fafc' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <h3 style={{ margin: 0, fontSize: '16px', color: '#334155' }}>النص المُولد:</h3>
+                    <button 
+                      type="button" 
+                      onClick={copyToClipboard}
+                      style={{ ...styles.buttonPrimary, height: '36px', padding: '0 16px', fontSize: '14px' }}
+                    >
+                      <Copy size={16} /> نسخ النص
+                    </button>
+                  </div>
+                  <pre style={{ 
+                    whiteSpace: 'pre-wrap', 
+                    fontFamily: 'inherit', 
+                    fontSize: '15px', 
+                    lineHeight: '1.6', 
+                    color: '#1e293b',
+                    margin: 0,
+                    padding: '15px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    textAlign: 'right'
+                  }}>
+                    {generatedText}
+                  </pre>
+                </div>
+              )}
               
               {message.text && (
                 <div style={{ ...styles.messageAlert, ...(message.type === 'error' ? styles.errorAlert : styles.successAlert) }}>
