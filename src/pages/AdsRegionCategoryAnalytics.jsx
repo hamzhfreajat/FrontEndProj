@@ -66,7 +66,9 @@ const AdsRegionCategoryAnalytics = () => {
         xaxis: {
             categories: stats.map(s => s.region),
             labels: {
-                style: { fontSize: '13px', fontFamily: 'inherit' }
+                style: { fontSize: '13px', fontFamily: 'inherit' },
+                rotate: -45,
+                hideOverlappingLabels: false
             }
         },
         yaxis: {
@@ -115,9 +117,12 @@ const AdsRegionCategoryAnalytics = () => {
                 padding: '24px', 
                 borderRadius: '16px', 
                 border: '1px solid #E2E8F0', 
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' 
-            }}>
-                <ReactApexChart options={chartOptions} series={series} type="bar" height={500} />
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                overflowX: 'auto'
+            }} className="custom-scrollbar">
+                <div style={{ minWidth: `${Math.max(1000, stats.length * 70)}px` }}>
+                    <ReactApexChart options={chartOptions} series={series} type="bar" height={500} />
+                </div>
             </div>
         </div>
     );
