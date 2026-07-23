@@ -453,7 +453,10 @@ const Dashboard = () => {
         // Track leaf nodes to connect them to "ad_details"
         const leafNodes = new Set();
 
-        const processCategoryLevel = (parentCat, currentSuffix) => {
+        const processCategoryLevel = (parentCat, currentSuffix, visited = new Set()) => {
+            if (visited.has(parentCat.id)) return;
+            visited.add(parentCat.id);
+            
             const children = allCategories.filter(c => c.parent_id === parentCat.id);
             
             if (children.length === 0) {
@@ -474,7 +477,7 @@ const Dashboard = () => {
                 addEdge("search", child.id.toString(), "Search", child.name);
                 
                 // Recurse to find further descendents (great-grandchildren, etc.)
-                processCategoryLevel(child, childSuffix);
+                processCategoryLevel(child, childSuffix, new Set(visited));
             });
         };
 
@@ -529,8 +532,18 @@ const Dashboard = () => {
             }
         });
 
+        // CRITICAL PERFORMANCE FIX: Strip out any nodes that don't have edges.
+        // ApexSankey will infinite loop / crash the browser if given hundreds of unconnected nodes!
+        const usedNodeIds = new Set();
+        edges.forEach(e => {
+            usedNodeIds.add(e.source);
+            usedNodeIds.add(e.target);
+        });
+
         const apexSankeyData = {
-            nodes: Array.from(nodesMap.entries()).map(([id, title]) => ({ id, title })),
+            nodes: Array.from(nodesMap.entries())
+                      .filter(([id, _]) => usedNodeIds.has(id))
+                      .map(([id, title]) => ({ id, title })),
             edges: edges
         };
 
@@ -572,7 +585,7 @@ const Dashboard = () => {
         };
 
         attemptRender();
-    }, [telemetry, loading, categories]);
+    }, [telemetry, loading, categories, userSankeyData]);
 
     if (loading) {
         return <div style={{ padding: 40, textAlign: 'center' }}>جاري تحميل البيانات الحية...</div>;
