@@ -608,11 +608,10 @@ const FacebookAutoPost = () => {
                         <span style={styles.badge}>{combo.actual_count} عقار</span>
                       </td>
                       <td style={{ ...styles.td, textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                          <button type="button" onClick={() => handleQuickCopy(combo, 'catalog')} style={styles.copyBtn} title="كتالوج">كتالوج</button>
-                          <button type="button" onClick={() => handleQuickCopy(combo, 'images')} style={styles.copyBtn} title="ألبوم صور">ألبوم</button>
-                          <button type="button" onClick={() => handleQuickCopy(combo, 'link')} style={styles.copyBtn} title="رابط واحد">رابط</button>
-                          <button type="button" onClick={() => handleQuickCopy(combo, 'text_only')} style={styles.copyBtn} title="نص فقط">نص فقط</button>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button type="button" onClick={() => handleQuickCopy(combo, 'catalog')} style={{...styles.buttonPrimary, padding: '8px 16px', height: '36px', fontSize: '14px', minWidth: '100px'}} title="نسخ البوست">
+                            <Copy size={16} /> نسخ 
+                          </button>
                         </div>
                       </td>
                     </tr>
