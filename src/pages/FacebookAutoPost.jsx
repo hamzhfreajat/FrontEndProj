@@ -38,17 +38,22 @@ const FacebookAutoPost = () => {
   const [availableCategories, setAvailableCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [rulesLoading, setRulesLoading] = useState(true);
+  const [readyLoading, setReadyLoading] = useState(false);
+  const [readyCombinations, setReadyCombinations] = useState([]);
   const [message, setMessage] = useState({ text: '', type: '' });
 
   const fetchData = async () => {
     setRulesLoading(true);
+    setReadyLoading(true);
     try {
-      const [rulesRes, locRes, catRes] = await Promise.all([
+      const [rulesRes, locRes, catRes, readyRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/facebook-rules`),
         axios.get(`${API_BASE_URL}/locations`).catch(() => ({ data: [] })),
-        axios.get(`${API_BASE_URL}/categories`).catch(() => ({ data: [] }))
+        axios.get(`${API_BASE_URL}/categories`).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/facebook/ready-combinations`).catch(() => ({ data: [] }))
       ]);
       setRules(rulesRes.data);
+      setReadyCombinations(readyRes.data || []);
       const catData = catRes.data || [];
       // Normalizing checking for "عقارات" to catch variations like "عقارات للإيجار"
       const rootIds = catData
@@ -88,6 +93,7 @@ const FacebookAutoPost = () => {
       console.error("Error fetching data:", err);
     } finally {
       setRulesLoading(false);
+      setReadyLoading(false);
     }
   };
 
@@ -229,6 +235,35 @@ const FacebookAutoPost = () => {
     }
   };
 
+  const handleQuickCopy = async (combo, format) => {
+    setIsGenerating(true);
+    setMessage({ text: '', type: '' });
+    
+    try {
+      const categoryName = combo.category_name;
+      const categoryNamePlural = combo.category_name;
+      const categoryHashtag = categoryName.replace(/\s+/g, '_');
+      const regionHashtag = combo.region_name ? combo.region_name.replace(/\s+/g, '_') : 'الاردن';
+      const hashtags = `#${categoryHashtag} #${regionHashtag} #عقارات #عقارات_الاردن #سوقكم`;
+      const customText = `تبحث عن ${categoryName} في ${combo.region_name || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل ${categoryNamePlural} المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\n${hashtags}`;
+      
+      const res = await axios.post(`${API_BASE_URL}/facebook/generate-text`, {
+        region_name: combo.region_name,
+        count: combo.count,
+        custom_text: customText,
+        category_id: combo.category_id,
+        format: format
+      });
+      
+      navigator.clipboard.writeText(res.data.text);
+      setMessage({ text: `تم توليد ونسخ النص بنجاح لصيغة ${format}`, type: "success" });
+    } catch (err) {
+      setMessage({ text: `خطأ أثناء النسخ: ${err.response?.data?.detail || err.message}`, type: "error" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const styles = {
     container: { padding: '30px', maxWidth: '1400px', margin: '0 auto', direction: 'rtl', fontFamily: "'Cairo', sans-serif" },
     headerBox: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' },
@@ -256,6 +291,7 @@ const FacebookAutoPost = () => {
     td: { padding: '14px 20px', borderBottom: '1px solid #f1f5f9', color: '#334155', fontWeight: '500' },
     badge: { display: 'inline-flex', alignItems: 'center', backgroundColor: '#eff6ff', color: '#2563eb', padding: '4px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: '700' },
     actionBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', border: 'none', backgroundColor: '#fef2f2', color: '#ef4444', cursor: 'pointer', transition: 'all 0.2s ease' },
+    copyBtn: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease' },
     messageAlert: { display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px', borderRadius: '10px', marginTop: '16px', fontWeight: '600', fontSize: '14px' },
     successAlert: { backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' },
     errorAlert: { backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }
@@ -534,6 +570,66 @@ const FacebookAutoPost = () => {
           </div>
         </div>
         
+      </div>
+
+      {/* Ready Combinations Card */}
+      <div style={{ ...styles.card, marginTop: '30px' }}>
+        <div style={styles.cardHeader}>
+          <CheckCircle2 size={22} color="#10b981" />
+          <h2 style={styles.cardTitle}>تجمعات جاهزة للنشر (50 عقار أو أكثر)</h2>
+        </div>
+        
+        <div style={styles.cardBody}>
+          <p style={styles.description}>
+            هنا تظهر المناطق والأقسام الفرعية التي تحتوي على 50 إعلاناً أو أكثر. يمكنك نسخ النص لجميع أنواع النشر بضغطة زر.
+          </p>
+          
+          <div style={styles.tableContainer}>
+            {readyLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+                <Loader2 size={32} color="#2563eb" className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+              </div>
+            ) : (
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>المنطقة</th>
+                    <th style={styles.th}>القسم</th>
+                    <th style={styles.th}>عدد العقارات</th>
+                    <th style={{ ...styles.th, textAlign: 'center' }}>نسخ جاهز للنشر</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {readyCombinations.map((combo, idx) => (
+                    <tr key={idx}>
+                      <td style={styles.td}>{combo.region_name}</td>
+                      <td style={styles.td}>{combo.category_name}</td>
+                      <td style={styles.td}>
+                        <span style={styles.badge}>{combo.actual_count} عقار</span>
+                      </td>
+                      <td style={{ ...styles.td, textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <button type="button" onClick={() => handleQuickCopy(combo, 'catalog')} style={styles.copyBtn} title="كتالوج">كتالوج</button>
+                          <button type="button" onClick={() => handleQuickCopy(combo, 'images')} style={styles.copyBtn} title="ألبوم صور">ألبوم</button>
+                          <button type="button" onClick={() => handleQuickCopy(combo, 'link')} style={styles.copyBtn} title="رابط واحد">رابط</button>
+                          <button type="button" onClick={() => handleQuickCopy(combo, 'text_only')} style={styles.copyBtn} title="نص فقط">نص فقط</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {readyCombinations.length === 0 && (
+                    <tr>
+                      <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                        <CheckCircle2 size={32} style={{ opacity: 0.2, margin: '0 auto 10px auto', display: 'block' }} />
+                        لا توجد مناطق وأقسام جاهزة للنشر حالياً.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </div>
       
       {/* Required for simple rotation animation since we don't have Tailwind classes */}
