@@ -1,7 +1,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './layouts/DashboardLayout';
-import Dashboard from './pages/Dashboard';
+import UserRegistrationAnalytics from './pages/UserRegistrationAnalytics';
+import AdsRegionCategoryAnalytics from './pages/AdsRegionCategoryAnalytics';
+import UserTrackingAnalytics from './pages/UserTrackingAnalytics';
 import Ads from './pages/Ads';
 import Categories from './pages/Categories';
 import Users from './pages/Users';
@@ -122,7 +124,10 @@ function App() {
 
         {/* Protected Dashboard Routes */}
         <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
-          <Route index element={<Dashboard />} />
+          <Route index element={<Navigate to="/user-analytics" replace />} />
+          <Route path="user-analytics" element={<UserRegistrationAnalytics />} />
+          <Route path="geo-analytics" element={<AdsRegionCategoryAnalytics />} />
+          <Route path="user-tracking" element={<UserTrackingAnalytics />} />
           <Route path="inbox" element={<Inbox />} />
           <Route path="ads" element={<Ads />} />
           <Route path="categories" element={<Categories />} />
