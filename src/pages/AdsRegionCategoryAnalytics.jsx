@@ -66,7 +66,7 @@ const AdsRegionCategoryAnalytics = () => {
             colors: ['transparent']
         },
         xaxis: {
-            categories: stats.map(s => s.region),
+            categories: [...stats].reverse().map(s => s.region),
             labels: {
                 style: { fontSize: '13px', fontFamily: 'inherit' },
                 rotate: -45,
@@ -99,17 +99,18 @@ const AdsRegionCategoryAnalytics = () => {
     };
 
     let series = [];
+    const sortedStats = [...stats].reverse();
     if (seriesMeta.length > 0) {
         series = seriesMeta.map(meta => ({
             name: meta.name,
-            data: stats.map(s => s[meta.name] || 0)
+            data: sortedStats.map(s => s[meta.name] || 0)
         }));
     } else {
         // Fallback for old API
         series = [
-            { name: 'للإيجار', data: stats.map(s => s['للإيجار'] || 0) },
-            { name: 'للبيع', data: stats.map(s => s['للبيع'] || 0) },
-            { name: 'الأراضي', data: stats.map(s => s['الأراضي'] || 0) }
+            { name: 'للإيجار', data: sortedStats.map(s => s['للإيجار'] || 0) },
+            { name: 'للبيع', data: sortedStats.map(s => s['للبيع'] || 0) },
+            { name: 'الأراضي', data: sortedStats.map(s => s['الأراضي'] || 0) }
         ];
     }
 
@@ -123,8 +124,7 @@ const AdsRegionCategoryAnalytics = () => {
                 borderRadius: '16px', 
                 border: '1px solid #E2E8F0', 
                 boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-                overflowX: 'auto',
-                direction: 'ltr' // Force LTR so highest counts are visible first on the left
+                overflowX: 'auto'
             }} className="custom-scrollbar">
                 <div style={{ minWidth: `${Math.max(800, stats.length * 30)}px` }}>
                     <ReactApexChart options={chartOptions} series={series} type="bar" height={500} />
