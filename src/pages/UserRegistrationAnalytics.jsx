@@ -29,7 +29,7 @@ const UserRegistrationAnalytics = () => {
     return (
         <div style={{ padding: '24px' }}>
             <h2 style={{ marginBottom: '24px', color: '#1E293B', fontWeight: 'bold' }}>إحصائيات المستخدمين</h2>
-            <UsersAnalyticsTab data={advancedAnalytics} />
+            <UsersAnalyticsTab data={advancedAnalytics?.users} />
         </div>
     );
 };
