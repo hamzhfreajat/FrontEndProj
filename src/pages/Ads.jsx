@@ -23,7 +23,7 @@ const Ads = () => {
     max_price: '',
     is_hot: '',
     is_published: '',
-    source_type: ''
+    source_type: 'ORGANIC_USER'
   });
 
   // Pagination state
@@ -181,7 +181,7 @@ const Ads = () => {
       max_price: '',
       is_hot: '',
       is_published: '',
-      source_type: ''
+      source_type: 'ORGANIC_USER'
     });
     setPage(1);
     resetAndFetch();
@@ -190,14 +190,14 @@ const Ads = () => {
   const resetAndFetch = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/ads?skip=0&limit=${limit}`, { headers: API_HEADERS });
+      const res = await fetch(`${API_BASE_URL}/ads?skip=0&limit=${limit}&source_type=ORGANIC_USER`, { headers: API_HEADERS });
       if (res.ok) {
         const data = await res.json();
         setAds(data);
         setHasMore(data.length === limit);
       }
 
-      const countRes = await fetch(`${API_BASE_URL}/ads/count`, { headers: API_HEADERS });
+      const countRes = await fetch(`${API_BASE_URL}/ads/count?source_type=ORGANIC_USER`, { headers: API_HEADERS });
       if (countRes.ok) {
         const countData = await countRes.json();
         setTotalCount(countData.total_count);
