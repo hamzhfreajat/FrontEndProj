@@ -190,6 +190,35 @@ const FacebookAutoPost = () => {
     }
   };
 
+  const handleGenerateGlobalCatalog = async () => {
+    setIsGenerating(true);
+    setMessage({ text: '', type: '' });
+    setGeneratedText(null);
+    setGeneratedLink(null);
+    
+    try {
+      let category_id = undefined;
+      if (manualCategory) {
+        const foundCat = availableCategories.find(c => c.name === manualCategory);
+        if (foundCat) category_id = foundCat.id;
+      }
+
+      const res = await axios.post(`${API_BASE_URL}/facebook/generate-text`, {
+        region_name: "all",
+        count: parseInt(manualCount),
+        custom_text: manualText || undefined,
+        category_id: category_id
+      });
+      setGeneratedText(res.data.text);
+      setGeneratedLink(res.data.main_link);
+      setMessage({ text: `تم توليد كتالوج شامل بنجاح لـ ${res.data.count} عقار مميز`, type: "success" });
+    } catch (err) {
+      setMessage({ text: `خطأ: ${err.response?.data?.detail || err.message}`, type: "error" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const copyToClipboard = () => {
     if (generatedText) {
       let textToCopy = generatedText;
@@ -526,6 +555,21 @@ const FacebookAutoPost = () => {
                     <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري التوليد...</>
                   ) : (
                     <><FileText size={20} /> توليد النص للنسخ</>
+                  )}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+                <button 
+                  type="button" 
+                  onClick={handleGenerateGlobalCatalog}
+                  disabled={loading || isGenerating}
+                  style={{ ...styles.buttonFacebook, width: '100%', backgroundColor: '#10b981', boxShadow: '0 6px 12px rgba(16, 185, 129, 0.2)', opacity: (loading || isGenerating) ? 0.7 : 1, cursor: (loading || isGenerating) ? 'not-allowed' : 'pointer' }}
+                >
+                  {isGenerating ? (
+                    <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري التوليد...</>
+                  ) : (
+                    <><CheckCircle2 size={20} /> إنشاء كتالوج شامل للحملات الإعلانية (كل المناطق)</>
                   )}
                 </button>
               </div>
