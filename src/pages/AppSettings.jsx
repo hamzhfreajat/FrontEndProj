@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Settings, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -22,7 +22,7 @@ export default function AppSettings() {
 
   const fetchConfig = async () => {
     try {
-      const res = await axios.get(${API_BASE_URL}/api/config/version);
+      const res = await axios.get(`${API_BASE_URL}/api/config/version`);
       if (res.data) {
         setConfig({
           latest_version: res.data.latest_version || '',
@@ -43,7 +43,7 @@ export default function AppSettings() {
     setSaving(true);
     setMessage({ text: '', type: '' });
     try {
-      await axios.put(${API_BASE_URL}/api/config/version, config);
+      await axios.put(`${API_BASE_URL}/api/config/version`, config);
       setMessage({ text: 'تم حفظ الإعدادات بنجاح!', type: 'success' });
     } catch (err) {
       setMessage({ text: 'حدث خطأ أثناء حفظ الإعدادات.', type: 'error' });
