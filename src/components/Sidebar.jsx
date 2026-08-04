@@ -52,7 +52,8 @@ const navGroups = [
     items: [
       { path: '/searches', name: 'عمليات البحث', icon: Search },
       { path: '/errors', name: 'سجل الأخطاء', icon: AlertCircle },
-      { path: '/settings', name: 'الإعدادات', icon: Settings }
+      { path: '/settings', name: 'الإعدادات', icon: Settings },
+      { path: '/app-settings', name: 'إعدادات التطبيق', icon: Settings }
     ]
   }
 ];
