@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { Search, Filter, Trash2, Eye, X, ChevronRight, ChevronLeft, MapPin, Tag, Clock, User, Bot } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
-const API_HEADERS = {
-  'ngrok-skip-browser-warning': 'true',
-  'Bypass-Tunnel-Reminder': 'true'
+const API_HEADERS = { 'ngrok-skip-browser-warning': 'true', 'Bypass-Tunnel-Reminder': 'true' };
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token") || localStorage.getItem("adminLoggedIn");
+  return { ...API_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 };
 
 const Ads = () => {
@@ -103,7 +104,7 @@ const Ads = () => {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/categories`, { headers: API_HEADERS });
+      const res = await fetch(`${API_BASE_URL}/categories`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setCategories(data);
@@ -133,7 +134,7 @@ const Ads = () => {
       
       queryParams.append('sort_by', 'strict_newest');
 
-      const res = await fetch(`${API_BASE_URL}/ads?${queryParams.toString()}`, { headers: API_HEADERS });
+      const res = await fetch(`${API_BASE_URL}/ads?${queryParams.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setAds(data);
@@ -146,7 +147,7 @@ const Ads = () => {
       countParams.delete('skip');
       countParams.delete('limit');
 
-      const countRes = await fetch(`${API_BASE_URL}/ads/count?${countParams.toString()}`, { headers: API_HEADERS });
+      const countRes = await fetch(`${API_BASE_URL}/ads/count?${countParams.toString()}`, { headers: getAuthHeaders() });
       if (countRes.ok) {
         const countData = await countRes.json();
         setTotalCount(countData.total_count);
@@ -190,14 +191,14 @@ const Ads = () => {
   const resetAndFetch = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/ads?skip=0&limit=${limit}&source_type=ORGANIC_USER`, { headers: API_HEADERS });
+      const res = await fetch(`${API_BASE_URL}/ads?skip=0&limit=${limit}&source_type=ORGANIC_USER`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setAds(data);
         setHasMore(data.length === limit);
       }
 
-      const countRes = await fetch(`${API_BASE_URL}/ads/count?source_type=ORGANIC_USER`, { headers: API_HEADERS });
+      const countRes = await fetch(`${API_BASE_URL}/ads/count?source_type=ORGANIC_USER`, { headers: getAuthHeaders() });
       if (countRes.ok) {
         const countData = await countRes.json();
         setTotalCount(countData.total_count);
@@ -234,7 +235,7 @@ const Ads = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/ads/${adId}/toggle-publish`, {
         method: 'PUT',
-        headers: API_HEADERS
+        headers: getAuthHeaders()
       });
       if (res.ok) {
         const updatedAd = await res.json();
@@ -258,7 +259,7 @@ const Ads = () => {
       try {
         const res = await fetch(`${API_BASE_URL}/ads/${adId}`, {
           method: 'DELETE',
-          headers: API_HEADERS
+          headers: getAuthHeaders()
         });
         if (res.ok) {
           setAds(ads.filter(ad => ad.id !== adId));
@@ -339,7 +340,7 @@ const Ads = () => {
       const res = await fetch(`${API_BASE_URL}/ads/${selectedAd.id}`, {
         method: 'PUT',
         headers: {
-          ...API_HEADERS,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
@@ -1338,3 +1339,4 @@ const Ads = () => {
 };
 
 export default Ads;
+
