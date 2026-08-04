@@ -256,7 +256,7 @@ const Ads = () => {
   const handleDeleteAd = async (adId) => {
     if (window.confirm('هل أنت متأكد من رغبتك في حذف هذا الإعلان بشكل نهائي؟')) {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/ads/${adId}`, {
+        const res = await fetch(`${API_BASE_URL}/ads/${adId}`, {
           method: 'DELETE',
           headers: API_HEADERS
         });
