@@ -253,6 +253,27 @@ const Ads = () => {
     }
   };
 
+  const handleDeleteAd = async (adId) => {
+    if (window.confirm('هل أنت متأكد من رغبتك في حذف هذا الإعلان بشكل نهائي؟')) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/ads/${adId}`, {
+          method: 'DELETE',
+          headers: API_HEADERS
+        });
+        if (res.ok) {
+          setAds(ads.filter(ad => ad.id !== adId));
+          setTotalCount(prev => prev - 1);
+          showToast('تم حذف الإعلان بنجاح', 'success');
+        } else {
+          showToast('حدث خطأ أثناء حذف الإعلان', 'error');
+        }
+      } catch (error) {
+        console.error('Error deleting ad:', error);
+        showToast('حدث خطأ في الاتصال بالخادم', 'error');
+      }
+    }
+  };
+
   const openAdDetails = (ad) => {
     setSelectedAd(ad);
 
@@ -557,7 +578,7 @@ const Ads = () => {
                     <td>
                       <div className="actions">
                         <button className="btn-icon" onClick={() => openAdDetails(ad)}><Eye size={18} color="var(--primary-color)" /></button>
-                        <button className="btn-icon"><Trash2 size={18} color="var(--danger-color)" /></button>
+                        <button className="btn-icon" onClick={() => handleDeleteAd(ad.id)}><Trash2 size={18} color="var(--danger-color)" /></button>
                       </div>
                     </td>
                   </tr>
