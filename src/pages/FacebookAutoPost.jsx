@@ -190,11 +190,9 @@ const FacebookAutoPost = () => {
     }
   };
 
-  const handleGenerateGlobalCatalog = async () => {
+  const handlePublishGlobalCatalog = async () => {
     setIsGenerating(true);
     setMessage({ text: '', type: '' });
-    setGeneratedText(null);
-    setGeneratedLink(null);
     
     try {
       let category_id = undefined;
@@ -203,15 +201,14 @@ const FacebookAutoPost = () => {
         if (foundCat) category_id = foundCat.id;
       }
 
-      const res = await axios.post(`${API_BASE_URL}/facebook/generate-text`, {
+      const res = await axios.post(`${API_BASE_URL}/facebook/manual-publish`, {
         region_name: "all",
         count: parseInt(manualCount),
         custom_text: manualText || undefined,
-        category_id: category_id
+        category_id: category_id,
+        format: postFormat
       });
-      setGeneratedText(res.data.text);
-      setGeneratedLink(res.data.main_link);
-      setMessage({ text: `تم توليد كتالوج شامل بنجاح لـ ${res.data.count} عقار مميز`, type: "success" });
+      setMessage({ text: `تم نشر كتالوج شامل بنجاح لـ ${res.data.posted_count} عقار مميز على فيسبوك!`, type: "success" });
     } catch (err) {
       setMessage({ text: `خطأ: ${err.response?.data?.detail || err.message}`, type: "error" });
     } finally {
@@ -562,14 +559,14 @@ const FacebookAutoPost = () => {
               <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
                 <button 
                   type="button" 
-                  onClick={handleGenerateGlobalCatalog}
+                  onClick={handlePublishGlobalCatalog}
                   disabled={loading || isGenerating}
                   style={{ ...styles.buttonFacebook, width: '100%', backgroundColor: '#10b981', boxShadow: '0 6px 12px rgba(16, 185, 129, 0.2)', opacity: (loading || isGenerating) ? 0.7 : 1, cursor: (loading || isGenerating) ? 'not-allowed' : 'pointer' }}
                 >
                   {isGenerating ? (
-                    <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري التوليد...</>
+                    <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري النشر...</>
                   ) : (
-                    <><CheckCircle2 size={20} /> إنشاء كتالوج شامل للحملات الإعلانية (كل المناطق)</>
+                    <><Send size={20} /> نشر كتالوج شامل للحملات الإعلانية (كل المناطق)</>
                   )}
                 </button>
               </div>
