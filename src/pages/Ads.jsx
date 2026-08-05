@@ -369,6 +369,19 @@ const Ads = () => {
     return url;
   };
 
+  const getMainImage = (image_url) => {
+    if (!image_url) return "";
+    try {
+      const parsed = JSON.parse(image_url);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return getProxiedImageUrl(parsed[0]);
+      }
+    } catch (e) {
+      // not json
+    }
+    return getProxiedImageUrl(image_url);
+  };
+
   // Helper for slider
   const getAdImages = (ad) => {
     if (!ad) return [];
@@ -539,8 +552,8 @@ const Ads = () => {
                     <td>#{ad.id}</td>
                     <td>
                       <div className="ad-title-cell">
-                        {ad.image_url ? (
-                          <img src={getProxiedImageUrl(ad.image_url)} alt={ad.title} referrerPolicy="no-referrer" style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover' }} />
+                        {ad.image_url && getMainImage(ad.image_url) ? (
+                          <img src={getMainImage(ad.image_url)} alt={ad.title} referrerPolicy="no-referrer" style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover' }} />
                         ) : (
                           <div className="ad-img-placeholder">📦</div>
                         )}
