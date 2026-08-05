@@ -391,8 +391,16 @@ const Ads = () => {
       return ad.image_urls.map(getProxiedImageUrl);
     }
 
-    // Fallback to organic single image
+    // Fallback to organic single image or json array string
     if (ad.image_url) {
+      try {
+        const parsed = JSON.parse(ad.image_url);
+        if (Array.isArray(parsed)) {
+          return parsed.map(getProxiedImageUrl);
+        }
+      } catch (e) {
+        // not json, proceed to return as single image
+      }
       return [getProxiedImageUrl(ad.image_url)];
     }
 
