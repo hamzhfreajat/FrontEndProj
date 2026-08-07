@@ -18,6 +18,7 @@ import Inbox from './pages/Inbox';
 import FacebookAutoPost from './pages/FacebookAutoPost';
 import ErrorLogs from './pages/ErrorLogs';
 import AppSettings from './pages/AppSettings';
+import ApiHitsAnalytics from './pages/ApiHitsAnalytics';
 
 import Login from './pages/Login';
 import axios from 'axios';
@@ -129,6 +130,7 @@ function App() {
           <Route path="user-analytics" element={<UserRegistrationAnalytics />} />
           <Route path="geo-analytics" element={<AdsRegionCategoryAnalytics />} />
           <Route path="user-tracking" element={<UserTrackingAnalytics />} />
+          <Route path="api-hits" element={<ApiHitsAnalytics />} />
           <Route path="inbox" element={<Inbox />} />
           <Route path="ads" element={<Ads />} />
           <Route path="categories" element={<Categories />} />

@@ -14,7 +14,8 @@ const navGroups = [
     items: [
       { path: '/user-analytics', name: 'إحصائيات المستخدمين', icon: Users },
       { path: '/geo-analytics', name: 'تحليلات جغرافية للإعلانات', icon: PieChart },
-      { path: '/user-tracking', name: 'تتبع المستخدمين', icon: BarChart2 }
+      { path: '/user-tracking', name: 'تتبع المستخدمين', icon: BarChart2 },
+      { path: '/api-hits', name: 'إحصائيات استهلاك الـ API', icon: LayoutDashboard }
     ]
   },
   {
