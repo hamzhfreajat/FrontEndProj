@@ -44,7 +44,8 @@ const navGroups = [
     items: [
       { path: '/saved-groups', name: 'رابط فيسبوك', icon: Globe },
       { path: '/facebook-autopost', name: 'نشر فيسبوك', icon: Facebook },
-      { path: '/scraping-logs', name: 'سجل السحب', icon: Globe }
+      { path: '/scraping-logs', name: 'سجل السحب', icon: Globe },
+      { path: '/blocked-numbers', name: 'الأرقام المحظورة', icon: AlertCircle }
     ]
   },
   {
