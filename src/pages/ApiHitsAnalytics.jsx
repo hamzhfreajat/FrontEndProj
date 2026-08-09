@@ -5,6 +5,7 @@ const ApiHitsAnalytics = () => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [dateFilter, setDateFilter] = useState('');
     
     // Details Modal State
     const [selectedEndpoint, setSelectedEndpoint] = useState(null);
@@ -15,8 +16,10 @@ const ApiHitsAnalytics = () => {
 
     useEffect(() => {
         const fetchData = async () => {
+            setLoading(true);
             try {
-                const response = await axios.get(`${API_URL}/tracking/api_hits`);
+                const queryParam = dateFilter ? `?date_filter=${dateFilter}` : '';
+                const response = await axios.get(`${API_URL}/tracking/api_hits${queryParam}`);
                 setData(response.data);
             } catch (err) {
                 console.error("Error fetching API hits data:", err);
@@ -27,13 +30,14 @@ const ApiHitsAnalytics = () => {
         };
 
         fetchData();
-    }, [API_URL]);
+    }, [API_URL, dateFilter]);
 
     const fetchDetails = async (endpointName) => {
         setSelectedEndpoint(endpointName);
         setDetailsLoading(true);
         try {
-            const response = await axios.get(`${API_URL}/tracking/api_hits/${encodeURIComponent(endpointName)}?limit=100`);
+            const queryParam = dateFilter ? `&date_filter=${dateFilter}` : '';
+            const response = await axios.get(`${API_URL}/tracking/api_hits/${encodeURIComponent(endpointName)}?limit=100${queryParam}`);
             setDetailedData(response.data);
         } catch (err) {
             console.error("Error fetching detailed API hits data:", err);
@@ -53,8 +57,25 @@ const ApiHitsAnalytics = () => {
 
     return (
         <div style={{ padding: '24px' }}>
-            <h2>API Hits Analytics</h2>
-            <p>Overview of requests made to tracked API endpoints.</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h2>API Hits Analytics</h2>
+                    <p>Overview of requests made to tracked API endpoints.</p>
+                </div>
+                <div>
+                    <select 
+                        value={dateFilter} 
+                        onChange={(e) => setDateFilter(e.target.value)}
+                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px' }}
+                    >
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="week">Last 7 Days</option>
+                        <option value="month">Last 30 Days</option>
+                    </select>
+                </div>
+            </div>
 
             <table className="users-table" style={{ width: '100%', marginTop: '20px', borderCollapse: 'collapse' }}>
                 <thead>
