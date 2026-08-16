@@ -120,4 +120,4 @@ const MetricCard = ({ title, value, subtext, color, isGood = null }) => {
     );
 };
 
-export default UsersAnalyticsTab;
+export default React.memo(UsersAnalyticsTab);

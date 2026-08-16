@@ -109,4 +109,4 @@ const MetricCard = ({ title, value, subtext, color, isGood = null }) => {
     );
 };
 
-export default CategoryAnalyticsTab;
+export default React.memo(CategoryAnalyticsTab);

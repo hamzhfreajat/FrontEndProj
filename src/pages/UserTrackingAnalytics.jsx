@@ -33,7 +33,7 @@ const getScreenName = (s) => {
     return SCREEN_NAMES[s] || s;
 };
 
-const HeatmapChart = ({ data, title, color, getScreenNameProp }) => {
+const HeatmapChart = React.memo(({ data, title, color, getScreenNameProp }) => {
     const resolveName = getScreenNameProp || getScreenName;
     const screens = ['All', ...new Set(data.map(d => d.screen || 'Unknown'))];
     const [selectedScreen, setSelectedScreen] = useState('All');
@@ -101,9 +101,9 @@ const HeatmapChart = ({ data, title, color, getScreenNameProp }) => {
             </div>
         </div>
     );
-};
+});
 
-const LocationStatsChart = ({ data }) => {
+const LocationStatsChart = React.memo(({ data }) => {
     const [activeCityIndex, setActiveCityIndex] = useState(0);
 
     if (!data || data.length === 0) {
@@ -212,7 +212,7 @@ const LocationStatsChart = ({ data }) => {
             </div>
         </div>
     );
-};
+});
 
 const UserTrackingAnalytics = () => {
     const [insights, setInsights] = useState(null);
@@ -587,6 +587,36 @@ const UserTrackingAnalytics = () => {
         attemptRender();
     }, [telemetry, loading, categories, userSankeyData]);
 
+    const categoryMapMemo = React.useMemo(() => {
+        const map = new Map();
+        if (categories) {
+            const flatten = (list) => {
+                list.forEach(c => {
+                    map.set(c.id.toString(), c.name);
+                    if (c.children) flatten(c.children);
+                });
+            };
+            flatten(categories);
+        }
+        return map;
+    }, [categories]);
+
+    const resolveScreenNameMemo = React.useCallback((s) => {
+        if (s === 'Unknown' || !s) return 'شاشة غير معروفة';
+        if (categoryMapMemo.has(s.toString())) return categoryMapMemo.get(s.toString());
+        
+        const SCREEN_NAMES = {
+            'home': 'الرئيسية',
+            'categories': 'الأقسام',
+            'add_ad': 'إضافة إعلان',
+            'messages': 'الرسائل',
+            'profile': 'حسابي',
+            'search': 'البحث'
+        };
+        
+        return SCREEN_NAMES[s] || s;
+    }, [categoryMapMemo]);
+
     if (loading) {
         return <div style={{ padding: 40, textAlign: 'center' }}>جاري تحميل البيانات الحية...</div>;
     }
@@ -756,31 +786,6 @@ const UserTrackingAnalytics = () => {
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }} dir="ltr">
                                             {(() => {
                                                 const activeFriction = userFrictionData || telemetry.friction_metrics;
-                                                const categoryMap = new Map();
-                                                if (categories) {
-                                                    const flatten = (list) => {
-                                                        list.forEach(c => {
-                                                            categoryMap.set(c.id.toString(), c.name);
-                                                            if (c.children) flatten(c.children);
-                                                        });
-                                                    };
-                                                    flatten(categories);
-                                                }
-                                                const resolveScreenName = (s) => {
-                                                    if (s === 'Unknown' || !s) return 'شاشة غير معروفة';
-                                                    if (categoryMap.has(s.toString())) return categoryMap.get(s.toString());
-                                                    
-                                                    const SCREEN_NAMES = {
-                                                        'home': 'الرئيسية',
-                                                        'categories': 'الأقسام',
-                                                        'add_ad': 'إضافة إعلان',
-                                                        'messages': 'الرسائل',
-                                                        'profile': 'حسابي',
-                                                        'search': 'البحث'
-                                                    };
-                                                    
-                                                    return SCREEN_NAMES[s] || s;
-                                                };
 
                                                 return (
                                                     <>
@@ -790,7 +795,7 @@ const UserTrackingAnalytics = () => {
                                                                 data={activeFriction.rage_taps || []} 
                                                                 title="أماكن النقر المتكرر بغضب (Rage Taps Heatmap)" 
                                                                 color="#DC2626" 
-                                                                getScreenNameProp={resolveScreenName}
+                                                                getScreenNameProp={resolveScreenNameMemo}
                                                             />
                                                         </div>
 
@@ -800,7 +805,7 @@ const UserTrackingAnalytics = () => {
                                                                 data={activeFriction.dead_clicks || []} 
                                                                 title="أماكن النقرات الميتة (Dead Clicks Heatmap)" 
                                                                 color="#EA580C" 
-                                                                getScreenNameProp={resolveScreenName}
+                                                                getScreenNameProp={resolveScreenNameMemo}
                                                             />
                                                         </div>
 

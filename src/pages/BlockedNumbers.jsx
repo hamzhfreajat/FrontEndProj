@@ -17,7 +17,7 @@ const BlockedNumbers = () => {
   const fetchBlockedNumbers = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`${apiUrl}/api/blacklist/phones`);
+      const { data } = await axios.get(`${apiUrl}/blacklist/phones`);
       setBlockedNumbers(data);
       setError(null);
     } catch (err) {
@@ -38,7 +38,7 @@ const BlockedNumbers = () => {
 
     try {
       setActionLoading(true);
-      await axios.post(`${apiUrl}/api/blacklist/phones`, { phone_number: newNumber.trim() });
+      await axios.post(`${apiUrl}/blacklist/phones`, { phone_number: newNumber.trim() });
       setNewNumber('');
       fetchBlockedNumbers();
     } catch (err) {
@@ -54,7 +54,7 @@ const BlockedNumbers = () => {
 
     try {
       setActionLoading(true);
-      await axios.delete(`${apiUrl}/api/blacklist/phones/${phone}`);
+      await axios.delete(`${apiUrl}/blacklist/phones/${phone}`);
       fetchBlockedNumbers();
     } catch (err) {
       console.error(err);

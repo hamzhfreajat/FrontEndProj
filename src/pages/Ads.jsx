@@ -18,6 +18,7 @@ const Ads = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
+    phone: '',
     category_id: '',
     location: '',
     min_price: '',
@@ -124,6 +125,7 @@ const Ads = () => {
       });
 
       if (filters.search) queryParams.append('search', filters.search);
+      if (filters.phone) queryParams.append('phone', filters.phone);
       if (filters.category_id) queryParams.append('category_id', filters.category_id);
       if (filters.location) queryParams.append('location', filters.location);
       if (filters.min_price) queryParams.append('min_price', filters.min_price);
@@ -176,6 +178,7 @@ const Ads = () => {
   const clearFilters = () => {
     setFilters({
       search: '',
+      phone: '',
       category_id: '',
       location: '',
       min_price: '',
@@ -430,6 +433,17 @@ const Ads = () => {
             onChange={handleFilterChange}
             onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
             placeholder="البحث بالكلمات المفتاحية..."
+            className="form-control pl-10"
+          />
+        </div>
+        <div className="search-box" style={{ marginLeft: '10px' }}>
+          <Search size={20} className="search-icon" />
+          <input
+            type="text"
+            placeholder="بحث برقم الهاتف..."
+            name="phone"
+            value={filters.phone || ''}
+            onChange={handleFilterChange}
             className="form-control pl-10"
           />
         </div>
