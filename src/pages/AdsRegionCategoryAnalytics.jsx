@@ -10,7 +10,7 @@ const AdsRegionCategoryAnalytics = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const API_URL = 'https://api.sooq-com.com/api';
+                const API_URL = 'https://staging.sooq-com.com/api';
                 const { data } = await axios.get(`${API_URL}/tracking/regional-category-stats`);
                 if (data.data && data.series_meta) {
                     setStats(data.data);

@@ -8,7 +8,7 @@ const BlockedNumbers = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  const apiUrl = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com';
+  const apiUrl = process.env.REACT_APP_API_URL || 'https://staging.sooq-com.com';
 
   const getAuthHeaders = () => ({
     headers: {

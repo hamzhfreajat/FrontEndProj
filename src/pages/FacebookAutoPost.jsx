@@ -16,7 +16,7 @@ import {
   FileText
 } from 'lucide-react';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://staging.sooq-com.com/api';
 
 const FacebookAutoPost = () => {
   const [rules, setRules] = useState([]);

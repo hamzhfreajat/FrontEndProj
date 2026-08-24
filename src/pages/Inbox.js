@@ -15,7 +15,7 @@ import { Search, Send, User, Phone, CheckCircle2, Clock, ArrowRight } from 'luci
 import axios from 'axios';
 import './Inbox.css';
 
-const API_BASE_URL = 'https://api.sooq-com.com/api';
+const API_BASE_URL = 'https://staging.sooq-com.com/api';
 
 const getAbsoluteMediaUrl = (url) => {
   if (!url) return '';

@@ -16,7 +16,7 @@ const SearchLogs = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      let url = 'https://api.sooq-com.com/api/admin/search_logs?limit=500';
+      let url = 'https://staging.sooq-com.com/api/admin/search_logs?limit=500';
       if (filterZero) {
         url += '&results_count=0';
       }
