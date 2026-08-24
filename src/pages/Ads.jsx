@@ -279,6 +279,28 @@ const Ads = () => {
     }
   };
 
+  const handleToggleHot = async (adId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/ads/${adId}/toggle-hot`, {
+        method: 'PUT',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const updatedAd = await res.json();
+        setAds(ads.map(ad => ad.id === adId ? { ...ad, is_hot: updatedAd.is_hot } : ad));
+        if (selectedAd && selectedAd.id === adId) {
+          setSelectedAd({ ...selectedAd, is_hot: updatedAd.is_hot });
+        }
+        showToast(updatedAd.is_hot ? 'تم تعيين الإعلان كلقطة' : 'تم إلغاء حالة اللقطة', 'success');
+      } else {
+        showToast('حدث خطأ أثناء تغيير حالة اللقطة', 'error');
+      }
+    } catch (error) {
+      console.error('Error toggling hot status:', error);
+      showToast('حدث خطأ في الاتصال بالخادم', 'error');
+    }
+  };
+
   const handleDeleteAd = async (adId) => {
     if (window.confirm('هل أنت متأكد من رغبتك في حذف هذا الإعلان بشكل نهائي؟')) {
       try {
@@ -579,17 +601,18 @@ const Ads = () => {
                 <th>الحالة</th>
                 <th>نشر</th>
                 <th>مميز</th>
+                <th>لقطة</th>
                 <th>إجراءات</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>جاري التحميل...</td>
+                  <td colSpan="11" style={{ textAlign: 'center', padding: '20px' }}>جاري التحميل...</td>
                 </tr>
               ) : ads.length === 0 ? (
                 <tr>
-                  <td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>لا توجد إعلانات تطابق بحثك</td>
+                  <td colSpan="11" style={{ textAlign: 'center', padding: '20px' }}>لا توجد إعلانات تطابق بحثك</td>
                 </tr>
               ) : (
                 ads.map(ad => (
@@ -640,6 +663,16 @@ const Ads = () => {
                           type="checkbox"
                           checked={ad.is_featured}
                           onChange={() => handleToggleFeatured(ad.id)}
+                        />
+                        <span className="ad-toggle-slider"></span>
+                      </label>
+                    </td>
+                    <td>
+                      <label className="ad-toggle-switch" title={ad.is_hot ? "إلغاء لقطة" : "تعيين كلقطة"}>
+                        <input
+                          type="checkbox"
+                          checked={ad.is_hot}
+                          onChange={() => handleToggleHot(ad.id)}
                         />
                         <span className="ad-toggle-slider"></span>
                       </label>
