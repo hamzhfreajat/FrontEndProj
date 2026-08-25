@@ -136,6 +136,7 @@ const Ads = () => {
       
       queryParams.append('sort_by', 'strict_newest');
 
+      queryParams.append('_ts', Date.now());
       const res = await fetch(`${API_BASE_URL}/ads?${queryParams.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -194,7 +195,7 @@ const Ads = () => {
   const resetAndFetch = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/ads?skip=0&limit=${limit}&source_type=ORGANIC_USER`, { headers: getAuthHeaders() });
+      const res = await fetch(`${API_BASE_URL}/ads?skip=0&limit=${limit}&source_type=ORGANIC_USER&_ts=${Date.now()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setAds(data);
