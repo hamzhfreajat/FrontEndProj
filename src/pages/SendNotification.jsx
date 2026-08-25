@@ -11,7 +11,7 @@ const SendNotification = () => {
 
     // You should configure the base API URL properly based on your environment
     // Using the same convention as the mobile app for now, but pointing to local server
-    const API_URL = process.env.REACT_APP_API_URL || 'https://staging.sooq-com.com/api';
+    const API_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
 
     const handleSubmit = async (e) => {
         e.preventDefault();

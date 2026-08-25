@@ -233,7 +233,7 @@ const UserTrackingAnalytics = () => {
             try {
                 // Adjust base URL if needed based on your environment
                 // Hardcode API URL to production as requested
-                const API_URL = 'https://staging.sooq-com.com/api';
+                const API_URL = 'https://api.sooq-com.com/api';
                 const [resInsights, resTelemetry, resCategories, resAdvanced] = await Promise.all([
                     axios.get(`${API_URL}/tracking/insights`).catch(() => ({ data: null })),
                     axios.get(`${API_URL}/telemetry/analytics`).catch(() => ({ data: null })),
@@ -266,7 +266,7 @@ const UserTrackingAnalytics = () => {
         setUserSankeyLoading(true);
         setUserSankeyError(null);
         try {
-            const API_URL = 'https://staging.sooq-com.com/api';
+            const API_URL = 'https://api.sooq-com.com/api';
             const res = await axios.get(`${API_URL}/telemetry/user-sankey?email=${encodeURIComponent(userSankeySearchEmail)}`);
             setUserSankeyData(res.data.sankey);
             if (res.data.friction_metrics) setUserFrictionData(res.data.friction_metrics);

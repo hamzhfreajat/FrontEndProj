@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Folder, ChevronRight, ChevronDown, List, Plus, Edit2, Trash2, GripVertical, CheckCircle, XCircle } from 'lucide-react';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://staging.sooq-com.com/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
 const API_HEADERS = {
     'ngrok-skip-browser-warning': 'true',
     'Bypass-Tunnel-Reminder': 'true',

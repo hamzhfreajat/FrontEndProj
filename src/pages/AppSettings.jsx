@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Settings, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-const API_BASE_URL = 'https://staging.sooq-com.com';
+const API_BASE_URL = 'https://api.sooq-com.com';
 
 export default function AppSettings() {
   const [config, setConfig] = useState({

@@ -33,7 +33,7 @@ const ScrapingLogs = () => {
       if (filters.min_saved_ads) params.append('min_saved_ads', filters.min_saved_ads);
       if (filters.min_errors) params.append('min_errors', filters.min_errors);
 
-      const res = await axios.get(`https://staging.sooq-com.com/api/scraping-logs?${params.toString()}`);
+      const res = await axios.get(`https://api.sooq-com.com/api/scraping-logs?${params.toString()}`);
       if (res.data.items) {
         setLogs(res.data.items);
         setTotal(res.data.total);

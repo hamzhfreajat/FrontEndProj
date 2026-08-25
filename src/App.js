@@ -75,7 +75,7 @@ axios.interceptors.response.use(
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
         try {
-          const apiUrl = process.env.REACT_APP_API_URL || 'https://staging.sooq-com.com';
+          const apiUrl = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com';
           const { data } = await axios.post(`${apiUrl}/api/auth/refresh`, { refresh_token: refreshToken });
           
           localStorage.setItem('token', data.token);

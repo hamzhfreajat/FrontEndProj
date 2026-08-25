@@ -12,7 +12,7 @@ const ApiHitsAnalytics = () => {
     const [detailedData, setDetailedData] = useState([]);
     const [detailsLoading, setDetailsLoading] = useState(false);
     
-    const API_URL = process.env.REACT_APP_API_URL || 'https://staging.sooq-com.com/api';
+    const API_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
 
     useEffect(() => {
         const fetchData = async () => {
