@@ -9,7 +9,7 @@ const UserRegistrationAnalytics = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const API_URL = 'https://api.sooq-com.com/api';
+                const API_URL = process.env.REACT_APP_API_URL;
                 const { data } = await axios.get(`${API_URL}/telemetry/advanced-analytics`);
                 setAdvancedAnalytics(data);
             } catch (err) {

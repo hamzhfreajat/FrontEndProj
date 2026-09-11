@@ -12,7 +12,7 @@ const Reports = () => {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('https://api.sooq-com.com/api/dashboard/reports');
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/dashboard/reports`);
       setReports(res.data);
     } catch (err) {
       console.error('Failed to fetch reports', err);

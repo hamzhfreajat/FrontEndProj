@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MapPin, Save, Search, AlertCircle } from 'lucide-react';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL ;
 
 const ChangeAdsLocation = () => {
   const [ads, setAds] = useState([]);

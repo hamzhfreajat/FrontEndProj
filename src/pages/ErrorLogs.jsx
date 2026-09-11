@@ -11,7 +11,7 @@ const ErrorLogs = () => {
         const fetchErrors = async () => {
             try {
                 // Adjust to your actual production URL
-                const API_URL = 'https://api.sooq-com.com/api';
+                const API_URL = process.env.REACT_APP_API_URL;
                 const response = await axios.get(`${API_URL}/telemetry/errors`);
                 setErrors(response.data);
             } catch (err) {
