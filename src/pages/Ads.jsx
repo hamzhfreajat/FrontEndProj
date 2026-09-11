@@ -46,6 +46,35 @@ const Ads = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
 
+  // Duplicates State
+  const [duplicateCandidates, setDuplicateCandidates] = useState([]);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [loadingDuplicates, setLoadingDuplicates] = useState(false);
+  const [checkingAdId, setCheckingAdId] = useState(null);
+
+  const checkDuplicates = async (adId) => {
+    setCheckingAdId(adId);
+    setLoadingDuplicates(true);
+    setShowDuplicateModal(true);
+    setDuplicateCandidates([]);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/ads/${adId}/check-duplicates`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDuplicateCandidates(data);
+      } else {
+        alert("Failed to fetch duplicates");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error fetching duplicates");
+    } finally {
+      setLoadingDuplicates(false);
+    }
+  };
+
   // Real Estate Options Constants
   const OPT_ROOMS = ['ستوديو', '1', '2', '3', '4', '5', '6+'];
   const OPT_BATHS = ['1', '2', '3', '4', '5', '6+'];
@@ -1002,6 +1031,57 @@ const Ads = () => {
       {toast.show && createPortal(
         <div className={`custom-toast toast-${toast.type}`}>
           {toast.message}
+        </div>,
+        document.body
+      )}
+
+      {/* Duplicate Candidates Modal */}
+      {showDuplicateModal && createPortal(
+        <div className="modal-overlay" onClick={() => setShowDuplicateModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <div className="modal-header">
+              <h2>Duplicate Candidates for Ad #{checkingAdId}</h2>
+              <button className="btn-icon" onClick={() => setShowDuplicateModal(false)}><X size={24} /></button>
+            </div>
+            <div className="modal-body" style={{ padding: '24px' }}>
+              {loadingDuplicates ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>Loading duplicates...</div>
+              ) : duplicateCandidates.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-gray)' }}>No duplicates found for this ad.</div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Candidate ID</th>
+                      <th>Total Score</th>
+                      <th>Image Score</th>
+                      <th>Text Score</th>
+                      <th>Specs Score</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {duplicateCandidates.map(cand => (
+                      <tr key={cand.candidate_ad_id}>
+                        <td>#{cand.candidate_ad_id}</td>
+                        <td style={{ fontWeight: 'bold', color: cand.total_score >= 80 ? 'var(--danger-color)' : cand.total_score >= 50 ? 'var(--warning-color)' : 'var(--primary-color)' }}>
+                          {cand.total_score}/100
+                        </td>
+                        <td>{cand.score_breakdown.image}</td>
+                        <td>{cand.score_breakdown.text}</td>
+                        <td>{cand.score_breakdown.specs}</td>
+                        <td>
+                          <span className={`badge ${cand.status === 'REJECTED_DUPLICATE' ? 'bg-danger' : cand.status === 'FLAGGED_FOR_REVIEW' ? 'bg-warning' : 'bg-success'}`}>
+                            {cand.status.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>,
         document.body
       )}
