@@ -25,7 +25,8 @@ const Ads = () => {
     max_price: '',
     is_hot: '',
     is_published: '',
-    source_type: 'ORGANIC_USER'
+    source_type: 'ORGANIC_USER',
+    duplicate_status: ''
   });
 
   // Pagination state
@@ -162,6 +163,7 @@ const Ads = () => {
       if (filters.is_hot !== '') queryParams.append('is_hot', filters.is_hot);
       if (filters.is_published !== '') queryParams.append('is_published', filters.is_published);
       if (filters.source_type) queryParams.append('source_type', filters.source_type);
+      if (filters.duplicate_status) queryParams.append('duplicate_status', filters.duplicate_status);
       
       queryParams.append('sort_by', 'strict_newest');
 
@@ -215,7 +217,8 @@ const Ads = () => {
       max_price: '',
       is_hot: '',
       is_published: '',
-      source_type: 'ORGANIC_USER'
+      source_type: 'ORGANIC_USER',
+      duplicate_status: ''
     });
     setPage(1);
     resetAndFetch();
@@ -609,6 +612,15 @@ const Ads = () => {
               <option value="SCRAPER_BOT">مستخرج آلياً (Scraper)</option>
             </select>
           </div>
+          <div>
+            <label>حالة التكرار</label>
+            <select name="duplicate_status" className="form-control" value={filters.duplicate_status} onChange={handleFilterChange}>
+              <option value="">الكل</option>
+              <option value="ACCEPTED">مقبول</option>
+              <option value="FLAGGED_FOR_REVIEW">محدد للمراجعة</option>
+              <option value="REJECTED_DUPLICATE">مرفوض كمرر</option>
+            </select>
+          </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
             <button className="btn btn-outline" onClick={clearFilters} style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}>
               <X size={18} /> مسح الفلاتر
@@ -628,6 +640,8 @@ const Ads = () => {
                 <th>الموقع</th>
                 <th>السعر</th>
                 <th>تاريخ النشر</th>
+                <th>حالة التكرار</th>
+                <th>النتيجة</th>
                 <th>الحالة</th>
                 <th>نشر</th>
                 <th>مميز</th>
@@ -670,6 +684,16 @@ const Ads = () => {
                     <td>{ad.location}</td>
                     <td className="price">{ad.price} دينار</td>
                     <td>{new Date(ad.created_at).toLocaleDateString('ar-JO')}</td>
+                    <td>
+                      {ad.duplicate_status ? (
+                        <span className={`badge ${ad.duplicate_status === 'REJECTED_DUPLICATE' ? 'bg-danger' : ad.duplicate_status === 'FLAGGED_FOR_REVIEW' ? 'bg-warning' : 'bg-success'}`}>
+                          {ad.duplicate_status.replace(/_/g, ' ')}
+                        </span>
+                      ) : '-'}
+                    </td>
+                    <td>
+                      {ad.highest_duplicate_score !== null ? `${ad.highest_duplicate_score}/100` : '-'}
+                    </td>
                     <td>
                       {ad.is_published ? (
                         <span className="badge badge-success">منشور</span>
