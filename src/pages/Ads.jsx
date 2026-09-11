@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Filter, Trash2, Eye, X, ChevronRight, ChevronLeft, MapPin, Tag, Clock, User, Bot } from 'lucide-react';
+import { Search, Filter, Trash2, Eye, X, ChevronRight, ChevronLeft, MapPin, Tag, Clock, User, Bot, Layers } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.sooq-com.com/api';
 const API_HEADERS = { 'ngrok-skip-browser-warning': 'true', 'Bypass-Tunnel-Reminder': 'true' };
@@ -680,6 +680,7 @@ const Ads = () => {
                     </td>
                     <td>
                       <div className="actions">
+                        <button className="btn-icon" title="Check Duplicates" onClick={() => checkDuplicates(ad.id)}><Layers size={18} color="var(--warning-color, #f59e0b)" /></button>
                         <button className="btn-icon" onClick={() => openAdDetails(ad)}><Eye size={18} color="var(--primary-color)" /></button>
                         <button className="btn-icon" onClick={() => handleDeleteAd(ad.id)}><Trash2 size={18} color="var(--danger-color)" /></button>
                       </div>
