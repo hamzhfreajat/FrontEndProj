@@ -642,6 +642,7 @@ const Ads = () => {
                 <th>تاريخ النشر</th>
                 <th>حالة التكرار</th>
                 <th>النتيجة</th>
+                <th>مؤشر السعر</th>
                 <th>الحالة</th>
                 <th>نشر</th>
                 <th>مميز</th>
@@ -683,7 +684,7 @@ const Ads = () => {
                     <td>{getCategoryName(ad.category_id)}</td>
                     <td>{ad.location}</td>
                     <td className="price">{ad.price} دينار</td>
-                    <td>{new Date(ad.created_at).toLocaleDateString('ar-JO')}</td>
+                    <td>{new Date(ad.original_created_at || ad.created_at).toLocaleDateString('ar-JO')}</td>
                     <td>
                       {ad.duplicate_status ? (
                         <span className={`badge ${ad.duplicate_status === 'REJECTED_DUPLICATE' ? 'bg-danger' : ad.duplicate_status === 'FLAGGED_FOR_REVIEW' ? 'bg-warning' : 'bg-success'}`}>
@@ -692,7 +693,14 @@ const Ads = () => {
                       ) : '-'}
                     </td>
                     <td>
-                      {ad.highest_duplicate_score !== null ? `${ad.highest_duplicate_score}/100` : '-'}
+                      {ad.highest_duplicate_score != null ? `${ad.highest_duplicate_score}/100` : '-'}
+                    </td>
+                    <td>
+                      {ad.market_price_status ? (
+                        <span className={`badge ${ad.market_price_status === 'BELOW_MARKET' ? 'bg-success' : ad.market_price_status === 'ABOVE_MARKET' ? 'bg-danger' : ad.market_price_status === 'FAIR_PRICE' ? 'bg-info' : 'bg-secondary'}`}>
+                          {ad.market_price_status === 'BELOW_MARKET' ? 'سعر أقل من السوق' : ad.market_price_status === 'ABOVE_MARKET' ? 'أعلى من متوسط المنطقة' : ad.market_price_status === 'FAIR_PRICE' ? 'سعر عادل' : '-'}
+                        </span>
+                      ) : '-'}
                     </td>
                     <td>
                       {ad.is_published ? (
