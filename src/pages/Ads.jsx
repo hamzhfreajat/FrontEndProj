@@ -695,12 +695,33 @@ const Ads = () => {
                     <td>
                       {ad.highest_duplicate_score != null ? `${ad.highest_duplicate_score}/100` : '-'}
                     </td>
-                    <td>
+                    <td style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '150px' }}>
                       {ad.market_price_status ? (
-                        <span className={`badge ${ad.market_price_status === 'BELOW_MARKET' ? 'bg-success' : ad.market_price_status === 'ABOVE_MARKET' ? 'bg-danger' : ad.market_price_status === 'FAIR_PRICE' ? 'bg-info' : 'bg-secondary'}`}>
-                          {ad.market_price_status === 'BELOW_MARKET' ? 'سعر أقل من السوق' : ad.market_price_status === 'ABOVE_MARKET' ? 'أعلى من متوسط المنطقة' : ad.market_price_status === 'FAIR_PRICE' ? 'سعر عادل' : '-'}
+                        <span className={`badge ${ad.market_price_status === 'BELOW_MARKET' ? 'bg-success' : ad.market_price_status === 'NOT_BELOW_MARKET' ? 'bg-secondary' : 'bg-light text-dark'}`}>
+                          {ad.market_price_status === 'BELOW_MARKET' ? 'أقل من السوق' : ad.market_price_status === 'NOT_BELOW_MARKET' ? 'عادي' : 'لا توجد بيانات'}
                         </span>
                       ) : '-'}
+                      {ad.market_price_status && ad.market_price_status !== 'NO_DATA' && ad.comparables_count !== undefined && (
+                        <button 
+                          className="btn btn-outline"
+                          style={{ padding: '2px 6px', fontSize: '11px', borderRadius: '50%', cursor: 'pointer', height: '22px', width: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            alert(
+                              "--- تفاصيل تحليل السوق الخوارزمي ---\n\n" +
+                              `النتيجة النهائية: ${ad.market_price_status === 'BELOW_MARKET' ? 'فرصة أقل من السوق' : 'سعر طبيعي'}\n` +
+                              `مستوى التطابق المستخدم (Fallback Level): ${ad.matching_level_used}\n` +
+                              `قوة وموثوقية التطابق (Confidence): ${ad.confidence_level === 'high' ? 'عالية' : ad.confidence_level === 'medium' ? 'متوسطة' : 'ضعيفة'}\n` +
+                              `عدد العقارات المرجعية المشابهة: ${ad.comparables_count} إعلان\n` +
+                              `متوسط السعر المرجعي (Median): ${ad.market_average_price} دينار\n` +
+                              `نسبة الانحراف عن السوق: ${ad.deviation_pct ? (ad.deviation_pct * 100).toFixed(1) + '%' : 'N/A'}\n`
+                            );
+                          }}
+                          title="كيف تم حساب هذه النتيجة؟"
+                        >
+                          ؟
+                        </button>
+                      )}
                     </td>
                     <td>
                       {ad.is_published ? (
