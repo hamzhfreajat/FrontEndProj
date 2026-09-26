@@ -165,7 +165,7 @@ const Ads = () => {
       if (filters.source_type) queryParams.append('source_type', filters.source_type);
       if (filters.duplicate_status) queryParams.append('duplicate_status', filters.duplicate_status);
       
-      queryParams.append('sort_by', 'strict_newest');
+      queryParams.append('sort_by', 'dashboard_strict');
 
       queryParams.append('_ts', Date.now());
       const res = await fetch(`${API_BASE_URL}/ads?${queryParams.toString()}`, { headers: getAuthHeaders() });
@@ -227,7 +227,7 @@ const Ads = () => {
   const resetAndFetch = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/ads?skip=0&limit=${limit}&source_type=ORGANIC_USER&_ts=${Date.now()}`, { headers: getAuthHeaders() });
+      const res = await fetch(`${API_BASE_URL}/ads?skip=0&limit=${limit}&source_type=ORGANIC_USER&sort_by=dashboard_strict&_ts=${Date.now()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setAds(data);
@@ -640,6 +640,9 @@ const Ads = () => {
                 <th>الموقع</th>
                 <th>السعر</th>
                 <th>تاريخ النشر</th>
+                <th>المشاهدات</th>
+                <th>المحادثات</th>
+                <th>المفضلات</th>
                 <th>حالة التكرار</th>
                 <th>النتيجة</th>
                 <th>مؤشر السعر</th>
@@ -684,8 +687,11 @@ const Ads = () => {
                     <td>{getCategoryName(ad.category_id)}</td>
                     <td>{ad.location}</td>
                     <td className="price">{ad.price} دينار</td>
-                    <td>{new Date(ad.original_created_at || ad.created_at).toLocaleDateString('ar-JO')}</td>
-                    <td>
+                      <td>{new Date(ad.original_created_at || ad.created_at).toLocaleDateString('ar-JO')}</td>
+                      <td>{ad.views || 0}</td>
+                      <td>{ad.chats_count || 0}</td>
+                      <td>{ad.favorites_count || 0}</td>
+                      <td>
                       {ad.duplicate_status ? (
                         <span className={`badge ${ad.duplicate_status === 'REJECTED_DUPLICATE' ? 'bg-danger' : ad.duplicate_status === 'FLAGGED_FOR_REVIEW' ? 'bg-warning' : 'bg-success'}`}>
                           {ad.duplicate_status.replace(/_/g, ' ')}
