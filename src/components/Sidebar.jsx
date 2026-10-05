@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import {
   LayoutDashboard, Tags, FileText, Users, Settings, LogOut, Globe, BellRing,
-  Flag, Search, AlertCircle, MapPin, Facebook, MessageSquare, ChevronDown, ChevronUp, PieChart, BarChart2
+  Flag, Star, Search, AlertCircle, MapPin, Facebook, MessageSquare, ChevronDown, ChevronUp, PieChart, BarChart2
 } from 'lucide-react';
 
 const navGroups = [
@@ -35,7 +35,8 @@ const navGroups = [
       { path: '/users', name: 'إدارة المستخدمين', icon: Users },
       { path: '/inbox', name: 'البريد الوارد (الدعم)', icon: MessageSquare },
       { path: '/send-notification', name: 'إرسال إشعارات', icon: BellRing },
-      { path: '/reports', name: 'البلاغات', icon: Flag }
+      { path: '/reports', name: 'البلاغات', icon: Flag },
+      { path: '/reviews', name: 'تقييمات الإعلانات', icon: Star }
     ]
   },
   {

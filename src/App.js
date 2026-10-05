@@ -10,6 +10,7 @@ import Users from './pages/Users';
 import SavedGroups from './pages/SavedGroups';
 import SendNotification from './pages/SendNotification';
 import Reports from './pages/Reports';
+import Reviews from './pages/Reviews';
 import SearchLogs from './pages/SearchLogs';
 import ScrapingLogs from './pages/ScrapingLogs';
 import ChangeAdsLocation from './pages/ChangeAdsLocation';
@@ -140,6 +141,7 @@ function App() {
           <Route path="saved-groups" element={<SavedGroups />} />
           <Route path="send-notification" element={<SendNotification />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="reviews" element={<Reviews />} />
           <Route path="searches" element={<SearchLogs />} />
           <Route path="scraping-logs" element={<ScrapingLogs />} />
           <Route path="change-ads-location" element={<ChangeAdsLocation />} />
