@@ -263,6 +263,7 @@
 .reviews-actions {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .reviews-action {
@@ -325,4 +326,23 @@
     display: table;
     min-width: 900px;
   }
+}
+
+/* Deleting the ad is the heavier action, so it looks it */
+.reviews-action-delete-ad {
+  border-color: var(--danger-color);
+  background: var(--danger-color);
+  color: var(--white);
+}
+
+.reviews-action-delete-ad:hover:not(:disabled) {
+  border-color: var(--danger-color);
+  background: var(--white);
+  color: var(--danger-color);
+}
+
+.reviews-source-badge {
+  display: inline-block;
+  margin-top: 4px;
+  margin-inline-end: 6px;
 }

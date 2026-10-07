@@ -4,6 +4,7 @@ import { Star, RefreshCw, EyeOff, Eye, Trash2, AlertTriangle, X } from 'lucide-r
 import './Reviews.css';
 
 const API_URL = `${process.env.REACT_APP_API_URL}/dashboard/reviews`;
+const ADS_URL = `${process.env.REACT_APP_API_URL}/ads`;
 const PAGE_SIZE = 50;
 // Must match AD_REVIEW_NEGATIVE_MAX_RATING in backend/schemas.py
 const NEGATIVE_MAX_RATING = 2;
@@ -15,6 +16,17 @@ const Stars = ({ value }) => (
     ))}
   </span>
 );
+
+// Who put the ad on the site: a person through the app, or the scraper
+const SourceBadge = ({ type }) => {
+  if (!type) return null;
+  const organic = type === 'ORGANIC_USER';
+  return (
+    <span className={`badge ${organic ? 'badge-success' : 'badge-warning'} reviews-source-badge`}>
+      {organic ? 'عضوي (مستخدم)' : 'مستخرج آلياً'}
+    </span>
+  );
+};
 
 const Reviews = () => {
   const [reviews, setReviews] = useState([]);
@@ -101,6 +113,24 @@ const Reviews = () => {
     }
   };
 
+  // Removes the ad itself, and with it every review it has
+  const deleteAd = async (review) => {
+    const title = review.ad_title ? ` "${review.ad_title}"` : '';
+    const message = `هل أنت متأكد من حذف الإعلان #${review.ad_id}${title} نهائياً؟
+سيُحذف الإعلان مع جميع تقييماته، ولا يمكن التراجع عن ذلك.`;
+    if (!window.confirm(message)) return;
+    try {
+      setBusyId(review.id);
+      await axios.delete(`${ADS_URL}/${review.ad_id}`);
+      await fetchReviews();
+    } catch (err) {
+      console.error('Failed to delete ad', err);
+      alert('تعذر حذف الإعلان');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -134,6 +164,7 @@ const Reviews = () => {
               <button key={ad.ad_id} className="reviews-flagged-item" onClick={() => filterByAd(ad.ad_id)}>
                 <span className="reviews-flagged-ad">
                   #{ad.ad_id} {ad.ad_title ? `· ${ad.ad_title}` : ''}
+                  <SourceBadge type={ad.ad_source_type} />
                 </span>
                 <span className="reviews-flagged-meta">
                   <span className="badge badge-danger">{ad.negative_count} سلبي</span>
@@ -219,6 +250,7 @@ const Reviews = () => {
                         #{review.ad_id}
                       </button>
                       <div className="reviews-ad-title">{review.ad_title || '-'}</div>
+                      <SourceBadge type={review.ad_source_type} />
                       {review.ad_flagged && (
                         <span className="badge badge-danger reviews-flag-badge">
                           <AlertTriangle size={12} />
@@ -267,7 +299,16 @@ const Reviews = () => {
                           title="حذف التقييم"
                         >
                           <Trash2 size={16} />
-                          حذف
+                          حذف التقييم
+                        </button>
+                        <button
+                          className="reviews-action reviews-action-delete-ad"
+                          onClick={() => deleteAd(review)}
+                          disabled={busyId === review.id}
+                          title="حذف الإعلان نفسه مع جميع تقييماته"
+                        >
+                          <Trash2 size={16} />
+                          حذف الإعلان
                         </button>
                       </div>
                     </td>
