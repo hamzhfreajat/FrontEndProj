@@ -1,269 +1,170 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import React, { useState } from 'react';
+import { RefreshCw, ScrollText, X } from 'lucide-react';
+import { api } from '../lib/api';
+import { adUrl } from '../lib/site';
+import { Badge, Button, Card, DataTable, EmptyState, Input, Modal, PageHeader, SearchInput, Select, formatDate, formatNumber, timeAgo, useLoad } from '../ui';
 
-const ScrapingLogs = () => {
-  const [logs, setLogs] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+const NO_FILTERS = { group_name: '', min_saved_ads: '', min_errors: '' };
+const SORTS = [
+  { value: 'created_at:desc', label: 'الأحدث أولاً' },
+  { value: 'created_at:asc', label: 'الأقدم أولاً' },
+  { value: 'saved_ads:desc', label: 'الأكثر حفظاً' },
+  { value: 'saved_ads:asc', label: 'الأقل حفظاً' },
+  { value: 'errors_count:desc', label: 'الأكثر أخطاء' },
+  { value: 'group_name:asc', label: 'حسب اسم المجموعة' },
+];
 
-  // Pagination & Sorting
+/** What happened to each post of a run: saved as an ad, skipped, or failed. */
+function RunDetails({ log }) {
+  const items = Array.isArray(log.json_data) ? log.json_data : [];
+  const known = items.filter((item) => ['saved', 'skipped', 'error'].includes(item.status));
+  if (items.length === 0) return <EmptyState title="لا توجد تفاصيل لهذا التشغيل" />;
+  if (known.length === 0) return <div className="code">{JSON.stringify(items, null, 2)}</div>;
+  return (
+    <div className="stack-sm">
+      {known.map((item, index) => (
+        <div key={index} className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+          {item.status === 'saved' ? <Badge tone="green">حُفظ</Badge> : item.status === 'error' ? <Badge tone="red">خطأ</Badge> : <Badge tone="amber">تخطّي</Badge>}
+          <div className="grow" style={{ overflowWrap: 'anywhere' }}>
+            {item.status === 'saved' ? (
+              item.ad_id ? (
+                <a href={adUrl(item.ad_id)} target="_blank" rel="noreferrer">
+                  إعلان #{item.ad_id}
+                </a>
+              ) : (
+                'إعلان جديد'
+              )
+            ) : (
+              item.reason || 'بدون سبب مسجّل'
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function ScrapingLogs() {
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
-  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
+  const [pageSize, setPageSize] = useState(50);
+  const [sort, setSort] = useState('created_at:desc');
+  const [draft, setDraft] = useState(NO_FILTERS);
+  const [filters, setFilters] = useState(NO_FILTERS);
+  const [open, setOpen] = useState(null);
 
-  // Filters
-  const [filters, setFilters] = useState({
-    group_name: '',
-    min_saved_ads: '',
-    min_errors: ''
-  });
+  const { data, loading, error, reload } = useLoad(() => {
+    const [key, direction] = sort.split(':');
+    const params = { page, limit: pageSize, sort_by: key, sort_desc: direction === 'desc', t: Date.now() };
+    Object.keys(filters).forEach((name) => {
+      if (filters[name] !== '') params[name] = filters[name];
+    });
+    return api.get('/scraping-logs', { params }).then((response) => (response.data.items ? response.data : { items: response.data, total: response.data.length }));
+  }, [page, pageSize, sort, filters]);
 
-  const fetchLogs = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page,
-        limit,
-        sort_by: sortConfig.key,
-        sort_desc: sortConfig.direction === 'desc',
-        t: Date.now()
-      });
+  const logs = (data && data.items) || [];
+  const total = (data && data.total) || 0;
+  const hasFilters = Object.keys(filters).some((name) => filters[name] !== '');
 
-      if (filters.group_name) params.append('group_name', filters.group_name);
-      if (filters.min_saved_ads) params.append('min_saved_ads', filters.min_saved_ads);
-      if (filters.min_errors) params.append('min_errors', filters.min_errors);
-
-      const res = await axios.get(`${process.env.REACT_APP_API_URL}/scraping-logs?${params.toString()}`);
-      if (res.data.items) {
-        setLogs(res.data.items);
-        setTotal(res.data.total);
-      } else {
-        // Fallback if backend isn't updated yet
-        setLogs(res.data);
-        setTotal(res.data.length);
-      }
-    } catch (err) {
-      console.error('Failed to fetch scraping logs', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, limit, sortConfig, filters]);
-
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
-
-  const handleSort = (key) => {
-    let direction = 'desc';
-    if (sortConfig.key === key && sortConfig.direction === 'desc') {
-      direction = 'asc';
-    }
-    setSortConfig({ key, direction });
+  const apply = (event) => {
+    if (event) event.preventDefault();
     setPage(1);
+    setFilters(draft);
   };
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-  };
-
-  const applyFilters = () => {
+  const clear = () => {
+    setDraft(NO_FILTERS);
+    setFilters(NO_FILTERS);
     setPage(1);
-    fetchLogs();
-  };
-
-  const clearFilters = () => {
-    setFilters({ group_name: '', min_saved_ads: '', min_errors: '' });
-    setPage(1);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ar-JO') + ' ' + date.toLocaleTimeString('ar-JO');
-  };
-
-  const totalPages = Math.ceil(total / limit);
-
-  const renderSortIcon = (columnKey) => {
-    if (sortConfig.key !== columnKey) return <span style={{opacity: 0.3, marginRight: '5px'}}>↕</span>;
-    return sortConfig.direction === 'asc' ? <span style={{marginRight: '5px'}}>↑</span> : <span style={{marginRight: '5px'}}>↓</span>;
   };
 
   return (
-    <div className="ads-container">
-      <div className="ads-header">
-        <button className="primary-btn" onClick={fetchLogs}>تحديث السجل</button>
-      </div>
+    <>
+      <PageHeader title="سجل السحب" subtitle="كل تشغيل للسحب الآلي من فيسبوك: كم إعلاناً حُفظ، كم تُخطّي، وكم خطأ حدث.">
+        <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={reload}>
+          تحديث
+        </Button>
+      </PageHeader>
 
-      <div className="card filter-card" style={{ marginBottom: '20px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.08)' }}>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1', minWidth: '200px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>ابحث باسم المجموعة أو الصفحة</label>
-            <input type="text" name="group_name" value={filters.group_name} onChange={handleFilterChange} placeholder="مثال: سيارات للبيع..." style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none', transition: 'border-color 0.2s' }} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#d1d5db'} />
-          </div>
-          <div style={{ flex: '1', minWidth: '150px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>الحد الأدنى للمحفوظة</label>
-            <input type="number" name="min_saved_ads" value={filters.min_saved_ads} onChange={handleFilterChange} placeholder="0" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
-          </div>
-          <div style={{ flex: '1', minWidth: '150px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: '#4b5563' }}>الحد الأدنى للأخطاء</label>
-            <input type="number" name="min_errors" value={filters.min_errors} onChange={handleFilterChange} placeholder="0" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #d1d5db', outline: 'none' }} />
-          </div>
-          
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={applyFilters} style={{ background: '#2563eb', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)' }}>تطبيق الفلاتر</button>
-            <button onClick={clearFilters} style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>مسح</button>
-            
-            {/* Quick Sort Buttons */}
-            <button 
-              onClick={() => {
-                setSortConfig({ key: 'group_name', direction: 'asc' });
-                setPage(1);
-              }} 
-              style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(139, 92, 246, 0.2)' }}
-            >
-              <span>🗂️</span> تجميع المجموعات أسفل بعضها
-            </button>
-            <button 
-              onClick={() => {
-                setSortConfig({ key: 'saved_ads', direction: 'desc' });
-                setPage(1);
-              }} 
-              style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}
-            >
-              <span>🔥</span> الأعلى حفظاً
-            </button>
-            <button 
-              onClick={() => {
-                setSortConfig({ key: 'saved_ads', direction: 'asc' });
-                setPage(1);
-              }} 
-              style={{ background: '#ef4444', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)' }}
-            >
-              <span>❄️</span> الأقل حفظاً
-            </button>
-          </div>
-        </div>
-      </div>
+      <Card flush>
+        <form className="toolbar" onSubmit={apply}>
+          <SearchInput value={draft.group_name} onChange={(value) => setDraft({ ...draft, group_name: value })} placeholder="اسم المجموعة أو الصفحة..." />
+          <Input type="number" min="0" value={draft.min_saved_ads} onChange={(event) => setDraft({ ...draft, min_saved_ads: event.target.value })} placeholder="أقل محفوظ" style={{ width: 120 }} aria-label="الحد الأدنى للمحفوظ" />
+          <Input type="number" min="0" value={draft.min_errors} onChange={(event) => setDraft({ ...draft, min_errors: event.target.value })} placeholder="أقل أخطاء" style={{ width: 120 }} aria-label="الحد الأدنى للأخطاء" />
+          <Button type="submit" variant="secondary">
+            تطبيق
+          </Button>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" icon={X} onClick={clear}>
+              مسح
+            </Button>
+          )}
+          <div className="toolbar-spacer" />
+          <Select value={sort} onChange={(event) => { setSort(event.target.value); setPage(1); }} aria-label="الترتيب">
+            {SORTS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
+          <Select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} aria-label="عدد الصفوف">
+            {[20, 50, 100].map((size) => (
+              <option key={size} value={size}>
+                {size} صف
+              </option>
+            ))}
+          </Select>
+        </form>
+        <DataTable
+          rows={logs}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          onRowClick={setOpen}
+          serverPaging={{ page, pageSize, total, onPage: setPage }}
+          empty={<EmptyState icon={ScrollText} title={hasFilters ? 'لا توجد سجلات مطابقة' : 'لا توجد سجلات سحب بعد'} />}
+          columns={[
+            {
+              key: 'group',
+              label: 'المجموعة',
+              primary: true,
+              render: (log) => (
+                <div>
+                  <div className="cell-title">{log.group_name || 'غير معروف'}</div>
+                  <div className="cell-sub num">تشغيل #{log.id}</div>
+                </div>
+              ),
+            },
+            { key: 'saved', label: 'حُفظ', render: (log) => <Badge tone={log.saved_ads > 0 ? 'green' : undefined}>{formatNumber(log.saved_ads)}</Badge> },
+            { key: 'skipped', label: 'تُخطّي', render: (log) => <Badge tone={log.skipped_ads > 0 ? 'amber' : undefined}>{formatNumber(log.skipped_ads)}</Badge> },
+            { key: 'errors', label: 'أخطاء', render: (log) => <Badge tone={log.errors_count > 0 ? 'red' : undefined}>{formatNumber(log.errors_count)}</Badge> },
+            { key: 'created_at', label: 'الوقت', render: (log) => <span title={formatDate(log.created_at)}>{timeAgo(log.created_at)}</span> },
+            {
+              key: 'actions',
+              label: '',
+              actions: true,
+              render: (log) => (
+                <Button variant="secondary" size="sm" disabled={!log.json_data || log.json_data.length === 0} onClick={() => setOpen(log)}>
+                  التفاصيل
+                </Button>
+              ),
+            },
+          ]}
+        />
+      </Card>
 
-      <div className="card table-card" style={{ backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-        {loading ? (
-          <div className="loading-state" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>جاري تحميل السجل...</div>
-        ) : logs.length === 0 ? (
-          <div className="empty-state" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>لا يوجد سجلات سحب تطابق الفلاتر</div>
-        ) : (
-          <>
-            <div className="table-responsive">
-              <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                    <th onClick={() => handleSort('id')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
-                      رقم {renderSortIcon('id')}
-                    </th>
-                    <th onClick={() => handleSort('group_name')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
-                      اسم المجموعة / الصفحة {renderSortIcon('group_name')}
-                    </th>
-                    <th onClick={() => handleSort('saved_ads')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
-                      تم الحفظ {renderSortIcon('saved_ads')}
-                    </th>
-                    <th onClick={() => handleSort('skipped_ads')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
-                      تخطى (مكرر/مرفوض) {renderSortIcon('skipped_ads')}
-                    </th>
-                    <th onClick={() => handleSort('errors_count')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
-                      أخطاء {renderSortIcon('errors_count')}
-                    </th>
-                    <th onClick={() => handleSort('created_at')} style={{ cursor: 'pointer', userSelect: 'none', padding: '15px', color: '#475569', fontWeight: '600' }}>
-                      التاريخ والوقت {renderSortIcon('created_at')}
-                    </th>
-                    <th style={{ padding: '15px', color: '#475569', fontWeight: '600' }}>التفاصيل</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log) => (
-                    <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.2s', ':hover': { backgroundColor: '#f8fafc' } }}>
-                      <td style={{ padding: '15px', color: '#64748b' }}>#{log.id}</td>
-                      <td style={{ padding: '15px' }}><span style={{ fontWeight: '600', color: '#0f172a' }}>{log.group_name || 'غير معروف'}</span></td>
-                      <td style={{ padding: '15px' }}><span className="badge badge-success" style={{ background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.saved_ads}</span></td>
-                      <td style={{ padding: '15px' }}><span className="badge badge-warning" style={{ background: '#fef3c7', color: '#92400e', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.skipped_ads}</span></td>
-                      <td style={{ padding: '15px' }}><span className="badge badge-danger" style={{ background: '#fee2e2', color: '#991b1b', padding: '4px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }}>{log.errors_count}</span></td>
-                      <td dir="ltr" style={{ padding: '15px', color: '#475569', fontSize: '13px' }}>{formatDate(log.created_at)}</td>
-                      <td style={{ padding: '15px', maxWidth: '350px' }}>
-                        {log.json_data && log.json_data.length > 0 ? (
-                          <details style={{ cursor: 'pointer' }}>
-                            <summary style={{ color: '#2563eb', fontWeight: '500', outline: 'none' }}>تفاصيل السحب ({log.json_data.length})</summary>
-                            <div style={{ textAlign: 'right', fontSize: '12px', maxHeight: '180px', overflowY: 'auto', background: '#f1f5f9', padding: '10px', marginTop: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', color: '#334155' }}>
-                              <ul style={{ margin: 0, paddingInlineStart: '20px' }}>
-                                {log.json_data.map((item, idx) => {
-                                  if (item.status === 'skipped' || item.status === 'error') {
-                                    return (
-                                      <li key={idx} style={{ marginBottom: '4px', color: item.status === 'error' ? '#ef4444' : '#d97706' }}>
-                                        <strong>مرفوض/متخطي:</strong> {item.reason || 'بدون سبب'}
-                                      </li>
-                                    );
-                                  } else if (item.status === 'saved') {
-                                    return (
-                                      <li key={idx} style={{ marginBottom: '4px', color: '#10b981' }}>
-                                        <strong>تم الحفظ:</strong> إعلان #{item.ad_id || '-'}
-                                      </li>
-                                    );
-                                  }
-                                  return null;
-                                })}
-                              </ul>
-                              {log.json_data.filter(i => i.status === 'skipped' || i.status === 'error' || i.status === 'saved').length === 0 && (
-                                <pre style={{ textAlign: 'left', direction: 'ltr', fontSize: '11px', margin: 0 }}>
-                                  {JSON.stringify(log.json_data, null, 2)}
-                                </pre>
-                              )}
-                            </div>
-                          </details>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <Modal open={!!open} size="wide" title={open ? `تشغيل #${open.id} · ${open.group_name || 'غير معروف'}` : ''} onClose={() => setOpen(null)}>
+        {open && (
+          <div className="stack">
+            <div className="row">
+              <Badge tone="green">حُفظ {formatNumber(open.saved_ads)}</Badge>
+              <Badge tone="amber">تُخطّي {formatNumber(open.skipped_ads)}</Badge>
+              <Badge tone="red">أخطاء {formatNumber(open.errors_count)}</Badge>
+              <span className="muted">{formatDate(open.created_at)}</span>
             </div>
-            
-            <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderTop: '1px solid #eee' }}>
-              <div style={{ fontSize: '14px', color: '#666' }}>
-                إجمالي السجلات: <strong>{total}</strong> | صفحة {page} من {totalPages || 1}
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <select 
-                  value={limit} 
-                  onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-                  style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ddd' }}
-                >
-                  <option value="20">20 سجل</option>
-                  <option value="50">50 سجل</option>
-                  <option value="100">100 سجل</option>
-                </select>
-                
-                <button 
-                  disabled={page === 1} 
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  style={{ padding: '6px 12px', border: '1px solid #ddd', background: page === 1 ? '#f5f5f5' : '#fff', cursor: page === 1 ? 'not-allowed' : 'pointer', borderRadius: '4px' }}
-                >
-                  السابق
-                </button>
-                <button 
-                  disabled={page >= totalPages} 
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  style={{ padding: '6px 12px', border: '1px solid #ddd', background: page >= totalPages ? '#f5f5f5' : '#fff', cursor: page >= totalPages ? 'not-allowed' : 'pointer', borderRadius: '4px' }}
-                >
-                  التالي
-                </button>
-              </div>
-            </div>
-          </>
+            <RunDetails log={open} />
+          </div>
         )}
-      </div>
-    </div>
+      </Modal>
+    </>
   );
-};
-
-export default ScrapingLogs;
+}

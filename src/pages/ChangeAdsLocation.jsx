@@ -1,374 +1,194 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { MapPin, Save, Search, AlertCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ExternalLink, MapPin, RefreshCw, Save } from 'lucide-react';
+import { api, errorMessage } from '../lib/api';
+import { adUrl } from '../lib/site';
+import { Alert, Badge, Button, Card, EmptyState, ErrorState, Input, PageHeader, SearchInput, SkeletonRows, formatNumber, useFeedback, useLoad } from '../ui';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL ;
+const PAGE_SIZE = 20;
+const UNKNOWN = 'غير محدد';
 
-const ChangeAdsLocation = () => {
-  const [ads, setAds] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [savingId, setSavingId] = useState(null);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const [editedLocations, setEditedLocations] = useState({});
-  const [locationsData, setLocationsData] = useState([]);
-  const [showOnlyOthers, setShowOnlyOthers] = useState(false);
-  const [expandedDesc, setExpandedDesc] = useState({});
-  const [totalCount, setTotalCount] = useState(0);
+/** One ad with its text and a box to pick the right place for it. */
+function AdRow({ ad, known, onSaved }) {
+  const { toast } = useFeedback();
+  const [value, setValue] = useState(ad.location || '');
+  const [expanded, setExpanded] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const showToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: '', type: 'success' });
-    }, 3000);
-  };
+  const trimmed = value.trim();
+  const changed = trimmed !== (ad.location || '').trim();
+  // Only a city or "city, area" that exists may be saved: a typed-in name would file the ad nowhere
+  const valid = known.has(trimmed);
+  const text = ad.description || '';
+  const long = text.length > 180;
 
-  const fetchAds = async (pageNum = 1) => {
-    setLoading(true);
+  const save = async () => {
+    setSaving(true);
     try {
-      const skip = (pageNum - 1) * 20;
-      const queryParams = new URLSearchParams({
-        skip: skip.toString(),
-        limit: '20',
-        sort_by: 'strict_newest'
-      });
-      const countParams = new URLSearchParams();
-
-      if (searchTerm) {
-        queryParams.append('location_search', searchTerm);
-        countParams.append('location_search', searchTerm);
-      }
-      if (showOnlyOthers) {
-        queryParams.append('only_others', 'true');
-        countParams.append('only_others', 'true');
-      }
-
-      const res = await axios.get(`${API_BASE_URL}/ads?${queryParams.toString()}`);
-      
-      const countRes = await axios.get(`${API_BASE_URL}/ads/count?${countParams.toString()}`);
-      setTotalCount(countRes.data.total_count || 0);
-      
-      if (pageNum === 1) {
-        setAds(res.data);
-      } else {
-        setAds(prev => [...prev, ...res.data]);
-      }
-      
-      setHasMore(res.data.length === 20);
-    } catch (error) {
-      console.error('Error fetching ads:', error);
-      showToast('حدث خطأ أثناء تحميل الإعلانات', 'error');
+      await api.put(`/ads/${ad.id}`, { location: trimmed });
+      toast('تم تحديث موقع الإعلان');
+      onSaved(ad.id, trimmed);
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر تحديث الموقع.'), 'error');
     } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // Fetch locations once
-    axios.get(`${API_BASE_URL}/locations?t=${new Date().getTime()}`)
-      .then(res => {
-        setLocationsData(res.data);
-      })
-      .catch(err => console.error("Error fetching locations", err));
-
-    fetchAds(1);
-  }, [showOnlyOthers]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setPage(1);
-    fetchAds(1);
-  };
-
-  const handleLocationChange = (id, newLocation) => {
-    setEditedLocations(prev => ({
-      ...prev,
-      [id]: newLocation
-    }));
-  };
-
-  const saveLocation = async (id) => {
-    const newLocation = editedLocations[id];
-    if (newLocation === undefined) return;
-
-    setSavingId(id);
-    try {
-      await axios.put(`${API_BASE_URL}/ads/${id}`, {
-        location: newLocation
-      });
-      
-      // Update local state
-      setAds(prev => prev.map(ad => 
-        ad.id === id ? { ...ad, location: newLocation } : ad
-      ));
-      
-      showToast('تم تحديث الموقع بنجاح');
-      
-      // Remove from edited state
-      const newEdited = { ...editedLocations };
-      delete newEdited[id];
-      setEditedLocations(newEdited);
-      
-    } catch (error) {
-      console.error('Error saving location:', error);
-      showToast('فشل في تحديث الموقع', 'error');
-    } finally {
-      setSavingId(null);
+      setSaving(false);
     }
   };
 
   return (
-    <div className="location-manager-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Toast Notification */}
-      {toast.show && (
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
-          color: 'white',
-          padding: '12px 24px',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          zIndex: 1000,
-          animation: 'slideIn 0.3s ease-out'
-        }}>
-          {toast.type === 'error' && <AlertCircle size={20} />}
-          {toast.message}
+    <div className="fix-row">
+      <div className="grow">
+        <div className="row" style={{ gap: 8 }}>
+          <a className="cell-title" href={adUrl(ad.id)} target="_blank" rel="noreferrer">
+            {ad.title || 'بدون عنوان'} <ExternalLink size={12} />
+          </a>
+          <span className="cell-sub num">#{ad.id}</span>
+          <Badge tone={ad.location === UNKNOWN || !ad.location ? 'red' : /أخرى/.test(ad.location) ? 'amber' : undefined}>{ad.location || 'بلا موقع'}</Badge>
         </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        </div>
-
-      <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '20px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '250px' }}>
-            <Search size={20} color="#6b7280" style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)' }} />
-            <input 
-              type="text" 
-              placeholder="ابحث عن إعلان بالموقع (أو المدينة)..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '100%', padding: '12px 45px 12px 15px', borderRadius: '8px', border: '1px solid #d1d5db', outline: 'none', fontSize: '15px' }}
-            />
-          </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#4b5563', userSelect: 'none' }}>
-            <input 
-              type="checkbox" 
-              checked={showOnlyOthers}
-              onChange={(e) => {
-                setShowOnlyOthers(e.target.checked);
-                setPage(1);
-              }}
-              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-            />
-            عرض الإعلانات ذات الموقع "أخرى" فقط
-          </label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <button type="submit" style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-              بحث
+        <p className="fix-text">
+          {text ? (expanded || !long ? text : `${text.slice(0, 180)}…`) : <span className="muted">لا يوجد وصف</span>}
+          {long && (
+            <button type="button" className="btn-link" style={{ color: 'var(--brand-600)', marginInlineStart: 6 }} onClick={() => setExpanded(!expanded)}>
+              {expanded ? 'أقل' : 'المزيد'}
             </button>
-            <div style={{ padding: '8px 16px', backgroundColor: '#f1f5f9', borderRadius: '8px', fontWeight: 'bold', color: '#334155' }}>
-              إجمالي الإعلانات: {totalCount}
-            </div>
-          </div>
-        </form>
+          )}
+        </p>
       </div>
-
-      <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-            <thead style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-              <tr>
-                <th style={{ padding: '16px', color: '#475569', fontWeight: '600', width: '80px' }}>رقم</th>
-                <th style={{ padding: '16px', color: '#475569', fontWeight: '600', width: '25%' }}>العنوان</th>
-                <th style={{ padding: '16px', color: '#475569', fontWeight: '600', width: '35%' }}>الوصف</th>
-                <th style={{ padding: '16px', color: '#475569', fontWeight: '600' }}>الموقع الجغرافي</th>
-                <th style={{ padding: '16px', color: '#475569', fontWeight: '600', width: '120px' }}>إجراء</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ads.map((ad) => {
-                const isEdited = editedLocations[ad.id] !== undefined;
-                const currentValue = isEdited ? editedLocations[ad.id] : (ad.location || '');
-                
-                return (
-                  <tr key={ad.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s', ':hover': { backgroundColor: '#f8fafc' } }}>
-                    <td data-label="رقم الإعلان" style={{ padding: '16px', color: '#64748b' }}>#{ad.id}</td>
-                    <td data-label="العنوان" style={{ padding: '16px', fontWeight: '600', color: '#0f172a' }}>{ad.title}</td>
-                    <td data-label="الوصف" style={{ padding: '16px', color: '#475569', fontSize: '14px' }}>
-                      <div style={{ display: expandedDesc[ad.id] ? 'block' : '-webkit-box', WebkitLineClamp: expandedDesc[ad.id] ? 'unset' : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'pre-wrap' }}>
-                        {ad.description || 'لا يوجد وصف'}
-                      </div>
-                      {ad.description && ad.description.length > 100 && (
-                        <button 
-                          onClick={() => setExpandedDesc(prev => ({ ...prev, [ad.id]: !prev[ad.id] }))}
-                          style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: '4px 0', marginTop: '4px', fontWeight: 'bold' }}
-                        >
-                          {expandedDesc[ad.id] ? 'عرض أقل' : 'عرض المزيد'}
-                        </button>
-                      )}
-                    </td>
-                    <td data-label="الموقع الجغرافي" style={{ padding: '16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <MapPin size={16} color="#64748b" style={{ flexShrink: 0 }} />
-                        <input
-                          type="text"
-                          list="locations-list"
-                          value={currentValue}
-                          onChange={(e) => handleLocationChange(ad.id, e.target.value)}
-                          placeholder="ابحث واختر الموقع..."
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            border: isEdited ? '1px solid #3b82f6' : '1px solid #cbd5e1',
-                            outline: 'none',
-                            backgroundColor: isEdited ? '#eff6ff' : '#ffffff',
-                            transition: 'all 0.2s',
-                            fontFamily: 'inherit',
-                            fontSize: '14px',
-                            color: '#0f172a'
-                          }}
-                        />
-                      </div>
-                    </td>
-                    <td data-label="إجراء" style={{ padding: '16px' }}>
-                      <button
-                        onClick={() => saveLocation(ad.id)}
-                        disabled={!isEdited || savingId === ad.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          width: '100%',
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          fontWeight: 'bold',
-                          cursor: (!isEdited || savingId === ad.id) ? 'not-allowed' : 'pointer',
-                          backgroundColor: (!isEdited) ? '#e2e8f0' : '#10b981',
-                          color: (!isEdited) ? '#94a3b8' : 'white',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {savingId === ad.id ? (
-                          <span style={{ fontSize: '12px' }}>جاري...</span>
-                        ) : (
-                          <>
-                            <Save size={16} />
-                            حفظ
-                          </>
-                        )}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {ads.length === 0 && !loading && (
-                <tr>
-                  <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-                    لا توجد إعلانات مطابقة للبحث
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          
-          <datalist id="locations-list">
-            {locationsData.map(city => (
-              <React.Fragment key={city.id}>
-                <option value={city.name_ar} />
-                {city.regions && city.regions.map(region => (
-                  <option key={region.id} value={`${city.name_ar}, ${region.name_ar}`} />
-                ))}
-              </React.Fragment>
-            ))}
-          </datalist>
+      <div className="fix-edit">
+        <div className="search">
+          <MapPin size={16} />
+          <Input list="known-locations" value={value} onChange={(event) => setValue(event.target.value)} placeholder="اكتب واختر من القائمة..." aria-label="الموقع الجديد" />
         </div>
-        
-        {loading && (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
-            جاري التحميل...
-          </div>
-        )}
-        
-        {!loading && hasMore && (
-          <div style={{ padding: '20px', textAlign: 'center', borderTop: '1px solid #e2e8f0' }}>
-            <button 
-              onClick={() => {
-                const nextPage = page + 1;
-                setPage(nextPage);
-                fetchAds(nextPage);
-              }}
-              style={{
-                backgroundColor: 'transparent',
-                border: '1px solid #cbd5e1',
-                padding: '8px 24px',
-                borderRadius: '6px',
-                color: '#475569',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              تحميل المزيد
-            </button>
-          </div>
-        )}
+        <Button icon={Save} loading={saving} disabled={!changed || !valid} onClick={save}>
+          حفظ
+        </Button>
+        {changed && !valid && <div className="field-error" style={{ flexBasis: '100%' }}>اختر مدينة أو «مدينة, منطقة» من القائمة.</div>}
       </div>
-      
-      <style>{`
-        @keyframes slideIn {
-          from { transform: translateY(100%); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        
-        @media (max-width: 768px) {
-          .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
-            display: block;
-            width: 100%;
-          }
-          .responsive-table thead {
-            display: none;
-          }
-          .responsive-table tr {
-            margin-bottom: 15px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 10px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-          }
-          .responsive-table td {
-            padding: 10px 0 !important;
-            text-align: right;
-            border-bottom: 1px solid #f1f5f9;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-          }
-          .responsive-table td:last-child {
-            border-bottom: none;
-          }
-          .responsive-table td::before {
-            content: attr(data-label);
-            font-weight: bold;
-            color: #64748b;
-            font-size: 13px;
-            display: block;
-          }
-        }
-      `}</style>
     </div>
   );
-};
+}
 
-export default ChangeAdsLocation;
+export default function ChangeAdsLocation() {
+  const [query, setQuery] = useState('');
+  const [submitted, setSubmitted] = useState('');
+  const [onlyOthers, setOnlyOthers] = useState(false);
+  const [ads, setAds] = useState([]);
+  const [page, setPage] = useState(1);
+  const [state, setState] = useState({ loading: true, error: null, total: 0, hasMore: false });
+  // Bumped to load the first page again with the same filters
+  const [refreshes, setRefreshes] = useState(0);
+
+  const locations = useLoad(() => api.get('/locations', { params: { t: Date.now() } }).then((response) => response.data));
+
+  /** Every place an ad may be filed under: each city, and each "city, area". */
+  const options = useMemo(() => {
+    const list = [];
+    (locations.data || []).forEach((city) => {
+      list.push(city.name_ar);
+      (city.regions || []).forEach((region) => list.push(`${city.name_ar}, ${region.name_ar}`));
+    });
+    return list;
+  }, [locations.data]);
+  const known = useMemo(() => new Set(options), [options]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setState((current) => ({ ...current, loading: true, error: null }));
+    const filters = {};
+    if (submitted) filters.location_search = submitted;
+    if (onlyOthers) filters.only_others = 'true';
+    Promise.all([
+      api.get('/ads', { params: { skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE, sort_by: 'strict_newest', ...filters } }),
+      api.get('/ads/count', { params: filters }),
+    ])
+      .then(([list, count]) => {
+        if (cancelled) return;
+        setAds((current) => (page === 1 ? list.data : [...current, ...list.data]));
+        setState({ loading: false, error: null, total: count.data.total_count || 0, hasMore: list.data.length === PAGE_SIZE });
+      })
+      .catch((failure) => {
+        if (!cancelled) setState((current) => ({ ...current, loading: false, error: errorMessage(failure, 'تعذّر تحميل الإعلانات.') }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [submitted, onlyOthers, page, refreshes]);
+
+  const search = (value) => {
+    setPage(1);
+    setSubmitted(value.trim());
+  };
+
+  const refresh = () => {
+    setPage(1);
+    setRefreshes((count) => count + 1);
+  };
+
+  const quick = (value) => {
+    setQuery(value);
+    search(value);
+  };
+
+  const onSaved = (id, location) => setAds((current) => current.map((ad) => (ad.id === id ? { ...ad, location } : ad)));
+
+  return (
+    <>
+      <PageHeader title="تصحيح مواقع الإعلانات" subtitle="اقرأ نص الإعلان واختر مدينته ومنطقته الصحيحة. الإعلان بلا مدينة لا يظهر في أي صفحة مدينة على الموقع.">
+        <Button variant="secondary" icon={RefreshCw} loading={state.loading} onClick={refresh}>
+          تحديث
+        </Button>
+      </PageHeader>
+
+      <div className="stack">
+        <Alert>
+          يُحفظ الموقع فقط إذا كان مدينة أو «مدينة, منطقة» موجودة في قائمة <a href="/locations-manager">المدن والمناطق</a>. إن كانت المنطقة غير موجودة فأضفها من هناك أولاً.
+        </Alert>
+
+        <Card flush>
+          <div className="toolbar">
+            <SearchInput value={query} onChange={setQuery} onSubmit={search} placeholder="ابحث بالموقع الحالي للإعلان، ثم Enter" />
+            <Button variant="secondary" onClick={() => search(query)}>
+              بحث
+            </Button>
+            <div className="chips">
+              <button type="button" className={`chip${submitted === UNKNOWN ? ' active' : ''}`} onClick={() => quick(submitted === UNKNOWN ? '' : UNKNOWN)}>
+                بلا مدينة
+              </button>
+              <button type="button" className={`chip${onlyOthers ? ' active' : ''}`} onClick={() => { setPage(1); setOnlyOthers(!onlyOthers); }}>
+                منطقة «أخرى»
+              </button>
+            </div>
+            <div className="toolbar-spacer" />
+            <span className="muted">{formatNumber(state.total)} إعلان</span>
+          </div>
+
+          {state.error ? (
+            <ErrorState message={state.error} onRetry={refresh} />
+          ) : state.loading && ads.length === 0 ? (
+            <SkeletonRows rows={6} columns={3} />
+          ) : ads.length === 0 ? (
+            <EmptyState icon={MapPin} title="لا توجد إعلانات مطابقة" />
+          ) : (
+            <>
+              {ads.map((ad) => (
+                <AdRow key={ad.id} ad={ad} known={known} onSaved={onSaved} />
+              ))}
+              {state.hasMore && (
+                <div className="card-foot" style={{ justifyContent: 'center' }}>
+                  <Button variant="secondary" loading={state.loading} onClick={() => setPage(page + 1)}>
+                    تحميل المزيد
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+      </div>
+
+      <datalist id="known-locations">
+        {options.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+    </>
+  );
+}

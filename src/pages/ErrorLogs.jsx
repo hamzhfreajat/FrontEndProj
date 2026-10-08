@@ -1,113 +1,148 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { AlertCircle, Clock, User, Monitor, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Bug, Download, RefreshCw } from 'lucide-react';
+import { api } from '../lib/api';
+import { EMPTY, Badge, Button, Card, DataTable, EmptyState, MeterList, Modal, PageHeader, SearchInput, Select, Stat, downloadCsv, formatDate, formatNumber, timeAgo, useLoad } from '../ui';
 
-const ErrorLogs = () => {
-    const [errors, setErrors] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [expandedRow, setExpandedRow] = useState(null);
+const DAY = 24 * 60 * 60 * 1000;
 
-    useEffect(() => {
-        const fetchErrors = async () => {
-            try {
-                // Adjust to your actual production URL
-                const API_URL = process.env.REACT_APP_API_URL;
-                const response = await axios.get(`${API_URL}/telemetry/errors`);
-                setErrors(response.data);
-            } catch (err) {
-                console.error("Failed to fetch errors:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
+export default function ErrorLogs() {
+  const { data, loading, error, reload } = useLoad(() => api.get('/telemetry/errors').then((response) => response.data));
+  const [search, setSearch] = useState('');
+  const [screen, setScreen] = useState('');
+  const [open, setOpen] = useState(null);
+  const errors = data || EMPTY;
 
-        fetchErrors();
-    }, []);
+  const screens = useMemo(() => {
+    const counts = {};
+    errors.forEach((item) => {
+      const name = item.screen_name || 'غير معروفة';
+      counts[name] = (counts[name] || 0) + 1;
+    });
+    return Object.keys(counts)
+      .map((name) => ({ label: name, value: counts[name] }))
+      .sort((a, b) => b.value - a.value);
+  }, [errors]);
 
-    const toggleRow = (id) => {
-        if (expandedRow === id) {
-            setExpandedRow(null);
-        } else {
-            setExpandedRow(id);
-        }
-    };
+  const today = useMemo(() => errors.filter((item) => Date.now() - new Date(item.timestamp).getTime() < DAY).length, [errors]);
+  const affected = useMemo(() => new Set(errors.map((item) => item.user_id).filter(Boolean)).size, [errors]);
 
-    if (loading) {
-        return <div style={{ padding: '20px' }}>Loading error logs...</div>;
-    }
+  const visible = useMemo(() => {
+    const text = search.trim().toLowerCase();
+    return errors.filter((item) => {
+      if (screen && (item.screen_name || 'غير معروفة') !== screen) return false;
+      if (!text) return true;
+      return [item.error_message, item.user_name, item.user_phone, item.screen_name].some((value) => value && String(value).toLowerCase().includes(text));
+    });
+  }, [errors, search, screen]);
 
-    return (
-        <div style={{ padding: '20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#e53e3e' }}>
-                <AlertCircle size={28} />
-                سجل الأخطاء (Error Logs)
-            </h1>
-            
-            <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', overflow: 'hidden', marginTop: '20px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }} dir="rtl">
-                    <thead style={{ backgroundColor: '#f7fafc', borderBottom: '2px solid #edf2f7' }}>
-                        <tr>
-                            <th style={{ padding: '12px 16px', color: '#4a5568' }}><Clock size={16} style={{ verticalAlign: 'middle', marginLeft: '8px' }}/>الوقت</th>
-                            <th style={{ padding: '12px 16px', color: '#4a5568' }}><User size={16} style={{ verticalAlign: 'middle', marginLeft: '8px' }}/>المستخدم</th>
-                            <th style={{ padding: '12px 16px', color: '#4a5568' }}><Monitor size={16} style={{ verticalAlign: 'middle', marginLeft: '8px' }}/>الشاشة</th>
-                            <th style={{ padding: '12px 16px', color: '#4a5568' }}>الخطأ (Error)</th>
-                            <th style={{ padding: '12px 16px', color: '#4a5568' }}>تفاصيل</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {errors.length === 0 ? (
-                            <tr>
-                                <td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#718096' }}>لا يوجد أخطاء مسجلة</td>
-                            </tr>
-                        ) : (
-                            errors.map(err => (
-                                <React.Fragment key={err.id}>
-                                    <tr 
-                                        onClick={() => toggleRow(err.id)}
-                                        style={{ 
-                                            borderBottom: '1px solid #edf2f7', 
-                                            cursor: 'pointer',
-                                            backgroundColor: expandedRow === err.id ? '#fff5f5' : 'white',
-                                            transition: 'background-color 0.2s'
-                                        }}
-                                    >
-                                        <td style={{ padding: '12px 16px' }} dir="ltr">{new Date(err.timestamp).toLocaleString()}</td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            {err.user_name || 'زائر'} <br/>
-                                            <span style={{ fontSize: '0.85em', color: '#718096' }} dir="ltr">{err.user_phone || err.user_id}</span>
-                                        </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <span style={{ background: '#edf2f7', padding: '4px 8px', borderRadius: '4px', fontSize: '0.9em' }}>
-                                                {err.screen_name}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '12px 16px', color: '#e53e3e', fontWeight: '500', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {err.error_message}
-                                        </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            {expandedRow === err.id ? <ChevronUp /> : <ChevronDown />}
-                                        </td>
-                                    </tr>
-                                    {expandedRow === err.id && (
-                                        <tr>
-                                            <td colSpan="5" style={{ padding: '0', borderBottom: '1px solid #edf2f7' }}>
-                                                <div style={{ padding: '16px', backgroundColor: '#2d3748', color: '#f7fafc', margin: '0' }} dir="ltr">
-                                                    <h4 style={{ marginTop: '0', color: '#fc8181' }}>Full Error Stack Trace</h4>
-                                                    <pre style={{ whiteSpace: 'pre-wrap', fontSize: '13px', overflowX: 'auto', margin: '0' }}>
-                                                        {err.stack_trace || "No stack trace available"}
-                                                    </pre>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </React.Fragment>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+  const exportCsv = () =>
+    downloadCsv(
+      'app-errors.csv',
+      [
+        { label: 'الوقت', value: (row) => formatDate(row.timestamp) },
+        { label: 'المستخدم', value: (row) => row.user_name },
+        { label: 'الهاتف', value: (row) => row.user_phone },
+        { label: 'الشاشة', value: (row) => row.screen_name },
+        { label: 'الخطأ', value: (row) => row.error_message },
+      ],
+      visible,
     );
-};
 
-export default ErrorLogs;
+  return (
+    <div className="stack">
+      <PageHeader title="سجل الأخطاء" subtitle="الأخطاء التي حدثت داخل تطبيق الهاتف عند المستخدمين.">
+        <Button variant="secondary" icon={Download} disabled={visible.length === 0} onClick={exportCsv}>
+          تصدير
+        </Button>
+        <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={reload}>
+          تحديث
+        </Button>
+      </PageHeader>
+
+      <div className="grid grid-3">
+        <Stat icon={Bug} tone="red" label="أخطاء مسجّلة" value={formatNumber(errors.length)} hint="في القائمة المحمّلة" />
+        <Stat icon={Bug} tone="amber" label="خلال آخر 24 ساعة" value={formatNumber(today)} />
+        <Stat icon={Bug} tone="slate" label="مستخدمون متأثرون" value={formatNumber(affected)} />
+      </div>
+
+      <div className="grid grid-main">
+        <Card flush>
+          <div className="toolbar">
+            <SearchInput value={search} onChange={setSearch} placeholder="ابحث في نص الخطأ أو اسم المستخدم..." />
+            <Select value={screen} onChange={(event) => setScreen(event.target.value)} aria-label="الشاشة">
+              <option value="">كل الشاشات</option>
+              {screens.map((item) => (
+                <option key={item.label} value={item.label}>
+                  {item.label} ({item.value})
+                </option>
+              ))}
+            </Select>
+          </div>
+          <DataTable
+            rows={visible}
+            loading={loading}
+            error={error}
+            onRetry={reload}
+            onRowClick={setOpen}
+            empty={<EmptyState icon={Bug} title="لا توجد أخطاء مسجّلة" description={search || screen ? 'لا نتائج لهذه التصفية.' : 'هذا خبر جيد.'} />}
+            columns={[
+              {
+                key: 'error',
+                label: 'الخطأ',
+                primary: true,
+                render: (item) => (
+                  <div style={{ maxWidth: 460 }}>
+                    <div className="cell-title ltr" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere' }}>
+                      {item.error_message || 'بدون رسالة'}
+                    </div>
+                  </div>
+                ),
+              },
+              { key: 'screen', label: 'الشاشة', sort: (item) => item.screen_name, render: (item) => <Badge>{item.screen_name || 'غير معروفة'}</Badge> },
+              {
+                key: 'user',
+                label: 'المستخدم',
+                render: (item) => (
+                  <div>
+                    <div>{item.user_name || 'زائر'}</div>
+                    {(item.user_phone || item.user_id) && <div className="cell-sub ltr">{item.user_phone || item.user_id}</div>}
+                  </div>
+                ),
+              },
+              { key: 'timestamp', label: 'الوقت', sort: (item) => item.timestamp, render: (item) => <span title={formatDate(item.timestamp)}>{timeAgo(item.timestamp)}</span> },
+            ]}
+          />
+        </Card>
+
+        <Card title="الشاشات الأكثر أخطاء">
+          <MeterList items={screens.slice(0, 8)} />
+        </Card>
+      </div>
+
+      <Modal open={!!open} size="wide" title="تفاصيل الخطأ" onClose={() => setOpen(null)}>
+        {open && (
+          <div className="stack">
+            <dl className="kv">
+              <dt>الوقت</dt>
+              <dd>{formatDate(open.timestamp)}</dd>
+              <dt>الشاشة</dt>
+              <dd>{open.screen_name || 'غير معروفة'}</dd>
+              <dt>المستخدم</dt>
+              <dd>
+                {open.user_name || 'زائر'} {open.user_phone ? <span className="ltr">({open.user_phone})</span> : null}
+              </dd>
+            </dl>
+            <div>
+              <div className="field-label">رسالة الخطأ</div>
+              <div className="code">{open.error_message || '—'}</div>
+            </div>
+            <div>
+              <div className="field-label">تتبّع الخطأ (Stack trace)</div>
+              <div className="code">{open.stack_trace || 'غير متوفر'}</div>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}

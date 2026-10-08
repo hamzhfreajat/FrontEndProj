@@ -1,1584 +1,611 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Search, Filter, Trash2, Eye, X, ChevronRight, ChevronLeft, MapPin, Tag, Clock, User, Bot, Layers } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Bot, ChevronLeft, ChevronRight, Eye, ExternalLink, FileText, Filter, Flame, Heart, ImageOff, Layers, MapPin, MessageSquare, Pencil, RefreshCw, Save, Trash2,
+  User, X,
+} from 'lucide-react';
+import { api, errorMessage } from '../lib/api';
+import * as options from '../lib/adOptions';
+import { adUrl, isOrganic } from '../lib/site';
+import {
+  EMPTY, Badge, Button, Card, DataTable, EmptyState, Field, Input, Loading, Modal, PageHeader, SearchInput, Select, Switch, Tabs, Textarea, formatDate, formatNumber,
+  formatPrice, timeAgo, useFeedback, useLoad,
+} from '../ui';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL ;
-const API_HEADERS = { 'ngrok-skip-browser-warning': 'true', 'Bypass-Tunnel-Reminder': 'true' };
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("token") || localStorage.getItem("adminLoggedIn");
-  return { ...API_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+const NO_FILTERS = { search: '', phone: '', category_id: '', location: '', min_price: '', max_price: '', is_hot: '', is_published: '', duplicate_status: '' };
+const SOURCES = [
+  { value: 'ORGANIC_USER', label: 'من المستخدمين' },
+  { value: 'SCRAPER_BOT', label: 'سحب آلي' },
+  { value: '', label: 'الكل' },
+];
+const PRICE_STATUS = {
+  BELOW_MARKET: { label: 'أقل من السوق', tone: 'green' },
+  NOT_BELOW_MARKET: { label: 'سعر عادي', tone: undefined },
+  NO_DATA: { label: 'لا بيانات', tone: undefined },
+};
+const CONFIDENCE = { high: 'عالية', medium: 'متوسطة', low: 'ضعيفة' };
+
+const DuplicateBadge = ({ status }) => {
+  const known = options.DUPLICATE_STATUS[status];
+  return <Badge tone={known && known.tone}>{known ? known.label : status}</Badge>;
 };
 
-const Ads = () => {
-  const [ads, setAds] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(false);
+function Thumb({ ad }) {
+  const [broken, setBroken] = useState(false);
+  const image = options.adImages(ad)[0];
+  if (!image || broken) {
+    return (
+      <span className="thumb" style={{ display: 'grid', placeItems: 'center', color: 'var(--faint)' }}>
+        <ImageOff size={18} />
+      </span>
+    );
+  }
+  return <img className="thumb" src={image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
+}
 
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    search: '',
-    phone: '',
-    category_id: '',
-    location: '',
-    min_price: '',
-    max_price: '',
-    is_hot: '',
-    is_published: '',
-    source_type: 'ORGANIC_USER',
-    duplicate_status: ''
-  });
-
-  // Pagination state
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [limit, setLimit] = useState(50);
-
-  const handleLimitChange = (e) => {
-    const newLimit = parseInt(e.target.value);
-    setLimit(newLimit);
-    setPage(1);
-    fetchAds(1, newLimit);
-  };
-
-  // View Popup State
-  const [selectedAd, setSelectedAd] = useState(null);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({});
-
-  // Duplicates State
-  const [duplicateCandidates, setDuplicateCandidates] = useState([]);
-  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [loadingDuplicates, setLoadingDuplicates] = useState(false);
-  const [checkingAdId, setCheckingAdId] = useState(null);
-
-  const checkDuplicates = async (adId) => {
-    setCheckingAdId(adId);
-    setLoadingDuplicates(true);
-    setShowDuplicateModal(true);
-    setDuplicateCandidates([]);
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/ads/${adId}/check-duplicates`, {
-        headers: getAuthHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setDuplicateCandidates(data);
-      } else {
-        alert("Failed to fetch duplicates");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error fetching duplicates");
-    } finally {
-      setLoadingDuplicates(false);
-    }
-  };
-
-  // Real Estate Options Constants
-  const OPT_ROOMS = ['ستوديو', '1', '2', '3', '4', '5', '6+'];
-  const OPT_BATHS = ['1', '2', '3', '4', '5', '6+'];
-  const OPT_FURNISHED = [
-    'مفروش (فرش كامل / فرش فندقي)',
-    'شبه مفروش (مطبخ أو أجهزة فقط)',
-    'فارغ',
-    'جديد لم يسكن / بناء حديث'
-  ];
-  const OPT_FLOOR = [
-    'طابق تسوية (معلقة / مهوية)',
-    'طابق أرضي / شبه أرضي',
-    'طوابق علوية (أول، ثاني، إلخ)',
-    'أخير مع رووف'
-  ];
-  const OPT_AGE = ['0 - 11 شهر', '1 - 5 سنوات', '6 - 9 سنوات', '10 - 19 سنوات', '20+ سنة'];
-  const OPT_RENT_DUR = ['يومي', 'أسبوعي', 'شهري', 'سنوي'];
-  const OPT_VIEW = ['شمالية', 'جنوبية', 'شرقية', 'غربية', 'شمالية شرقية', 'شمالية غربية', 'جنوبية شرقية', 'جنوبية غربية'];
-
-  const OPT_KEY_FEAT = [
-    'تكييف / مكيفات إنفيرتر', 'تدفئة (مركزية / غاز)', 'شرفة / بلكونة', 'غرفة خادمة / غرفة غسيل',
-    'خزائن حائط', 'زجاج دبل جلاس / أباجورات كهرباء', 'سخان شمسي / كيزر', 'نقطة شحن سيارة كهربائية'
-  ];
-  const OPT_ADD_FEAT = [
-    'مصعد', 'حديقة', 'كراج خاص / موقف سيارة', 'حارس عمارة', 'كاميرات مراقبة / إنتركم',
-    'مطبخ راكب (أمريكي أو منفصل)', 'بلكونة / ترس خارجي', 'منطقة شواء',
-    'نظام كهرباء احتياطي للطوارئ', 'تسهيلات لأصحاب الهمم'
-  ];
-  const OPT_TARGET_AUDIENCE = [
-    'عائلات', 'عرسان / عائلة صغيرة', 'طلاب / طالبات', 'موظفين'
-  ];
-  const OPT_PAYMENT_METHOD = [
-    'من المالك مباشرة (بدون عمولة)', 'مكتب عقاري (تضاف عمولة)',
-    'الدفع شهري / الدفع سنوي / دفعات', 'إيجار يومي',
-    'تقسيط', 'السعر نهائي / قابل للتفاوض'
-  ];
-  const OPT_NEARBY = [
-    'بنك / صراف الآلي', 'دراي كلين', 'سوبر ماركت', 'صالة رياضية / جيم',
-    'صيدلية', 'محطة باصات', 'مدرسة', 'مستشفى', 'مسجد', 'مطعم', 'موقف سيارات', 'مول / مركز تسوق'
-  ];
-
-  // Toast Notification State
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
-  const showToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: '', type: 'success' });
-    }, 3000);
-  };
-
-  useEffect(() => {
-    fetchCategories();
-    fetchAds(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchCategories = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/categories`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data);
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  const fetchAds = async (pageNum = page, currentLimit = limit) => {
-    setLoading(true);
-    try {
-      const skip = (pageNum - 1) * currentLimit;
-      const queryParams = new URLSearchParams({
-        skip: skip.toString(),
-        limit: currentLimit.toString()
-      });
-
-      if (filters.search) queryParams.append('search', filters.search);
-      if (filters.phone) queryParams.append('phone', filters.phone);
-      if (filters.category_id) queryParams.append('category_id', filters.category_id);
-      if (filters.location) queryParams.append('location', filters.location);
-      if (filters.min_price) queryParams.append('min_price', filters.min_price);
-      if (filters.max_price) queryParams.append('max_price', filters.max_price);
-      if (filters.is_hot !== '') queryParams.append('is_hot', filters.is_hot);
-      if (filters.is_published !== '') queryParams.append('is_published', filters.is_published);
-      if (filters.source_type) queryParams.append('source_type', filters.source_type);
-      if (filters.duplicate_status) queryParams.append('duplicate_status', filters.duplicate_status);
-      
-      queryParams.append('sort_by', 'dashboard_strict');
-
-      queryParams.append('_ts', Date.now());
-      const res = await fetch(`${API_BASE_URL}/ads?${queryParams.toString()}`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setAds(data);
-        // If we got fewer ads than the limit, we've reached the end
-        setHasMore(data.length === currentLimit);
-      }
-
-      // Fetch the count using the same query params except skip/limit
-      const countParams = new URLSearchParams(queryParams);
-      countParams.delete('skip');
-      countParams.delete('limit');
-
-      const countRes = await fetch(`${API_BASE_URL}/ads/count?${countParams.toString()}`, { headers: getAuthHeaders() });
-      if (countRes.ok) {
-        const countData = await countRes.json();
-        setTotalCount(countData.total_count);
-      }
-
-    } catch (error) {
-      console.error('Error fetching ads or count:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFilterChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (checked ? true : '') : value
-    }));
-  };
-
-  const applyFilters = () => {
-    setPage(1);
-    fetchAds(1);
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      search: '',
-      phone: '',
-      category_id: '',
-      location: '',
-      min_price: '',
-      max_price: '',
-      is_hot: '',
-      is_published: '',
-      source_type: 'ORGANIC_USER',
-      duplicate_status: ''
-    });
-    setPage(1);
-    resetAndFetch();
-  };
-
-  const resetAndFetch = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/ads?skip=0&limit=${limit}&source_type=ORGANIC_USER&sort_by=dashboard_strict&_ts=${Date.now()}`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setAds(data);
-        setHasMore(data.length === limit);
-      }
-
-      const countRes = await fetch(`${API_BASE_URL}/ads/count?source_type=ORGANIC_USER`, { headers: getAuthHeaders() });
-      if (countRes.ok) {
-        const countData = await countRes.json();
-        setTotalCount(countData.total_count);
-      }
-    } catch (e) {
-      console.error('Error fetching ads or count during reset:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getCategoryName = (id) => {
-    const cat = categories.find(c => c.id === id);
-    return cat ? cat.name : 'غير محدد';
-  };
-
-  const handleNextPage = () => {
-    if (hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchAds(nextPage);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (page > 1) {
-      const prevPage = page - 1;
-      setPage(prevPage);
-      fetchAds(prevPage);
-    }
-  };
-
-  const handleTogglePublish = async (adId) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/ads/${adId}/toggle-publish`, {
-        method: 'PUT',
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        const updatedAd = await res.json();
-        setAds(ads.map(ad => ad.id === adId ? { ...ad, is_published: updatedAd.is_published } : ad));
-        // Update selectedAd if the popup is currently open
-        if (selectedAd && selectedAd.id === adId) {
-          setSelectedAd({ ...selectedAd, is_published: updatedAd.is_published });
-        }
-        showToast(updatedAd.is_published ? 'تم نشر الإعلان بنجاح' : 'تم إلغاء نشر الإعلان', 'success');
-      } else {
-        showToast('حدث خطأ أثناء تغيير حالة النشر', 'error');
-      }
-    } catch (error) {
-      console.error('Error toggling publish status:', error);
-      showToast('حدث خطأ في الاتصال بالخادم', 'error');
-    }
-  };
-
-  const handleToggleFeatured = async (adId) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/ads/${adId}/toggle-featured`, {
-        method: 'PUT',
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        const updatedAd = await res.json();
-        setAds(ads.map(ad => ad.id === adId ? { ...ad, is_featured: updatedAd.is_featured } : ad));
-        if (selectedAd && selectedAd.id === adId) {
-          setSelectedAd({ ...selectedAd, is_featured: updatedAd.is_featured });
-        }
-        showToast(updatedAd.is_featured ? 'تم تمييز الإعلان بنجاح' : 'تم إلغاء تمييز الإعلان', 'success');
-      } else {
-        showToast('حدث خطأ أثناء تغيير حالة التمييز', 'error');
-      }
-    } catch (error) {
-      console.error('Error toggling featured status:', error);
-      showToast('حدث خطأ في الاتصال بالخادم', 'error');
-    }
-  };
-
-  const handleToggleHot = async (adId) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/ads/${adId}/toggle-hot`, {
-        method: 'PUT',
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        const updatedAd = await res.json();
-        setAds(ads.map(ad => ad.id === adId ? { ...ad, is_hot: updatedAd.is_hot } : ad));
-        if (selectedAd && selectedAd.id === adId) {
-          setSelectedAd({ ...selectedAd, is_hot: updatedAd.is_hot });
-        }
-        showToast(updatedAd.is_hot ? 'تم تعيين الإعلان كلقطة' : 'تم إلغاء حالة اللقطة', 'success');
-      } else {
-        showToast('حدث خطأ أثناء تغيير حالة اللقطة', 'error');
-      }
-    } catch (error) {
-      console.error('Error toggling hot status:', error);
-      showToast('حدث خطأ في الاتصال بالخادم', 'error');
-    }
-  };
-
-  const handleDeleteAd = async (adId) => {
-    if (window.confirm('هل أنت متأكد من رغبتك في حذف هذا الإعلان بشكل نهائي؟')) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/ads/${adId}`, {
-          method: 'DELETE',
-          headers: getAuthHeaders()
-        });
-        if (res.ok) {
-          setAds(ads.filter(ad => ad.id !== adId));
-          setTotalCount(prev => prev - 1);
-          showToast('تم حذف الإعلان بنجاح', 'success');
-        } else {
-          showToast('حدث خطأ أثناء حذف الإعلان', 'error');
-        }
-      } catch (error) {
-        console.error('Error deleting ad:', error);
-        showToast('حدث خطأ في الاتصال بالخادم', 'error');
-      }
-    }
-  };
-
-  const openAdDetails = (ad) => {
-    setSelectedAd(ad);
-
-    // Flatten the nest for easy editing in state
-    const flattenedForm = { ...ad };
-    if (ad.real_estate_detail) {
-      Object.assign(flattenedForm, ad.real_estate_detail);
-    }
-    setEditForm(flattenedForm);
-
-    setCurrentImageIndex(0);
-    setIsEditing(false);
-  };
-
-  const closeAdDetails = () => {
-    setSelectedAd(null);
-    setIsEditing(false);
-  };
-
-  const handleEditChange = (name, value, isArray = false) => {
-    if (isArray) {
-      const currentArr = editForm[name] || [];
-      const newArr = currentArr.includes(value)
-        ? currentArr.filter(item => item !== value)
-        : [...currentArr, value];
-      setEditForm({ ...editForm, [name]: newArr });
-    } else {
-      setEditForm({ ...editForm, [name]: value });
-    }
-  };
-
-  const saveAdChanges = async () => {
-    try {
-      // Re-pack real estate fields into the nested object
-      const payload = { ...editForm };
-
-      const realEstateFields = [
-        'bathrooms', 'furnished', 'build_area', 'floor', 'building_age',
-        'rent_duration', 'view_orientation', 'key_features',
-        'additional_features', 'nearby_locations'
-      ];
-
-      const realEstateDetail = {};
-      let hasRealEstateData = false;
-
-      realEstateFields.forEach(field => {
-        if (payload[field] !== undefined) {
-          realEstateDetail[field] = payload[field];
-          hasRealEstateData = true;
-          delete payload[field]; // Remove from root payload
-        }
-      });
-
-      if (hasRealEstateData) {
-        payload.real_estate_detail = realEstateDetail;
-      }
-
-      // Remove any previously nested object from the old state so it doesn't double up
-      if (payload.real_estate_detail && Object.keys(payload.real_estate_detail).length === 0) {
-        delete payload.real_estate_detail;
-      }
-
-      const res = await fetch(`${API_BASE_URL}/ads/${selectedAd.id}`, {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const updatedAd = await res.json();
-        setAds(ads.map(a => a.id === updatedAd.id ? updatedAd : a));
-        setSelectedAd(updatedAd);
-        setIsEditing(false);
-        showToast('تم حفظ التعديلات بنجاح', 'success');
-      } else {
-        showToast('فشل في حفظ التعديلات', 'error');
-      }
-    } catch (error) {
-      console.error(error);
-      showToast('خطأ في الاتصال بالخادم', 'error');
-    }
-  };
-
-  // Helper to bypass local ISP blocks on Facebook CDN
-  const getProxiedImageUrl = (url) => {
-    if (!url) return "";
-    if (url.includes("fbcdn.net")) {
-      return `https://wsrv.nl/?url=${encodeURIComponent(url)}`;
-    }
-    return url;
-  };
-
-  const getMainImage = (image_url) => {
-    if (!image_url) return "";
-    try {
-      const parsed = JSON.parse(image_url);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return getProxiedImageUrl(parsed[0]);
-      }
-    } catch (e) {
-      // not json
-    }
-    return getProxiedImageUrl(image_url);
-  };
-
-  // Helper for slider
-  const getAdImages = (ad) => {
-    if (!ad) return [];
-
-    // If we have scraped multiple images, use them
-    if (ad.image_urls && ad.image_urls.length > 0) {
-      return ad.image_urls.map(getProxiedImageUrl);
-    }
-
-    // Fallback to organic single image or json array string
-    if (ad.image_url) {
-      try {
-        const parsed = JSON.parse(ad.image_url);
-        if (Array.isArray(parsed)) {
-          return parsed.map(getProxiedImageUrl);
-        }
-      } catch (e) {
-        // not json, proceed to return as single image
-      }
-      return [getProxiedImageUrl(ad.image_url)];
-    }
-
-    return [];
-  };
-
+function Gallery({ ad }) {
+  const images = useMemo(() => options.adImages(ad), [ad]);
+  const [index, setIndex] = useState(0);
+  useEffect(() => setIndex(0), [ad.id]);
+  if (images.length === 0) {
+    return (
+      <div className="gallery">
+        <EmptyState icon={ImageOff} title="لا توجد صور" />
+      </div>
+    );
+  }
+  const step = (delta) => setIndex((current) => (current + delta + images.length) % images.length);
   return (
-    <div className="ads-container">
-      <div className="page-header d-flex justify-content-between align-items-center">
-        <div>
-          <div className="badge" style={{ marginTop: '10px', background: 'var(--primary-light)', color: 'var(--primary-color)', fontSize: '0.9rem', display: 'inline-block', padding: '6px 12px' }}>
-            إجمالي الإعلانات: <strong>{totalCount}</strong>
-          </div>
-        </div>
-        <button className="btn btn-primary">
-          إعلان جديد +
-        </button>
-      </div>
-
-      <div className="card filters-card">
-        <div className="search-box">
-          <Search size={20} className="search-icon" />
-          <input
-            type="text"
-            name="search"
-            value={filters.search}
-            onChange={handleFilterChange}
-            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            placeholder="البحث بالكلمات المفتاحية..."
-            className="form-control pl-10"
-          />
-        </div>
-        <div className="search-box" style={{ marginLeft: '10px' }}>
-          <Search size={20} className="search-icon" />
-          <input
-            type="text"
-            placeholder="بحث برقم الهاتف..."
-            name="phone"
-            value={filters.phone || ''}
-            onChange={handleFilterChange}
-            className="form-control pl-10"
-          />
-        </div>
-        <div className="filter-actions">
-          <button className="btn btn-primary" onClick={applyFilters} style={{ marginLeft: '10px' }}>
-            بحث
+    <div className="gallery">
+      <img src={images[index]} alt="" referrerPolicy="no-referrer" />
+      {images.length > 1 && (
+        <>
+          <button type="button" className="gallery-nav is-prev" onClick={() => step(-1)} aria-label="السابقة">
+            <ChevronRight size={20} />
           </button>
-          <button className={`btn btn-outline ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(!showFilters)}>
-            <Filter size={18} />
-            {showFilters ? 'إخفاء الفلاتر' : 'تصفية متقدمة'}
+          <button type="button" className="gallery-nav is-next" onClick={() => step(1)} aria-label="التالية">
+            <ChevronLeft size={20} />
           </button>
-        </div>
-      </div>
-
-      {showFilters && (
-        <div className="card advanced-filters mt-4" style={{ padding: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-          <div>
-            <label>القسم</label>
-            <input
-              name="category_search"
-              className="form-control"
-              list="categories-list"
-              placeholder="ابحث عن قسم..."
-              onChange={(e) => {
-                const selectedName = e.target.value;
-                const cat = categories.find(c => c.name === selectedName);
-                if (cat) {
-                  setFilters(prev => ({ ...prev, category_id: cat.id }));
-                } else if (selectedName === '') {
-                  setFilters(prev => ({ ...prev, category_id: '' }));
-                }
-              }}
-              defaultValue={filters.category_id ? getCategoryName(filters.category_id) : ''}
-            />
-            <datalist id="categories-list">
-              {categories.map(c => (
-                <option key={c.id} value={c.name} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label>الموقع</label>
-            <input
-              type="text"
-              name="location"
-              list="locations-list"
-              className="form-control"
-              placeholder="مدينة أو منطقة"
-              value={filters.location}
-              onChange={handleFilterChange}
-            />
-            <datalist id="locations-list">
-              {/* Some suggested default locations in Jordan */}
-              <option value="عمان" />
-              <option value="إربد" />
-              <option value="الزرقاء" />
-              <option value="العقبة" />
-              <option value="عبدون" />
-              <option value="دابوق" />
-            </datalist>
-          </div>
-          <div>
-            <label>السعر من</label>
-            <input type="number" name="min_price" className="form-control" placeholder="أقل سعر" value={filters.min_price} onChange={handleFilterChange} />
-          </div>
-          <div>
-            <label>السعر إلى</label>
-            <input type="number" name="max_price" className="form-control" placeholder="أعلى سعر" value={filters.max_price} onChange={handleFilterChange} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '10px' }}>
-              <input type="checkbox" name="is_hot" checked={filters.is_hot === true} onChange={handleFilterChange} />
-              إعلان مميز (Hot)
-            </label>
-          </div>
-          <div>
-            <label>حالة الإعلان</label>
-            <select name="is_published" className="form-control" value={filters.is_published} onChange={handleFilterChange}>
-              <option value="">الكل</option>
-              <option value="true">منشور</option>
-              <option value="false">قيد المراجعة</option>
-            </select>
-          </div>
-          <div>
-            <label>مصدر الإعلان</label>
-            <select name="source_type" className="form-control" value={filters.source_type} onChange={handleFilterChange}>
-              <option value="">الكل</option>
-              <option value="ORGANIC_USER">مستخدمين (عضوي)</option>
-              <option value="SCRAPER_BOT">مستخرج آلياً (Scraper)</option>
-            </select>
-          </div>
-          <div>
-            <label>حالة التكرار</label>
-            <select name="duplicate_status" className="form-control" value={filters.duplicate_status} onChange={handleFilterChange}>
-              <option value="">الكل</option>
-              <option value="ACCEPTED">مقبول</option>
-              <option value="FLAGGED_FOR_REVIEW">محدد للمراجعة</option>
-              <option value="REJECTED_DUPLICATE">مرفوض كمرر</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
-            <button className="btn btn-outline" onClick={clearFilters} style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}>
-              <X size={18} /> مسح الفلاتر
-            </button>
-          </div>
-        </div>
+          <span className="gallery-count num">
+            {index + 1} / {images.length}
+          </span>
+        </>
       )}
-
-      <div className="card table-card mt-4">
-        <div className="table-responsive">
-          <table className="sleek-table">
-            <thead>
-              <tr>
-                <th>رقم</th>
-                <th>عنوان الإعلان</th>
-                <th>القسم</th>
-                <th>الموقع</th>
-                <th>السعر</th>
-                <th>تاريخ النشر</th>
-                <th>المشاهدات</th>
-                <th>المحادثات</th>
-                <th>المفضلات</th>
-                <th>حالة التكرار</th>
-                <th>النتيجة</th>
-                <th>مؤشر السعر</th>
-                <th>الحالة</th>
-                <th>نشر</th>
-                <th>مميز</th>
-                <th>لقطة</th>
-                <th>إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="11" style={{ textAlign: 'center', padding: '20px' }}>جاري التحميل...</td>
-                </tr>
-              ) : ads.length === 0 ? (
-                <tr>
-                  <td colSpan="11" style={{ textAlign: 'center', padding: '20px' }}>لا توجد إعلانات تطابق بحثك</td>
-                </tr>
-              ) : (
-                ads.map(ad => (
-                  <tr key={ad.id}>
-                    <td>#{ad.id}</td>
-                    <td>
-                      <div className="ad-title-cell">
-                        {ad.image_url && getMainImage(ad.image_url) ? (
-                          <img src={getMainImage(ad.image_url)} alt={ad.title} referrerPolicy="no-referrer" style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover' }} />
-                        ) : (
-                          <div className="ad-img-placeholder">📦</div>
-                        )}
-                        <span style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span>{ad.title}</span>
-                          {ad.source_type === 'SCRAPER_BOT' && (
-                            <span className="badge" style={{ background: '#e0f2fe', color: '#0284c7', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px', width: 'max-content' }}>
-                              <Bot size={12} /> مستخرج آلياً
-                            </span>
-                          )}
-                        </span>
-                        {ad.is_hot && <span className="badge badge-warning" style={{ fontSize: '0.7rem', marginRight: '5px' }}>🔥 مميز</span>}
-                      </div>
-                    </td>
-                    <td>{getCategoryName(ad.category_id)}</td>
-                    <td>{ad.location}</td>
-                    <td className="price">{ad.price} دينار</td>
-                      <td>{new Date(ad.original_created_at || ad.created_at).toLocaleDateString('ar-JO')}</td>
-                      <td>{ad.views || 0}</td>
-                      <td>{ad.chats_count || 0}</td>
-                      <td>{ad.favorites_count || 0}</td>
-                      <td>
-                      {ad.duplicate_status ? (
-                        <span className={`badge ${ad.duplicate_status === 'REJECTED_DUPLICATE' ? 'bg-danger' : ad.duplicate_status === 'FLAGGED_FOR_REVIEW' ? 'bg-warning' : 'bg-success'}`}>
-                          {ad.duplicate_status.replace(/_/g, ' ')}
-                        </span>
-                      ) : '-'}
-                    </td>
-                    <td>
-                      {ad.highest_duplicate_score != null ? `${ad.highest_duplicate_score}/100` : '-'}
-                    </td>
-                    <td style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '150px' }}>
-                      {ad.market_price_status ? (
-                        <span className={`badge ${ad.market_price_status === 'BELOW_MARKET' ? 'bg-success' : ad.market_price_status === 'NOT_BELOW_MARKET' ? 'bg-secondary' : 'bg-light text-dark'}`}>
-                          {ad.market_price_status === 'BELOW_MARKET' ? 'أقل من السوق' : ad.market_price_status === 'NOT_BELOW_MARKET' ? 'عادي' : 'لا توجد بيانات'}
-                        </span>
-                      ) : '-'}
-                      {ad.market_price_status && ad.market_price_status !== 'NO_DATA' && ad.comparables_count !== undefined && (
-                        <button 
-                          className="btn btn-outline"
-                          style={{ padding: '2px 6px', fontSize: '11px', borderRadius: '50%', cursor: 'pointer', height: '22px', width: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            alert(
-                              "--- تفاصيل تحليل السوق الخوارزمي ---\n\n" +
-                              `النتيجة النهائية: ${ad.market_price_status === 'BELOW_MARKET' ? 'فرصة أقل من السوق' : 'سعر طبيعي'}\n` +
-                              `مستوى التطابق المستخدم (Fallback Level): ${ad.matching_level_used}\n` +
-                              `قوة وموثوقية التطابق (Confidence): ${ad.confidence_level === 'high' ? 'عالية' : ad.confidence_level === 'medium' ? 'متوسطة' : 'ضعيفة'}\n` +
-                              `عدد العقارات المرجعية المشابهة: ${ad.comparables_count} إعلان\n` +
-                              `متوسط السعر المرجعي (Median): ${ad.market_average_price} دينار\n` +
-                              `نسبة الانحراف عن السوق: ${ad.deviation_pct ? (ad.deviation_pct * 100).toFixed(1) + '%' : 'N/A'}\n`
-                            );
-                          }}
-                          title="كيف تم حساب هذه النتيجة؟"
-                        >
-                          ؟
-                        </button>
-                      )}
-                    </td>
-                    <td>
-                      {ad.is_published ? (
-                        <span className="badge badge-success">منشور</span>
-                      ) : (
-                        <span className="badge badge-warning" style={{ background: 'rgba(245, 135, 33, 0.1)', color: 'var(--accent-color)', whiteSpace: 'nowrap' }}>قيد المراجعة</span>
-                      )}
-                    </td>
-                    <td>
-                      <label className="ad-toggle-switch" title={ad.is_published ? "إلغاء النشر" : "نشر الإعلان"}>
-                        <input
-                          type="checkbox"
-                          checked={ad.is_published}
-                          onChange={() => handleTogglePublish(ad.id)}
-                        />
-                        <span className="ad-toggle-slider"></span>
-                      </label>
-                    </td>
-                    <td>
-                      <label className="ad-toggle-switch" title={ad.is_featured ? "إلغاء التمييز" : "تمييز الإعلان"}>
-                        <input
-                          type="checkbox"
-                          checked={ad.is_featured}
-                          onChange={() => handleToggleFeatured(ad.id)}
-                        />
-                        <span className="ad-toggle-slider"></span>
-                      </label>
-                    </td>
-                    <td>
-                      <label className="ad-toggle-switch" title={ad.is_hot ? "إلغاء لقطة" : "تعيين كلقطة"}>
-                        <input
-                          type="checkbox"
-                          checked={ad.is_hot}
-                          onChange={() => handleToggleHot(ad.id)}
-                        />
-                        <span className="ad-toggle-slider"></span>
-                      </label>
-                    </td>
-                    <td>
-                      <div className="actions">
-                        <button className="btn-icon" title="Check Duplicates" onClick={() => checkDuplicates(ad.id)}><Layers size={18} color="var(--warning-color, #f59e0b)" /></button>
-                        <button className="btn-icon" onClick={() => openAdDetails(ad)}><Eye size={18} color="var(--primary-color)" /></button>
-                        <button className="btn-icon" onClick={() => handleDeleteAd(ad.id)}><Trash2 size={18} color="var(--danger-color)" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Controls */}
-        <div className="pagination-container" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ color: 'var(--text-gray)', fontSize: '0.9rem' }}>
-              إجمالي الإعلانات: <strong>{totalCount}</strong>
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: 'var(--text-gray)', fontSize: '0.9rem' }}>عرض:</span>
-              <select
-                className="form-control"
-                style={{ width: 'auto', padding: '4px 30px 4px 12px', height: '32px', fontSize: '0.9rem' }}
-                value={limit}
-                onChange={handleLimitChange}
-              >
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="75">75</option>
-                <option value="100">100</option>
-                <option value="500">500</option>
-              </select>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ color: 'var(--text-gray)', fontSize: '0.9rem' }}>
-              الصفحة {page}
-            </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="btn btn-outline"
-                onClick={handleNextPage}
-                disabled={!hasMore || loading}
-                style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <ChevronRight size={18} />
-              </button>
-              <button
-                className="btn btn-outline"
-                onClick={handlePrevPage}
-                disabled={page === 1 || loading}
-                style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <ChevronLeft size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Ad Details Modal */}
-      {selectedAd && createPortal(
-        <div className="modal-overlay" onClick={closeAdDetails}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>تفاصيل الإعلان #{selectedAd.id}</h2>
-              <button className="btn-icon" onClick={closeAdDetails}><X size={24} /></button>
-            </div>
-
-            <div className="modal-body">
-              {isEditing ? (
-                <div className="edit-ad-form" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div className="form-group grid-2">
-                    <div>
-                      <label>عنوان الإعلان</label>
-                      <input className="form-control" value={editForm.title || ''} onChange={(e) => handleEditChange('title', e.target.value)} />
-                    </div>
-                    <div>
-                      <label>السعر (دينار)</label>
-                      <input type="number" className="form-control" value={editForm.price || ''} onChange={(e) => handleEditChange('price', parseFloat(e.target.value))} />
-                    </div>
-                  </div>
-
-                  <div className="form-group grid-2">
-                    <div>
-                      <label>الموقع</label>
-                      <input className="form-control" value={editForm.location || ''} onChange={(e) => handleEditChange('location', e.target.value)} />
-                    </div>
-                    <div>
-                      <label>مساحة البناء (متر مربع)</label>
-                      <input type="number" className="form-control" value={editForm.build_area || ''} onChange={(e) => handleEditChange('build_area', parseInt(e.target.value))} />
-                    </div>
-                  </div>
-
-                  <div className="form-group grid-4">
-                    <div>
-                      <label>عدد الغرف</label>
-                      <select className="form-control" value={editForm.rooms || ''} onChange={(e) => handleEditChange('rooms', e.target.value)}>
-                        <option value="">غير محدد</option>
-                        {OPT_ROOMS.map(o => <option key={o} value={o === 'ستوديو' ? 0 : parseInt(o)}>{o}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label>عدد الحمامات</label>
-                      <select className="form-control" value={editForm.bathrooms || ''} onChange={(e) => handleEditChange('bathrooms', parseInt(e.target.value))}>
-                        <option value="">غير محدد</option>
-                        {OPT_BATHS.map(o => <option key={o} value={parseInt(o)}>{o}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label>مفروشة / غير مفروشة</label>
-                      <select className="form-control" value={editForm.furnished || ''} onChange={(e) => handleEditChange('furnished', e.target.value)}>
-                        <option value="">غير محدد</option>
-                        {OPT_FURNISHED.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label>الطابق</label>
-                      <select className="form-control" value={editForm.floor || ''} onChange={(e) => handleEditChange('floor', e.target.value)}>
-                        <option value="">غير محدد</option>
-                        {OPT_FLOOR.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-group grid-3">
-                    <div>
-                      <label>عمر البناء</label>
-                      <select className="form-control" value={editForm.building_age || ''} onChange={(e) => handleEditChange('building_age', e.target.value)}>
-                        <option value="">غير محدد</option>
-                        {OPT_AGE.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label>مدة الإيجار</label>
-                      <select className="form-control" value={editForm.rent_duration || ''} onChange={(e) => handleEditChange('rent_duration', e.target.value)}>
-                        <option value="">غير محدد</option>
-                        {OPT_RENT_DUR.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label>الواجهة</label>
-                      <select className="form-control" value={editForm.view_orientation || ''} onChange={(e) => handleEditChange('view_orientation', e.target.value)}>
-                        <option value="">غير محدد</option>
-                        {OPT_VIEW.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-group custom-feature-grid">
-                    <label>المزايا الرئيسية</label>
-                    <div className="checkbox-grid">
-                      {OPT_KEY_FEAT.map(feat => (
-                        <label key={feat} className="checkbox-label">
-                          <input type="checkbox" checked={(editForm.key_features || []).includes(feat)} onChange={() => handleEditChange('key_features', feat, true)} />
-                          {feat}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="form-group custom-feature-grid">
-                    <label>المزايا الإضافية</label>
-                    <div className="checkbox-grid">
-                      {OPT_ADD_FEAT.map(feat => (
-                        <label key={feat} className="checkbox-label">
-                          <input type="checkbox" checked={(editForm.additional_features || []).includes(feat)} onChange={() => handleEditChange('additional_features', feat, true)} />
-                          {feat}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="form-group custom-feature-grid">
-                    <label>مواقع قريبة</label>
-                    <div className="checkbox-grid">
-                      {OPT_NEARBY.map(feat => (
-                        <label key={feat} className="checkbox-label">
-                          <input type="checkbox" checked={(editForm.nearby_locations || []).includes(feat)} onChange={() => handleEditChange('nearby_locations', feat, true)} />
-                          {feat}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="form-group custom-feature-grid">
-                    <label>الفئة المستهدفة</label>
-                    <div className="checkbox-grid">
-                      {OPT_TARGET_AUDIENCE.map(feat => (
-                        <label key={feat} className="checkbox-label">
-                          <input type="checkbox" checked={(editForm.attributes?.target_audience || []).includes(feat)} onChange={(e) => {
-                            const current = editForm.attributes?.target_audience || [];
-                            const newArr = current.includes(feat) ? current.filter(i => i !== feat) : [...current, feat];
-                            setEditForm({ ...editForm, attributes: { ...editForm.attributes, target_audience: newArr } });
-                          }} />
-                          {feat}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="form-group custom-feature-grid">
-                    <label>طريقة الدفع ونوع المعلن</label>
-                    <div className="checkbox-grid">
-                      {OPT_PAYMENT_METHOD.map(feat => (
-                        <label key={feat} className="checkbox-label">
-                          <input type="checkbox" checked={(editForm.attributes?.payment_method || []).includes(feat)} onChange={(e) => {
-                            const current = editForm.attributes?.payment_method || [];
-                            const newArr = current.includes(feat) ? current.filter(i => i !== feat) : [...current, feat];
-                            setEditForm({ ...editForm, attributes: { ...editForm.attributes, payment_method: newArr } });
-                          }} />
-                          {feat}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>وصف الإعلان</label>
-                    <textarea className="form-control" rows="6" value={editForm.description || ''} onChange={(e) => handleEditChange('description', e.target.value)}></textarea>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="ad-slider-container">
-                    {getAdImages(selectedAd).length > 0 ? (
-                      <div className="slider-wrapper">
-                        <img src={getAdImages(selectedAd)[currentImageIndex]} alt="Ad" className="slider-image" referrerPolicy="no-referrer" />
-                        {getAdImages(selectedAd).length > 1 && (
-                          <>
-                            <button
-                              className="slider-btn prev"
-                              onClick={() => setCurrentImageIndex(prev => prev === 0 ? getAdImages(selectedAd).length - 1 : prev - 1)}
-                            ><ChevronRight size={24} /></button>
-                            <button
-                              className="slider-btn next"
-                              onClick={() => setCurrentImageIndex(prev => prev === getAdImages(selectedAd).length - 1 ? 0 : prev + 1)}
-                            ><ChevronLeft size={24} /></button>
-                            <div className="slider-dots">
-                              {getAdImages(selectedAd).map((_, idx) => (
-                                <span key={idx} className={`dot ${idx === currentImageIndex ? 'active' : ''}`}></span>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="slider-placeholder">لا يوجد صور متاحة</div>
-                    )}
-                  </div>
-
-                  <div className="ad-details-info">
-                    <h3>{selectedAd.title}</h3>
-                    <p className="ad-price">{selectedAd.price} دينار</p>
-
-                    <div className="ad-meta-grid">
-                      <div className="meta-item"><Tag size={18} /> <span>{getCategoryName(selectedAd.category_id)}</span></div>
-                      <div className="meta-item"><MapPin size={18} /> <span>{selectedAd.location}</span></div>
-                      <div className="meta-item"><Clock size={18} /> <span>{new Date(selectedAd.created_at).toLocaleDateString('ar-JO')}</span></div>
-                      <div className="meta-item"><User size={18} /> <span>المستخدم #{selectedAd.user_id}</span></div>
-                    </div>
-
-                    {/* Display Real Estate Fields if present */}
-                    {selectedAd.real_estate_detail && (selectedAd.real_estate_detail.rooms !== null || selectedAd.real_estate_detail.bathrooms || selectedAd.real_estate_detail.floor || selectedAd.real_estate_detail.build_area) && (
-                      <div className="real-estate-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', background: 'var(--primary-light)', padding: '12px', borderRadius: '8px', marginTop: '16px', fontSize: '0.9rem' }}>
-                        {selectedAd.rooms !== null && selectedAd.rooms !== undefined && <div><strong>الغرف:</strong> {selectedAd.rooms === 0 ? 'ستوديو' : selectedAd.rooms}</div>}
-                        {selectedAd.real_estate_detail.bathrooms && <div><strong>الحمامات:</strong> {selectedAd.real_estate_detail.bathrooms}</div>}
-                        {selectedAd.real_estate_detail.build_area && <div><strong>المساحة:</strong> {selectedAd.real_estate_detail.build_area} م²</div>}
-                        {selectedAd.real_estate_detail.floor && <div><strong>الطابق:</strong> {selectedAd.real_estate_detail.floor}</div>}
-                        {selectedAd.real_estate_detail.furnished && <div><strong>الفرش:</strong> {selectedAd.real_estate_detail.furnished}</div>}
-                        {selectedAd.real_estate_detail.rent_duration && <div><strong>المدة:</strong> {selectedAd.real_estate_detail.rent_duration}</div>}
-                        {selectedAd.real_estate_detail.building_age && <div><strong>العمر:</strong> {selectedAd.real_estate_detail.building_age}</div>}
-                        {selectedAd.real_estate_detail.view_orientation && <div><strong>الواجهة:</strong> {selectedAd.real_estate_detail.view_orientation}</div>}
-                      </div>
-                    )}
-
-                    <div className="ad-description mt-4">
-                      <h4>وصف الإعلان:</h4>
-                      <p style={{ whiteSpace: 'pre-wrap' }}>{selectedAd.description}</p>
-                    </div>
-
-                    {selectedAd.real_estate_detail && (selectedAd.real_estate_detail.key_features?.length > 0 || selectedAd.real_estate_detail.additional_features?.length > 0 || selectedAd.real_estate_detail.nearby_locations?.length > 0) && (
-                      <div className="ad-features-lists mt-4">
-                        <h4>المرافق والمزايا:</h4>
-                        {selectedAd.real_estate_detail.key_features?.length > 0 && <div className="mb-2"><strong>رئيسية:</strong> {selectedAd.real_estate_detail.key_features.join('، ')}</div>}
-                        {selectedAd.real_estate_detail.additional_features?.length > 0 && <div className="mb-2"><strong>إضافية:</strong> {selectedAd.real_estate_detail.additional_features.join('، ')}</div>}
-                        {selectedAd.real_estate_detail.nearby_locations?.length > 0 && <div className="mb-2"><strong>قريب من:</strong> {selectedAd.real_estate_detail.nearby_locations.join('، ')}</div>}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={closeAdDetails}>إغلاق</button>
-
-              {isEditing ? (
-                <button className="btn btn-primary" onClick={saveAdChanges}>حفظ التعديلات</button>
-              ) : (
-                <button className="btn btn-outline" style={{ borderColor: 'var(--primary-color)', color: 'var(--primary-color)' }} onClick={() => setIsEditing(true)}>تعديل البيانات</button>
-              )}
-
-              <button
-                className={`btn ${selectedAd.is_published ? 'btn-outline' : 'btn-primary'}`}
-                onClick={() => handleTogglePublish(selectedAd.id)}
-              >
-                {selectedAd.is_published ? 'إلغاء نشر الإعلان' : 'نشر الإعلان'}
-              </button>
-              <button className="btn btn-outline" style={{ color: 'var(--danger-color)', borderColor: 'var(--danger-color)' }}>
-                <Trash2 size={18} style={{ marginLeft: '8px' }} /> حذف الإعلان
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Toast Notification */}
-      {toast.show && createPortal(
-        <div className={`custom-toast toast-${toast.type}`}>
-          {toast.message}
-        </div>,
-        document.body
-      )}
-
-      {/* Duplicate Candidates Modal */}
-      {showDuplicateModal && createPortal(
-        <div className="modal-overlay" onClick={() => setShowDuplicateModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px' }}>
-            <div className="modal-header">
-              <h2>Duplicate Candidates for Ad #{checkingAdId}</h2>
-              <button className="btn-icon" onClick={() => setShowDuplicateModal(false)}><X size={24} /></button>
-            </div>
-            <div className="modal-body" style={{ padding: '24px' }}>
-              {loadingDuplicates ? (
-                <div style={{ textAlign: 'center', padding: '40px' }}>Loading duplicates...</div>
-              ) : duplicateCandidates.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-gray)' }}>No duplicates found for this ad.</div>
-              ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Candidate ID</th>
-                      <th>Total Score</th>
-                      <th>Image Score</th>
-                      <th>Text Score</th>
-                      <th>Specs Score</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {duplicateCandidates.map(cand => (
-                      <tr key={cand.candidate_ad_id}>
-                        <td>#{cand.candidate_ad_id}</td>
-                        <td style={{ fontWeight: 'bold', color: cand.total_score >= 80 ? 'var(--danger-color)' : cand.total_score >= 50 ? 'var(--warning-color)' : 'var(--primary-color)' }}>
-                          {cand.total_score}/100
-                        </td>
-                        <td>{cand.score_breakdown.image}</td>
-                        <td>{cand.score_breakdown.text}</td>
-                        <td>{cand.score_breakdown.specs}</td>
-                        <td>
-                          <span className={`badge ${cand.status === 'REJECTED_DUPLICATE' ? 'bg-danger' : cand.status === 'FLAGGED_FOR_REVIEW' ? 'bg-warning' : 'bg-success'}`}>
-                            {cand.status.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      <style jsx="true">{`
-        .page-header {
-          margin-bottom: 24px;
-        }
-        
-        .filters-card {
-          display: flex;
-          justify-content: space-between;
-          padding: 16px 24px;
-          gap: 16px;
-        }
-
-        .search-box {
-          position: relative;
-          flex: 1;
-          max-width: 400px;
-        }
-
-        .search-icon {
-          position: absolute;
-          right: 16px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--text-gray);
-        }
-
-        .search-box input {
-          padding-right: 48px;
-        }
-
-        .mt-4 {
-          margin-top: 24px;
-        }
-
-        .table-card {
-          padding: 0;
-          overflow: hidden;
-        }
-
-        .sleek-table {
-          width: 100%;
-          border-collapse: collapse;
-          text-align: right;
-          table-layout: auto;
-        }
-
-        .sleek-table th {
-          background-color: var(--secondary-color);
-          padding: 10px 10px;
-          font-weight: 700;
-          font-size: 0.8rem;
-          color: var(--text-gray);
-          border-bottom: 1px solid var(--border-color);
-          white-space: nowrap;
-        }
-
-        .sleek-table td {
-          padding: 10px 10px;
-          border-bottom: 1px solid var(--border-color);
-          vertical-align: middle;
-          font-weight: 600;
-          font-size: 0.8rem;
-        }
-
-        .sleek-table tr:last-child td {
-          border-bottom: none;
-        }
-
-        .sleek-table tr:hover td {
-          background-color: rgba(0, 117, 255, 0.02);
-        }
-
-        .ad-title-cell {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .ad-img-placeholder {
-          width: 40px;
-          height: 40px;
-          background-color: var(--primary-light);
-          border-radius: var(--radius-sm);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.2rem;
-        }
-
-        .price {
-          color: var(--primary-color);
-          font-weight: 900 !important;
-        }
-
-        .actions {
-          display: flex;
-          gap: 8px;
-        }
-        
-        .btn-icon {
-          cursor: pointer;
-        }
-
-        .btn-icon:hover {
-          background-color: var(--secondary-color);
-        }
-        
-        button, .btn {
-          cursor: pointer;
-        }
-
-        /* Toast Styles */
-        :global(.custom-toast) {
-          position: fixed;
-          bottom: 24px;
-          left: 50%;
-          transform: translateX(-50%);
-          padding: 12px 24px;
-          border-radius: 8px;
-          color: white;
-          font-weight: 600;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-          z-index: 999999;
-          animation: slideUpFade 0.3s ease forwards;
-        }
-
-        :global(.toast-success) { background-color: var(--success-color); }
-        :global(.toast-error) { background-color: var(--danger-color); }
-
-        @keyframes slideUpFade {
-          from { opacity: 0; transform: translate(-50%, 20px); }
-          to { opacity: 1; transform: translate(-50%, 0); }
-        }
-
-        /* Toggle Switch */
-        .ad-toggle-switch {
-          position: relative;
-          display: inline-block;
-          width: 44px;
-          height: 24px;
-        }
-
-        .ad-toggle-switch input {
-          opacity: 0;
-          width: 0;
-          height: 0;
-        }
-
-        .ad-toggle-slider {
-          position: absolute;
-          cursor: pointer;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: #cbd5e1;
-          transition: .4s;
-          border-radius: 24px;
-        }
-
-        .ad-toggle-slider:before {
-          position: absolute;
-          content: "";
-          height: 18px;
-          width: 18px;
-          right: 3px;
-          bottom: 3px;
-          background-color: white;
-          transition: .4s;
-          border-radius: 50%;
-        }
-
-        .ad-toggle-switch input:checked + .ad-toggle-slider {
-          background-color: var(--success-color);
-        }
-
-        .ad-toggle-switch input:checked + .ad-toggle-slider:before {
-          transform: translateX(-20px);
-        }
-
-        .advanced-filters label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: var(--text-dark);
-            font-size: 0.9rem;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 99999;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: var(--radius-lg);
-            width: 90vw;
-            max-width: 90vw;
-            height: 90vh;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            animation: modalFadeIn 0.3s ease;
-        }
-
-        @keyframes modalFadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .modal-header {
-            padding: 24px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            font-size: 1.25rem;
-            color: var(--text-dark);
-        }
-
-        .modal-body {
-            padding: 24px;
-            overflow-y: auto;
-            flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-        }
-
-        /* Slider Styles */
-        .ad-slider-container {
-            width: 100%;
-            height: 100%;
-            min-height: 400px;
-            background: var(--bg-color);
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            position: relative;
-        }
-
-        .slider-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #000;
-        }
-
-        .slider-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .slider-placeholder {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-gray);
-            font-weight: 500;
-            background: #f1f5f9;
-        }
-
-        .slider-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(255,255,255,0.8);
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            transition: all 0.2s;
-            color: var(--text-dark);
-        }
-
-        .slider-btn:hover {
-            background: white;
-            transform: translateY(-50%) scale(1.05);
-        }
-
-        .slider-btn.prev { right: 10px; }
-        .slider-btn.next { left: 10px; }
-
-        .slider-dots {
-            position: absolute;
-            bottom: 16px;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.5);
-            transition: all 0.2s;
-        }
-
-        .dot.active {
-            background: white;
-            transform: scale(1.2);
-        }
-
-        /* Details Info */
-        .ad-details-info h3 {
-            margin: 0 0 8px 0;
-            font-size: 1.5rem;
-            color: var(--text-dark);
-        }
-
-        .ad-details-info .ad-price {
-            font-size: 1.5rem;
-            font-weight: 900;
-            color: var(--primary-color);
-            margin: 0 0 24px 0;
-        }
-
-        .ad-meta-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 24px;
-            background: #f8fafc;
-            padding: 16px;
-            border-radius: var(--radius-md);
-        }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-gray);
-            font-size: 0.95rem;
-        }
-
-        .ad-description h4 {
-            margin: 0 0 8px 0;
-            color: var(--text-dark);
-            font-size: 1.1rem;
-        }
-
-        .ad-description p {
-            color: var(--text-gray);
-            line-height: 1.6;
-            margin: 0;
-            white-space: pre-wrap;
-        }
-
-        .modal-footer {
-            padding: 24px;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-        }
-        .checkbox-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 12px;
-            margin-top: 8px;
-        }
-
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            color: var(--text-dark);
-            margin: 0 !important;
-        }
-
-        .checkbox-label input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            accent-color: var(--primary-color);
-            cursor: pointer;
-        }
-
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-        .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
-
-        .edit-ad-form label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            color: var(--text-dark);
-            font-size: 0.85rem;
-        }
-        
-        .custom-feature-grid label {
-            font-size: 0.95rem;
-            margin-bottom: 12px;
-        }
-
-        .mb-2 { margin-bottom: 8px; }
-      `}</style>
     </div>
   );
-};
+}
 
-export default Ads;
+function Checks({ label, choices, selected, onToggle }) {
+  return (
+    <Field label={label}>
+      <div className="check-grid">
+        {choices.map((choice) => (
+          <label key={choice} className="check">
+            <input type="checkbox" checked={selected.includes(choice)} onChange={() => onToggle(choice)} />
+            {choice}
+          </label>
+        ))}
+      </div>
+    </Field>
+  );
+}
 
+const Choice = ({ label, value, choices, onChange }) => (
+  <Field label={label}>
+    <Select value={value === null || value === undefined ? '' : value} onChange={(event) => onChange(event.target.value)}>
+      <option value="">غير محدد</option>
+      {choices.map((choice) => (
+        <option key={typeof choice === 'object' ? choice.value : choice} value={typeof choice === 'object' ? choice.value : choice}>
+          {typeof choice === 'object' ? choice.label : choice}
+        </option>
+      ))}
+    </Select>
+  </Field>
+);
+
+/** The edit form. Real-estate fields are kept flat here and packed back into their nested object on save. */
+function AdForm({ form, setForm, locations }) {
+  const set = (name, value) => setForm((current) => ({ ...current, [name]: value }));
+  const toggle = (name) => (choice) =>
+    setForm((current) => {
+      const list = current[name] || [];
+      return { ...current, [name]: list.includes(choice) ? list.filter((item) => item !== choice) : [...list, choice] };
+    });
+  const attributes = form.attributes || {};
+  const toggleAttribute = (name) => (choice) =>
+    setForm((current) => {
+      const all = current.attributes || {};
+      const list = all[name] || [];
+      return { ...current, attributes: { ...all, [name]: list.includes(choice) ? list.filter((item) => item !== choice) : [...list, choice] } };
+    });
+  const number = (value, parse) => (value === '' ? null : parse(value));
+
+  return (
+    <div className="stack">
+      <div className="form-grid">
+        <Field label="عنوان الإعلان" className="span-2">
+          <Input value={form.title || ''} onChange={(event) => set('title', event.target.value)} />
+        </Field>
+        <Field label="السعر (دينار)">
+          <Input type="number" min="0" value={form.price === null || form.price === undefined ? '' : form.price} onChange={(event) => set('price', number(event.target.value, parseFloat))} />
+        </Field>
+        <Field label="الموقع" hint="مدينة أو «مدينة, منطقة» من القائمة">
+          <Input list="ad-locations" value={form.location || ''} onChange={(event) => set('location', event.target.value)} />
+        </Field>
+        <Field label="مساحة البناء (م²)">
+          <Input type="number" min="0" value={form.build_area || ''} onChange={(event) => set('build_area', number(event.target.value, (value) => parseInt(value, 10)))} />
+        </Field>
+        <Choice label="عدد الغرف" value={form.rooms} onChange={(value) => set('rooms', number(value, (text) => parseInt(text, 10)))} choices={options.ROOMS.map((room) => ({ value: room === 'ستوديو' ? 0 : parseInt(room, 10), label: room }))} />
+        <Choice label="عدد الحمامات" value={form.bathrooms} onChange={(value) => set('bathrooms', number(value, (text) => parseInt(text, 10)))} choices={options.BATHS.map((bath) => ({ value: parseInt(bath, 10), label: bath }))} />
+        <Choice label="الفرش" value={form.furnished} onChange={(value) => set('furnished', value)} choices={options.FURNISHED} />
+        <Choice label="الطابق" value={form.floor} onChange={(value) => set('floor', value)} choices={options.FLOOR} />
+        <Choice label="عمر البناء" value={form.building_age} onChange={(value) => set('building_age', value)} choices={options.AGE} />
+        <Choice label="مدة الإيجار" value={form.rent_duration} onChange={(value) => set('rent_duration', value)} choices={options.RENT_DURATION} />
+        <Choice label="الواجهة" value={form.view_orientation} onChange={(value) => set('view_orientation', value)} choices={options.VIEW} />
+      </div>
+      <Field label="وصف الإعلان">
+        <Textarea rows={6} value={form.description || ''} onChange={(event) => set('description', event.target.value)} />
+      </Field>
+      <Checks label="المزايا الرئيسية" choices={options.KEY_FEATURES} selected={form.key_features || []} onToggle={toggle('key_features')} />
+      <Checks label="المزايا الإضافية" choices={options.ADDITIONAL_FEATURES} selected={form.additional_features || []} onToggle={toggle('additional_features')} />
+      <Checks label="مواقع قريبة" choices={options.NEARBY} selected={form.nearby_locations || []} onToggle={toggle('nearby_locations')} />
+      <Checks label="الفئة المستهدفة" choices={options.TARGET_AUDIENCE} selected={attributes.target_audience || []} onToggle={toggleAttribute('target_audience')} />
+      <Checks label="طريقة الدفع ونوع المعلن" choices={options.PAYMENT_METHOD} selected={attributes.payment_method || []} onToggle={toggleAttribute('payment_method')} />
+      <datalist id="ad-locations">
+        {locations.map((location) => (
+          <option key={location} value={location} />
+        ))}
+      </datalist>
+    </div>
+  );
+}
+
+function AdDetails({ ad, categoryName }) {
+  const detail = ad.real_estate_detail || {};
+  const facts = [
+    ['الغرف', ad.rooms === 0 ? 'ستوديو' : ad.rooms],
+    ['الحمامات', detail.bathrooms],
+    ['المساحة', detail.build_area ? `${formatNumber(detail.build_area)} م²` : null],
+    ['الطابق', detail.floor],
+    ['الفرش', detail.furnished],
+    ['مدة الإيجار', detail.rent_duration],
+    ['عمر البناء', detail.building_age],
+    ['الواجهة', detail.view_orientation],
+  ].filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const features = [
+    ['مزايا رئيسية', detail.key_features],
+    ['مزايا إضافية', detail.additional_features],
+    ['قريب من', detail.nearby_locations],
+  ].filter(([, list]) => Array.isArray(list) && list.length > 0);
+  const price = PRICE_STATUS[ad.market_price_status];
+
+  return (
+    <div className="ad-view">
+      <Gallery ad={ad} />
+      <div className="stack">
+        <div>
+          <h3 style={{ fontSize: '1.15rem' }}>{ad.title || 'بدون عنوان'}</h3>
+          <div className="stat-value" style={{ color: 'var(--brand-600)' }}>
+            {ad.price ? formatPrice(ad.price) : 'بدون سعر'}
+          </div>
+        </div>
+        <div className="row" style={{ gap: 6 }}>
+          <Badge tone={ad.is_published ? 'green' : 'amber'} dot>
+            {ad.is_published ? 'منشور' : 'غير منشور'}
+          </Badge>
+          {isOrganic(ad.source_type) ? <Badge tone="green"><User size={12} /> مستخدم</Badge> : <Badge tone="amber"><Bot size={12} /> سحب آلي</Badge>}
+          {ad.is_featured && <Badge tone="violet">مميّز</Badge>}
+          {ad.is_hot && <Badge tone="red"><Flame size={12} /> لقطة</Badge>}
+          {ad.duplicate_status && <DuplicateBadge status={ad.duplicate_status} />}
+        </div>
+        <dl className="kv">
+          <dt>القسم</dt>
+          <dd>{categoryName(ad.category_id)}</dd>
+          <dt>الموقع</dt>
+          <dd>{ad.location || '—'}</dd>
+          <dt>أُضيف</dt>
+          <dd>{formatDate(ad.original_created_at || ad.created_at)}</dd>
+          <dt>المعلن</dt>
+          <dd className="num">مستخدم #{ad.user_id}</dd>
+          <dt>التفاعل</dt>
+          <dd className="num">
+            {formatNumber(ad.views || 0)} مشاهدة · {formatNumber(ad.chats_count || 0)} محادثة · {formatNumber(ad.favorites_count || 0)} مفضلة
+          </dd>
+          {facts.map(([label, value]) => (
+            <React.Fragment key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+        {price && ad.market_price_status !== 'NO_DATA' && (
+          <div className="alert">
+            <div>
+              <strong>مؤشر السعر: {price.label}.</strong> قورن بـ {formatNumber(ad.comparables_count || 0)} إعلان مشابه، متوسطها {formatPrice(ad.market_average_price)}
+              {ad.deviation_pct ? `، والفرق ${(ad.deviation_pct * 100).toFixed(1)}%` : ''}. موثوقية المقارنة: {CONFIDENCE[ad.confidence_level] || 'غير معروفة'}.
+            </div>
+          </div>
+        )}
+        <div>
+          <div className="field-label">الوصف</div>
+          <p style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>{ad.description || <span className="muted">لا يوجد وصف</span>}</p>
+        </div>
+        {features.map(([label, list]) => (
+          <div key={label}>
+            <div className="field-label">{label}</div>
+            <div className="chips">
+              {list.map((item) => (
+                <Badge key={item}>{item}</Badge>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Duplicates({ adId }) {
+  const { data, loading, error, reload } = useLoad(() => api.get(`/admin/ads/${adId}/check-duplicates`).then((response) => response.data), [adId]);
+  return (
+    <DataTable
+      rows={data}
+      rowKey="candidate_ad_id"
+      loading={loading}
+      error={error}
+      onRetry={reload}
+      empty={<EmptyState icon={Layers} title="لا توجد إعلانات مشابهة" description="لم يجد النظام إعلاناً آخر يشبه هذا الإعلان." />}
+      columns={[
+        {
+          key: 'candidate',
+          label: 'الإعلان المشابه',
+          primary: true,
+          render: (row) => (
+            <a className="cell-title num" href={adUrl(row.candidate_ad_id)} target="_blank" rel="noreferrer">
+              #{row.candidate_ad_id} <ExternalLink size={12} />
+            </a>
+          ),
+        },
+        { key: 'total', label: 'التشابه الكلي', sort: (row) => row.total_score, render: (row) => <strong className={`num ${row.total_score >= 80 ? '' : 'muted'}`} style={row.total_score >= 80 ? { color: 'var(--red-700)' } : undefined}>{row.total_score} / 100</strong> },
+        { key: 'image', label: 'الصور', render: (row) => <span className="num">{(row.score_breakdown || {}).image}</span> },
+        { key: 'text', label: 'النص', render: (row) => <span className="num">{(row.score_breakdown || {}).text}</span> },
+        { key: 'specs', label: 'المواصفات', render: (row) => <span className="num">{(row.score_breakdown || {}).specs}</span> },
+        { key: 'status', label: 'النتيجة', render: (row) => <DuplicateBadge status={row.status} /> },
+      ]}
+    />
+  );
+}
+
+export default function Ads() {
+  const { toast, confirm } = useFeedback();
+  const [source, setSource] = useState('ORGANIC_USER');
+  const [draft, setDraft] = useState(NO_FILTERS);
+  const [filters, setFilters] = useState(NO_FILTERS);
+  const [showMore, setShowMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [patches, setPatches] = useState({});
+  const [removed, setRemoved] = useState({});
+  const [open, setOpen] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [duplicatesFor, setDuplicatesFor] = useState(null);
+  const [busy, setBusy] = useState(null);
+
+  const meta = useLoad(() =>
+    Promise.all([api.get('/categories'), api.get('/locations')]).then(([categories, cities]) => ({ categories: categories.data, cities: cities.data })),
+  );
+  const categories = (meta.data && meta.data.categories) || EMPTY;
+  const locations = useMemo(() => {
+    const list = [];
+    ((meta.data && meta.data.cities) || []).forEach((city) => {
+      list.push(city.name_ar);
+      (city.regions || []).forEach((region) => list.push(`${city.name_ar}, ${region.name_ar}`));
+    });
+    return list;
+  }, [meta.data]);
+  const categoryNames = useMemo(() => {
+    const names = {};
+    categories.forEach((category) => {
+      names[category.id] = category.name;
+    });
+    return names;
+  }, [categories]);
+  const categoryName = (id) => categoryNames[id] || 'غير محدد';
+
+  const { data, loading, error, reload } = useLoad(() => {
+    const params = { sort_by: 'dashboard_strict', _ts: Date.now() };
+    if (source) params.source_type = source;
+    Object.keys(filters).forEach((name) => {
+      if (filters[name] !== '') params[name] = filters[name];
+    });
+    return Promise.all([api.get('/ads', { params: { ...params, skip: (page - 1) * pageSize, limit: pageSize } }), api.get('/ads/count', { params })]).then(([list, count]) => ({
+      ads: list.data,
+      total: count.data.total_count || 0,
+    }));
+  }, [source, filters, page, pageSize]);
+
+  const ads = useMemo(() => ((data && data.ads) || EMPTY).filter((ad) => !removed[ad.id]).map((ad) => (patches[ad.id] ? { ...ad, ...patches[ad.id] } : ad)), [data, patches, removed]);
+  const total = (data && data.total) || 0;
+  const activeFilters = Object.keys(filters).filter((name) => filters[name] !== '').length;
+  const current = open ? ads.find((ad) => ad.id === open) || null : null;
+
+  const apply = (event) => {
+    if (event) event.preventDefault();
+    setPage(1);
+    setFilters(draft);
+  };
+
+  const clear = () => {
+    setDraft(NO_FILTERS);
+    setFilters(NO_FILTERS);
+    setPage(1);
+  };
+
+  const patch = (id, change) => setPatches((all) => ({ ...all, [id]: { ...(all[id] || {}), ...change } }));
+
+  const toggle = async (ad, action, field, messages) => {
+    setBusy(ad.id);
+    try {
+      const { data: updated } = await api.put(`/ads/${ad.id}/${action}`);
+      patch(ad.id, { [field]: updated[field] });
+      toast(updated[field] ? messages[0] : messages[1]);
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر تحديث الإعلان.'), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+  const togglePublish = (ad) => toggle(ad, 'toggle-publish', 'is_published', ['تم نشر الإعلان', 'تم إلغاء نشر الإعلان']);
+  const toggleFeatured = (ad) => toggle(ad, 'toggle-featured', 'is_featured', ['تم تمييز الإعلان', 'تم إلغاء التمييز']);
+  const toggleHot = (ad) => toggle(ad, 'toggle-hot', 'is_hot', ['تم تعيين الإعلان كلقطة', 'تم إلغاء اللقطة']);
+
+  const remove = async (ad) => {
+    if (!(await confirm({ title: 'حذف الإعلان؟', message: `سيُحذف الإعلان #${ad.id} «${ad.title || 'بدون عنوان'}» نهائياً. لا يمكن التراجع.`, confirmLabel: 'حذف الإعلان', danger: true }))) return;
+    setBusy(ad.id);
+    try {
+      await api.delete(`/ads/${ad.id}`);
+      setRemoved((all) => ({ ...all, [ad.id]: true }));
+      if (open === ad.id) setOpen(null);
+      toast('تم حذف الإعلان');
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر حذف الإعلان.'), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const startEdit = (ad) => setEditing({ ...ad, ...(ad.real_estate_detail || {}) });
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      // Real-estate fields go back into their nested object
+      const payload = { ...editing };
+      const detail = {};
+      options.REAL_ESTATE_FIELDS.forEach((field) => {
+        if (payload[field] !== undefined) {
+          detail[field] = payload[field];
+          delete payload[field];
+        }
+      });
+      if (Object.keys(detail).length > 0) payload.real_estate_detail = detail;
+      else delete payload.real_estate_detail;
+      const { data: updated } = await api.put(`/ads/${editing.id}`, payload);
+      patch(editing.id, updated);
+      setEditing(null);
+      toast('تم حفظ التعديلات');
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر حفظ التعديلات.'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const columns = [
+    {
+      key: 'ad',
+      label: 'الإعلان',
+      primary: true,
+      render: (ad) => (
+        <div className="media">
+          <Thumb ad={ad} />
+          <div className="media-body" style={{ maxWidth: 320 }}>
+            <button type="button" className="btn-link truncate" style={{ display: 'block', maxWidth: '100%' }} onClick={() => setOpen(ad.id)}>
+              {ad.title || 'بدون عنوان'}
+            </button>
+            <div className="row" style={{ gap: 6, marginTop: 3 }}>
+              <span className="cell-sub num">#{ad.id}</span>
+              {!isOrganic(ad.source_type) && (
+                <Badge tone="amber">
+                  <Bot size={11} /> آلي
+                </Badge>
+              )}
+              {ad.duplicate_status && ad.duplicate_status !== 'ACCEPTED' && <DuplicateBadge status={ad.duplicate_status} />}
+              {ad.market_price_status === 'BELOW_MARKET' && <Badge tone="green">أقل من السوق</Badge>}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'place',
+      label: 'القسم والموقع',
+      render: (ad) => (
+        <div>
+          <div>{categoryName(ad.category_id)}</div>
+          <div className="cell-sub">
+            <MapPin size={11} /> {ad.location || 'بلا موقع'}
+          </div>
+        </div>
+      ),
+    },
+    { key: 'price', label: 'السعر', render: (ad) => <span className="num strong">{ad.price ? formatPrice(ad.price) : <span className="muted">بدون سعر</span>}</span> },
+    {
+      key: 'stats',
+      label: 'التفاعل',
+      hideMobile: true,
+      render: (ad) => (
+        <div className="row nowrap cell-sub" style={{ gap: 10, flexWrap: 'nowrap' }}>
+          <span title="مشاهدات"><Eye size={12} /> {formatNumber(ad.views || 0)}</span>
+          <span title="محادثات"><MessageSquare size={12} /> {formatNumber(ad.chats_count || 0)}</span>
+          <span title="مفضلة"><Heart size={12} /> {formatNumber(ad.favorites_count || 0)}</span>
+        </div>
+      ),
+    },
+    { key: 'date', label: 'أُضيف', render: (ad) => <span title={formatDate(ad.original_created_at || ad.created_at)}>{timeAgo(ad.original_created_at || ad.created_at)}</span> },
+    { key: 'published', label: 'منشور', render: (ad) => <Switch checked={ad.is_published} disabled={busy === ad.id} onChange={() => togglePublish(ad)} label={ad.is_published ? 'إلغاء النشر' : 'نشر'} /> },
+    { key: 'featured', label: 'مميّز', render: (ad) => <Switch checked={ad.is_featured} disabled={busy === ad.id} onChange={() => toggleFeatured(ad)} label="تمييز الإعلان" /> },
+    { key: 'hot', label: 'لقطة', render: (ad) => <Switch checked={ad.is_hot} disabled={busy === ad.id} onChange={() => toggleHot(ad)} label="لقطة" /> },
+    {
+      key: 'actions',
+      label: '',
+      actions: true,
+      render: (ad) => (
+        <div className="actions">
+          <Button variant="ghost" size="sm" icon={Eye} title="عرض التفاصيل" aria-label="عرض التفاصيل" onClick={() => setOpen(ad.id)} />
+          <Button variant="ghost" size="sm" icon={Layers} title="فحص التكرار" aria-label="فحص التكرار" onClick={() => setDuplicatesFor(ad.id)} />
+          <Button variant="ghost" size="sm" icon={Trash2} title="حذف" aria-label="حذف" disabled={busy === ad.id} onClick={() => remove(ad)} style={{ color: 'var(--red-600)' }} />
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <PageHeader title="الإعلانات" subtitle={`${formatNumber(total)} إعلان${activeFilters ? ' مطابق للتصفية' : ''}. راجع، انشر، ميّز أو احذف.`}>
+        <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={reload}>
+          تحديث
+        </Button>
+      </PageHeader>
+
+      <Card flush>
+        <Tabs value={source} onChange={(value) => { setSource(value); setPage(1); }} tabs={SOURCES} />
+        <form className="toolbar" onSubmit={apply}>
+          <SearchInput value={draft.search} onChange={(value) => setDraft({ ...draft, search: value })} placeholder="ابحث في العنوان والوصف..." />
+          <Input className="ltr" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} placeholder="رقم الهاتف" style={{ width: 150 }} inputMode="tel" />
+          <Select value={draft.is_published} onChange={(event) => setDraft({ ...draft, is_published: event.target.value })} aria-label="حالة النشر">
+            <option value="">كل الحالات</option>
+            <option value="true">منشور</option>
+            <option value="false">غير منشور</option>
+          </Select>
+          <Button type="submit">بحث</Button>
+          <Button variant="secondary" icon={Filter} onClick={() => setShowMore(!showMore)}>
+            تصفية{activeFilters ? ` (${activeFilters})` : ''}
+          </Button>
+          {activeFilters > 0 && (
+            <Button variant="ghost" size="sm" icon={X} onClick={clear}>
+              مسح
+            </Button>
+          )}
+        </form>
+        {showMore && (
+          <form className="toolbar" onSubmit={apply}>
+            <Select value={draft.category_id} onChange={(event) => setDraft({ ...draft, category_id: event.target.value })} aria-label="القسم">
+              <option value="">كل الأقسام</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </Select>
+            <Input list="ad-filter-locations" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} placeholder="مدينة أو منطقة" style={{ width: 190 }} />
+            <Input type="number" min="0" value={draft.min_price} onChange={(event) => setDraft({ ...draft, min_price: event.target.value })} placeholder="أقل سعر" style={{ width: 120 }} />
+            <Input type="number" min="0" value={draft.max_price} onChange={(event) => setDraft({ ...draft, max_price: event.target.value })} placeholder="أعلى سعر" style={{ width: 120 }} />
+            <Select value={draft.duplicate_status} onChange={(event) => setDraft({ ...draft, duplicate_status: event.target.value })} aria-label="حالة التكرار">
+              <option value="">كل حالات التكرار</option>
+              {Object.keys(options.DUPLICATE_STATUS).map((status) => (
+                <option key={status} value={status}>
+                  {options.DUPLICATE_STATUS[status].label}
+                </option>
+              ))}
+            </Select>
+            <label className="check">
+              <input type="checkbox" checked={draft.is_hot === 'true'} onChange={(event) => setDraft({ ...draft, is_hot: event.target.checked ? 'true' : '' })} />
+              اللقطات فقط
+            </label>
+            <Button type="submit" variant="secondary">
+              تطبيق
+            </Button>
+            <datalist id="ad-filter-locations">
+              {locations.map((location) => (
+                <option key={location} value={location} />
+              ))}
+            </datalist>
+          </form>
+        )}
+        <DataTable
+          columns={columns}
+          rows={ads}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          serverPaging={{ page, pageSize, total, onPage: setPage }}
+          empty={<EmptyState icon={FileText} title="لا توجد إعلانات مطابقة" description={activeFilters ? 'جرّب تغيير التصفية أو مسحها.' : undefined} />}
+        />
+        <div className="card-foot">
+          <span className="muted">عدد الصفوف في الصفحة</span>
+          <Select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} style={{ width: 'auto' }} aria-label="عدد الصفوف">
+            {[25, 50, 100].map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </Card>
+
+      <Modal
+        open={!!current && !editing}
+        size="wide"
+        title={current ? `إعلان #${current.id}` : ''}
+        onClose={() => setOpen(null)}
+        footer={
+          current && (
+            <>
+              <a className="btn btn-ghost" href={adUrl(current.id)} target="_blank" rel="noreferrer">
+                <ExternalLink size={16} /> <span>فتح على الموقع</span>
+              </a>
+              <Button variant="secondary" icon={Layers} onClick={() => setDuplicatesFor(current.id)}>
+                فحص التكرار
+              </Button>
+              <Button variant="secondary" icon={Pencil} onClick={() => startEdit(current)}>
+                تعديل
+              </Button>
+              <Button variant={current.is_published ? 'secondary' : 'primary'} disabled={busy === current.id} onClick={() => togglePublish(current)}>
+                {current.is_published ? 'إلغاء النشر' : 'نشر الإعلان'}
+              </Button>
+              <Button variant="danger" icon={Trash2} disabled={busy === current.id} onClick={() => remove(current)}>
+                حذف
+              </Button>
+            </>
+          )
+        }
+      >
+        {current && <AdDetails ad={current} categoryName={categoryName} />}
+      </Modal>
+
+      <Modal
+        open={!!editing}
+        size="wide"
+        title={editing ? `تعديل الإعلان #${editing.id}` : ''}
+        onClose={() => setEditing(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditing(null)}>
+              إلغاء
+            </Button>
+            <Button icon={Save} loading={saving} onClick={save}>
+              حفظ التعديلات
+            </Button>
+          </>
+        }
+      >
+        {editing && (meta.loading ? <Loading /> : <AdForm form={editing} setForm={setEditing} locations={locations} />)}
+      </Modal>
+
+      <Modal open={!!duplicatesFor} size="wide" title={duplicatesFor ? `إعلانات تشبه الإعلان #${duplicatesFor}` : ''} onClose={() => setDuplicatesFor(null)}>
+        {duplicatesFor && <Duplicates adId={duplicatesFor} />}
+      </Modal>
+    </>
+  );
+}

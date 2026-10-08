@@ -1,283 +1,168 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Globe, CheckCircle, XCircle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ExternalLink, Link2, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { api, errorMessage } from '../lib/api';
+import { EMPTY, Badge, Button, Card, DataTable, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Select, formatDate, useFeedback, useLoad } from '../ui';
+
+const BLANK = { name: '', url: '', categoryId: '' };
+const isFacebookUrl = (value) => /^https?:\/\/([a-z0-9-]+\.)?(facebook|fb)\.com\//i.test(value.trim());
 
 export default function SavedGroups() {
-    const [groups, setGroups] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+  const { toast, confirm } = useFeedback();
+  const { data, loading, error, reload } = useLoad(() =>
+    Promise.all([api.get('/saved-groups'), api.get('/categories')]).then(([groups, categories]) => ({ groups: groups.data, categories: categories.data })),
+  );
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-    // Form State
-    const [name, setName] = useState('');
-    const [url, setUrl] = useState('');
-    const [categoryId, setCategoryId] = useState('');
+  const groups = (data && data.groups) || EMPTY;
+  const categories = (data && data.categories) || EMPTY;
+  const categoryName = useMemo(() => {
+    const names = {};
+    categories.forEach((category) => {
+      names[category.id] = category.name;
+    });
+    return names;
+  }, [categories]);
 
-    useEffect(() => {
-        fetchMetadata();
-    }, []);
+  const visible = useMemo(() => {
+    const text = search.trim().toLowerCase();
+    return text ? groups.filter((group) => `${group.name} ${group.url}`.toLowerCase().includes(text)) : groups;
+  }, [groups, search]);
 
-    const fetchMetadata = async () => {
-        setLoading(true);
-        try {
-            const [groupsRes, categoriesRes] = await Promise.all([
-                fetch(`${process.env.REACT_APP_API_URL}/saved-groups`),
-                fetch(`${process.env.REACT_APP_API_URL}/categories`)
-            ]);
-            const groupsData = await groupsRes.json();
-            const catData = await categoriesRes.json();
+  const duplicate = form && groups.some((group) => group.url.trim().replace(/\/$/, '') === form.url.trim().replace(/\/$/, ''));
+  const urlProblem = form && form.url && !isFacebookUrl(form.url) ? 'الرابط يجب أن يكون لمجموعة أو صفحة على فيسبوك.' : duplicate ? 'هذا الرابط مضاف من قبل.' : '';
 
-            setGroups(groupsData);
-            setCategories(catData);
-        } catch (error) {
-            console.error("Error fetching saved groups data:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await api.post('/saved-groups', { name: form.name.trim(), url: form.url.trim(), category_id: form.categoryId ? Number(form.categoryId) : null, is_active: true });
+      toast('تمت إضافة المجموعة');
+      setForm(null);
+      reload();
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّرت إضافة المجموعة.'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const handleCreateGroup = async (e) => {
-        e.preventDefault();
-        if (!name || !url) return;
+  const remove = async (group) => {
+    if (!(await confirm({ title: 'حذف المجموعة؟', message: `لن يسحب النظام إعلانات جديدة من «${group.name}». الإعلانات المسحوبة سابقاً تبقى.`, confirmLabel: 'حذف', danger: true }))) return;
+    try {
+      await api.delete(`/saved-groups/${group.id}`);
+      toast('تم حذف المجموعة');
+      reload();
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر حذف المجموعة.'), 'error');
+    }
+  };
 
-        try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL}/saved-groups`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name,
-                    url,
-                    category_id: categoryId ? parseInt(categoryId) : null,
-                    is_active: true
-                })
-            });
+  return (
+    <>
+      <PageHeader title="مجموعات فيسبوك" subtitle="المجموعات والصفحات التي يسحب النظام الإعلانات منها. أضف مصادر للمناطق التي ينقصها إعلانات.">
+        <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={reload}>
+          تحديث
+        </Button>
+        <Button icon={Plus} onClick={() => setForm(BLANK)}>
+          إضافة مجموعة
+        </Button>
+      </PageHeader>
 
-            if (res.ok) {
-                setIsModalOpen(false);
-                setName('');
-                setUrl('');
-                setCategoryId('');
-                fetchMetadata();
-            }
-        } catch (error) {
-            console.error("Error creating group:", error);
-        }
-    };
-
-    const handleDeleteGroup = async (id) => {
-        if (!window.confirm('هل أنت متأكد من حذف هذا الرابط؟')) return;
-        try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL}/saved-groups/${id}`, {
-                method: 'DELETE'
-            });
-            if (res.ok) {
-                setGroups(groups.filter(g => g.id !== id));
-            }
-        } catch (error) {
-            console.error("Error deleting group:", error);
-        }
-    };
-
-    const getCategoryName = (id) => {
-        const cat = categories.find(c => c.id === id);
-        return cat ? cat.name : 'غير محدد';
-    };
-
-    return (
-        <div className="page-container">
-            <div className="page-header">
-                <div>
-                    </div>
-                <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-                    <Plus size={20} />
-                    إضافة رابط جديد
-                </button>
-            </div>
-
-            <div className="card">
-                {loading ? (
-                    <div className="loading-state">جاري التحميل...</div>
-                ) : groups.length === 0 ? (
-                    <div className="empty-state">
-                        <Globe size={48} className="empty-icon text-muted" />
-                        <p>لا يوجد روابط مضافة حالياً.</p>
-                    </div>
-                ) : (
-                    <div className="table-responsive">
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>الاسم</th>
-                                    <th>الرابط</th>
-                                    <th>القسم المرتبط</th>
-                                    <th>الحالة</th>
-                                    <th>تاريخ الإضافة</th>
-                                    <th>إجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {groups.map((group) => (
-                                    <tr key={group.id}>
-                                        <td>{group.id}</td>
-                                        <td className="fw-600">{group.name}</td>
-                                        <td>
-                                            <a href={group.url} target="_blank" rel="noreferrer" style={{ color: 'var(--primary-color)' }}>
-                                                {group.url.length > 40 ? group.url.substring(0, 40) + '...' : group.url}
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <span className="badge bg-secondary-light text-secondary-dark">
-                                                {getCategoryName(group.category_id)}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {group.is_active ? (
-                                                <span className="badge bg-success-light text-success-dark">
-                                                    <CheckCircle size={14} style={{ marginLeft: '4px' }} /> مفعل
-                                                </span>
-                                            ) : (
-                                                <span className="badge bg-danger-light text-danger-dark">
-                                                    <XCircle size={14} style={{ marginLeft: '4px' }} /> معطل
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td>{new Date(group.created_at).toLocaleDateString('ar-JO')}</td>
-                                        <td>
-                                            <button
-                                                className="btn btn-icon text-danger"
-                                                onClick={() => handleDeleteGroup(group.id)}
-                                                title="حذف الرابط"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {isModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <h2 className="modal-title">إضافة مصدر سحب جديد</h2>
-                            <button className="modal-close" onClick={() => setIsModalOpen(false)}>&times;</button>
-                        </div>
-
-                        <form onSubmit={handleCreateGroup}>
-                            <div className="modal-body">
-                                <div className="form-group">
-                                    <label className="form-label">اسم المجموعة / الصفحة</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        required
-                                        placeholder="مثال: شقق للإيجار في عمان"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">رابط فيسبوك</label>
-                                    <input
-                                        type="url"
-                                        className="form-control"
-                                        required
-                                        placeholder="https://facebook.com/groups/..."
-                                        value={url}
-                                        onChange={(e) => setUrl(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">ربط بالقسم <span className="text-muted text-sm">(اختياري)</span></label>
-                                    <select
-                                        className="form-control"
-                                        value={categoryId}
-                                        onChange={(e) => setCategoryId(e.target.value)}
-                                    >
-                                        <option value="">اختيار القسم</option>
-                                        {categories.map(cat => (
-                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
-                                    إلغاء
-                                </button>
-                                <button type="submit" className="btn btn-primary">
-                                    حفظ المصدر
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            <style jsx="true">{`
-        .modal-overlay {
-          position: fixed;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0,0,0,0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          backdrop-filter: blur(4px);
-        }
-        .modal-content {
-          background: white;
-          width: 90%;
-          max-width: 500px;
-          border-radius: var(--radius-lg);
-          box-shadow: var(--shadow-lg);
-          overflow: hidden;
-        }
-        .modal-header {
-          padding: 20px 24px;
-          border-bottom: 1px solid var(--border-color);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background-color: var(--secondary-color);
-        }
-        .modal-title { margin: 0; font-size: 1.25rem; }
-        .modal-close {
-          background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-gray);
-        }
-        .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
-        .modal-footer {
-          padding: 16px 24px;
-          border-top: 1px solid var(--border-color);
-          display: flex;
-          justify-content: flex-end;
-          gap: 12px;
-          background-color: var(--secondary-color);
-        }
-        .badge {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 8px;
-          border-radius: 20px;
-          font-size: 0.85rem;
-          font-weight: 600;
-        }
-        .bg-success-light { background-color: rgba(76, 175, 80, 0.1); }
-        .text-success-dark { color: #2E7D32; }
-        .bg-danger-light { background-color: rgba(244, 67, 54, 0.1); }
-        .text-danger-dark { color: #C62828; }
-        .bg-secondary-light { background-color: rgba(158, 158, 158, 0.1); }
-        .text-secondary-dark { color: #616161; }
-        .text-muted { color: var(--text-light); }
-        .text-sm { font-size: 0.85rem; }
-      `}</style>
+      <Card flush>
+        <div className="toolbar">
+          <SearchInput value={search} onChange={setSearch} placeholder="ابحث بالاسم أو الرابط..." />
+          <div className="toolbar-spacer" />
+          <span className="muted">{groups.length} مصدر</span>
         </div>
-    );
+        <DataTable
+          rows={visible}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          empty={
+            <EmptyState icon={Link2} title={search ? 'لا توجد نتائج' : 'لا توجد مجموعات بعد'} description={search ? undefined : 'أضف أول مجموعة ليبدأ السحب منها.'}>
+              {!search && (
+                <Button icon={Plus} onClick={() => setForm(BLANK)}>
+                  إضافة مجموعة
+                </Button>
+              )}
+            </EmptyState>
+          }
+          columns={[
+            {
+              key: 'name',
+              label: 'المجموعة',
+              primary: true,
+              sort: (group) => group.name,
+              render: (group) => (
+                <div style={{ maxWidth: 420 }}>
+                  <div className="cell-title">{group.name}</div>
+                  <a className="cell-sub ltr truncate" href={group.url} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
+                    {group.url}
+                  </a>
+                </div>
+              ),
+            },
+            { key: 'category', label: 'القسم', sort: (group) => categoryName[group.category_id] || '', render: (group) => (group.category_id ? <Badge tone="blue">{categoryName[group.category_id] || `#${group.category_id}`}</Badge> : <span className="muted">تلقائي</span>) },
+            { key: 'active', label: 'الحالة', render: (group) => <Badge tone={group.is_active ? 'green' : undefined} dot>{group.is_active ? 'مفعّل' : 'معطّل'}</Badge> },
+            { key: 'created_at', label: 'أُضيف', sort: (group) => group.created_at, render: (group) => formatDate(group.created_at, false) },
+            {
+              key: 'actions',
+              label: '',
+              actions: true,
+              render: (group) => (
+                <div className="actions">
+                  <a className="btn btn-ghost btn-sm btn-icon" href={group.url} target="_blank" rel="noreferrer" title="فتح على فيسبوك">
+                    <ExternalLink size={15} />
+                  </a>
+                  <Button variant="danger-soft" size="sm" icon={Trash2} onClick={() => remove(group)}>
+                    حذف
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      <Modal
+        open={!!form}
+        title="إضافة مجموعة فيسبوك"
+        onClose={() => setForm(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setForm(null)}>
+              إلغاء
+            </Button>
+            <Button type="submit" form="group-form" loading={saving} disabled={!form || !form.name.trim() || !form.url.trim() || !!urlProblem}>
+              حفظ
+            </Button>
+          </>
+        }
+      >
+        {form && (
+          <form id="group-form" className="stack" onSubmit={save}>
+            <Field label="الاسم" hint="اسم يساعدك على تمييز المصدر، مثل: شقق للإيجار في الزرقاء">
+              <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} autoFocus required />
+            </Field>
+            <Field label="رابط فيسبوك" error={urlProblem}>
+              <Input className="ltr" type="url" value={form.url} onChange={(event) => setForm({ ...form, url: event.target.value })} placeholder="https://www.facebook.com/groups/..." required />
+            </Field>
+            <Field label="القسم (اختياري)" hint="اتركه فارغاً ليحدد النظام القسم من نص كل إعلان.">
+              <Select value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })}>
+                <option value="">تلقائي</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </form>
+        )}
+      </Modal>
+    </>
+  );
 }

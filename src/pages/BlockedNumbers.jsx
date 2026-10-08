@@ -1,153 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useMemo, useState } from 'react';
+import { PhoneOff, Plus, RefreshCw, ShieldAlert, Trash2 } from 'lucide-react';
+import { api, errorMessage } from '../lib/api';
+import { Alert, Button, Card, DataTable, EmptyState, Field, Input, PageHeader, SearchInput, formatDate, timeAgo, useFeedback, useLoad } from '../ui';
 
-const BlockedNumbers = () => {
-  const [blockedNumbers, setBlockedNumbers] = useState([]);
-  const [newNumber, setNewNumber] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState(null);
-  
-  const apiUrl = process.env.REACT_APP_API_URL ;
+export default function BlockedNumbers() {
+  const { toast, confirm } = useFeedback();
+  const { data, loading, error, reload } = useLoad(() => api.get('/blacklist/phones').then((response) => response.data));
+  const [number, setNumber] = useState('');
+  const [search, setSearch] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const getAuthHeaders = () => ({
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`
-    }
-  });
+  const cleaned = number.replace(/[^\d+]/g, '');
+  const rows = useMemo(() => (data || []).filter((row) => !search.trim() || String(row.phone_number).includes(search.trim())), [data, search]);
 
-  useEffect(() => {
-    fetchBlockedNumbers();
-  }, []);
-
-  const fetchBlockedNumbers = async () => {
+  const block = async (event) => {
+    event.preventDefault();
+    if (!cleaned) return;
+    const agreed = await confirm({
+      title: 'حظر هذا الرقم؟',
+      message: `سيُحذف كل إعلان يحتوي على الرقم ${cleaned}، ولن يسحب النظام أي إعلان جديد منه. حذف الإعلانات لا يمكن التراجع عنه.`,
+      confirmLabel: 'حظر وحذف الإعلانات',
+      danger: true,
+    });
+    if (!agreed) return;
+    setBusy(true);
     try {
-      setLoading(true);
-      const { data } = await axios.get(`${apiUrl}/blacklist/phones`, getAuthHeaders());
-      setBlockedNumbers(data);
-      setError(null);
-    } catch (err) {
-      console.error(err);
-      setError('فشل في جلب قائمة الأرقام المحظورة');
+      await api.post('/blacklist/phones', { phone_number: cleaned });
+      setNumber('');
+      toast('تم حظر الرقم');
+      reload();
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر حظر الرقم.'), 'error');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  const handleBlockNumber = async (e) => {
-    e.preventDefault();
-    if (!newNumber.trim()) return;
-
-    if (!window.confirm(`هل أنت متأكد من حظر الرقم ${newNumber}؟ سيتم حذف جميع الإعلانات المرتبطة بهذا الرقم.`)) {
-        return;
-    }
-
+  const unblock = async (row) => {
+    const agreed = await confirm({ title: 'إلغاء حظر الرقم؟', message: `سيعود النظام إلى سحب الإعلانات من الرقم ${row.phone_number}. الإعلانات المحذوفة سابقاً لا تعود.`, confirmLabel: 'إلغاء الحظر' });
+    if (!agreed) return;
+    setBusy(true);
     try {
-      setActionLoading(true);
-      await axios.post(`${apiUrl}/blacklist/phones`, { phone_number: newNumber.trim() }, getAuthHeaders());
-      setNewNumber('');
-      fetchBlockedNumbers();
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.detail || 'فشل في حظر الرقم');
+      await api.delete(`/blacklist/phones/${encodeURIComponent(row.phone_number)}`);
+      toast('تم إلغاء الحظر');
+      reload();
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر إلغاء الحظر.'), 'error');
     } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUnblock = async (phone) => {
-    if (!window.confirm(`هل أنت متأكد من إلغاء حظر الرقم ${phone}؟`)) return;
-
-    try {
-      setActionLoading(true);
-      await axios.delete(`${apiUrl}/blacklist/phones/${phone}`, getAuthHeaders());
-      fetchBlockedNumbers();
-    } catch (err) {
-      console.error(err);
-      setError('فشل في إلغاء حظر الرقم');
-    } finally {
-      setActionLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2>الأرقام المحظورة</h2>
-      </div>
+    <div className="stack">
+      <PageHeader title="الأرقام المحظورة" subtitle="أرقام لا يُقبل منها أي إعلان، سواء من السحب الآلي أو من الإعلانات الموجودة.">
+        <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={reload}>
+          تحديث
+        </Button>
+      </PageHeader>
 
-      {error && <div className="alert error">{error}</div>}
-
-      <div style={{ marginBottom: '30px', padding: '20px', background: '#f5f7fa', borderRadius: '8px' }}>
-        <h3>حظر رقم جديد</h3>
-        <p style={{ color: '#666', marginBottom: '15px' }}>
-            بإضافة رقم إلى هذه القائمة، لن يقوم نظام الذكاء الاصطناعي بسحب أي إعلانات تحتوي على هذا الرقم. كما سيتم حذف الإعلانات الحالية التي تحتوي على هذا الرقم.
-        </p>
-        <form onSubmit={handleBlockNumber} style={{ display: 'flex', gap: '10px' }}>
-          <input
-            type="text"
-            placeholder="أدخل رقم الهاتف (مثال: 0791234567)"
-            value={newNumber}
-            onChange={(e) => setNewNumber(e.target.value)}
-            style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
-            disabled={actionLoading}
-          />
-          <button 
-            type="submit" 
-            className="btn primary" 
-            disabled={actionLoading || !newNumber.trim()}
-            style={{ padding: '10px 20px' }}
-          >
-            {actionLoading ? 'جاري التنفيذ...' : 'حظر الرقم وحذف الإعلانات'}
-          </button>
+      <Card title="حظر رقم جديد">
+        <form className="stack" onSubmit={block}>
+          <Alert tone="amber" icon={ShieldAlert}>
+            حظر الرقم يحذف فوراً كل الإعلانات الحالية التي تحتويه، ويمنع سحب أي إعلان جديد منه.
+          </Alert>
+          <div className="row" style={{ alignItems: 'flex-end' }}>
+            <Field label="رقم الهاتف" className="grow">
+              <Input className="ltr" inputMode="tel" value={number} onChange={(event) => setNumber(event.target.value)} placeholder="0791234567" disabled={busy} />
+            </Field>
+            <Button type="submit" variant="danger" icon={Plus} loading={busy} disabled={!cleaned}>
+              حظر الرقم
+            </Button>
+          </div>
         </form>
-      </div>
+      </Card>
 
-      {loading ? (
-        <p>جاري التحميل...</p>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #eee' }}>
-                <th style={{ padding: '12px' }}>رقم الهاتف</th>
-                <th style={{ padding: '12px' }}>تاريخ الحظر</th>
-                <th style={{ padding: '12px' }}>الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {blockedNumbers.length === 0 ? (
-                <tr>
-                  <td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
-                    لا توجد أرقام محظورة
-                  </td>
-                </tr>
-              ) : (
-                blockedNumbers.map((block) => (
-                  <tr key={block.phone_number} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '12px', direction: 'ltr', textAlign: 'right' }}>{block.phone_number}</td>
-                    <td style={{ padding: '12px', direction: 'ltr', textAlign: 'right' }}>
-                        {new Date(block.created_at).toLocaleString('ar-EG')}
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <button
-                        className="btn danger"
-                        onClick={() => handleUnblock(block.phone_number)}
-                        disabled={actionLoading}
-                        style={{ padding: '6px 12px', fontSize: '0.9rem' }}
-                      >
-                        إلغاء الحظر
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <Card title={`القائمة (${(data || []).length})`} flush>
+        <div className="toolbar">
+          <SearchInput value={search} onChange={setSearch} placeholder="ابحث عن رقم..." />
         </div>
-      )}
+        <DataTable
+          rowKey="phone_number"
+          rows={rows}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          empty={<EmptyState icon={PhoneOff} title="لا توجد أرقام محظورة" />}
+          columns={[
+            { key: 'phone_number', label: 'رقم الهاتف', primary: true, render: (row) => <span className="cell-title ltr">{row.phone_number}</span> },
+            { key: 'created_at', label: 'تاريخ الحظر', sort: (row) => row.created_at, render: (row) => <span title={formatDate(row.created_at)}>{timeAgo(row.created_at)}</span> },
+            {
+              key: 'actions',
+              label: '',
+              actions: true,
+              render: (row) => (
+                <Button variant="secondary" size="sm" icon={Trash2} disabled={busy} onClick={() => unblock(row)}>
+                  إلغاء الحظر
+                </Button>
+              ),
+            },
+          ]}
+        />
+      </Card>
     </div>
   );
-};
-
-export default BlockedNumbers;
+}

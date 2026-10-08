@@ -1,137 +1,102 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useMemo, useState } from 'react';
 import ReactApexChart from 'react-apexcharts';
+import { Download, Globe2, RefreshCw } from 'lucide-react';
+import { api } from '../lib/api';
+import { Button, Card, DataTable, EmptyState, ErrorState, PageHeader, SearchInput, SkeletonRows, downloadCsv, formatNumber, useLoad } from '../ui';
 
-const AdsRegionCategoryAnalytics = () => {
-    const [stats, setStats] = useState([]);
-    const [seriesMeta, setSeriesMeta] = useState([]);
-    const [loading, setLoading] = useState(true);
+const FALLBACK_SERIES = ['للإيجار', 'للبيع', 'الأراضي'];
+const COLORS = ['#1557f5', '#079455', '#dc6803', '#6938ef', '#d92d20', '#0e9384', '#c11574', '#475467'];
+const CHART_ROWS = 20;
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const API_URL = process.env.REACT_APP_API_URL;
-                const { data } = await axios.get(`${API_URL}/tracking/regional-category-stats`);
-                if (data.data && data.series_meta) {
-                    setStats(data.data);
-                    setSeriesMeta(data.series_meta);
-                } else {
-                    // Fallback if backend wasn't updated yet
-                    setStats(data || []);
-                }
-            } catch (err) {
-                console.error("Error fetching regional stats:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
+export default function AdsRegionCategoryAnalytics() {
+  const [search, setSearch] = useState('');
+  const { data, loading, error, reload } = useLoad(() =>
+    api.get('/tracking/regional-category-stats').then((response) => {
+      const body = response.data;
+      // The endpoint used to answer with the rows alone
+      return body && body.data ? { rows: body.data, names: (body.series_meta || []).map((meta) => meta.name) } : { rows: body || [], names: FALLBACK_SERIES };
+    }),
+  );
 
-        fetchData();
-    }, []);
+  const names = (data && data.names.length ? data.names : FALLBACK_SERIES) || FALLBACK_SERIES;
+  const rows = useMemo(
+    () =>
+      ((data && data.rows) || [])
+        .map((row) => ({ ...row, total: names.reduce((sum, name) => sum + (row[name] || 0), 0) }))
+        .sort((a, b) => b.total - a.total),
+    [data, names],
+  );
 
-    if (loading) {
-        return <div style={{ padding: '40px', textAlign: 'center' }}>جاري التحميل...</div>;
-    }
+  const visible = useMemo(() => {
+    const text = search.trim();
+    return text ? rows.filter((row) => (row.region || '').includes(text)) : rows;
+  }, [rows, search]);
 
-    if (stats.length === 0) {
-        return <div style={{ padding: '40px', textAlign: 'center' }}>لا توجد بيانات...</div>;
-    }
+  const top = rows.slice(0, CHART_ROWS);
+  const options = {
+    chart: { type: 'bar', stacked: true, toolbar: { show: false }, fontFamily: 'inherit' },
+    colors: COLORS,
+    plotOptions: { bar: { horizontal: true, barHeight: '70%', borderRadius: 3 } },
+    dataLabels: { enabled: false },
+    xaxis: { categories: top.map((row) => row.region), labels: { style: { fontFamily: 'inherit' } } },
+    yaxis: { labels: { style: { fontFamily: 'inherit', fontSize: '12px' }, maxWidth: 180 } },
+    grid: { borderColor: '#e6e9ef', strokeDashArray: 4 },
+    legend: { position: 'top', fontFamily: 'inherit' },
+    tooltip: { y: { formatter: (value) => `${formatNumber(value)} إعلان` } },
+  };
+  const series = names.map((name) => ({ name, data: top.map((row) => row[name] || 0) }));
 
-        const chartOptions = {
-        chart: {
-            type: 'bar',
-            height: 500,
-            stacked: true, // All stacked in one column
-            toolbar: { show: false },
-            fontFamily: 'inherit'
-        },
-        plotOptions: {
-            bar: {
-                horizontal: false,
-                columnWidth: '60%',
-                borderRadius: 2,
-            },
-        },
-        dataLabels: {
-            enabled: true,
-            style: {
-                fontSize: '11px',
-                colors: ["#fff"]
-            },
-            formatter: (val) => val > 0 ? val : ""
-        },
-        stroke: {
-            show: true,
-            width: 1,
-            colors: ['transparent']
-        },
-        xaxis: {
-            categories: [...stats].reverse().map(s => s.region),
-            labels: {
-                style: { fontSize: '13px', fontFamily: 'inherit' },
-                rotate: -45,
-                hideOverlappingLabels: false
-            }
-        },
-        yaxis: {
-            title: {
-                text: 'عدد الإعلانات',
-                style: { fontFamily: 'inherit' }
-            }
-        },
-        fill: {
-            opacity: 1
-        },
-        tooltip: {
-            y: {
-                formatter: (val) => val + " إعلان"
-            }
-        },
-        // We provide a distinct color palette for the stacked items
-        theme: {
-            palette: 'palette1'
-        },
-        legend: {
-            position: 'top',
-            horizontalAlign: 'left',
-            offsetX: 40
-        }
-    };
+  const exportCsv = () =>
+    downloadCsv('ads-by-region.csv', [{ label: 'المنطقة', value: (row) => row.region }, ...names.map((name) => ({ label: name, value: (row) => row[name] || 0 })), { label: 'المجموع', value: (row) => row.total }], visible);
 
-    let series = [];
-    const sortedStats = [...stats].reverse();
-    if (seriesMeta.length > 0) {
-        series = seriesMeta.map(meta => ({
-            name: meta.name,
-            data: sortedStats.map(s => s[meta.name] || 0)
-        }));
-    } else {
-        // Fallback for old API
-        series = [
-            { name: 'للإيجار', data: sortedStats.map(s => s['للإيجار'] || 0) },
-            { name: 'للبيع', data: sortedStats.map(s => s['للبيع'] || 0) },
-            { name: 'الأراضي', data: sortedStats.map(s => s['الأراضي'] || 0) }
-        ];
-    }
+  return (
+    <div className="stack">
+      <PageHeader title="الإعلانات حسب المنطقة" subtitle="توزيع الإعلانات على المناطق وأنواعها. يوضّح أين المخزون قوي وأين ينقص.">
+        <Button variant="secondary" icon={Download} disabled={visible.length === 0} onClick={exportCsv}>
+          تصدير
+        </Button>
+        <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={reload}>
+          تحديث
+        </Button>
+      </PageHeader>
 
-    return (
-        <div style={{ padding: '24px', direction: 'rtl' }}>
-            <h2 style={{ marginBottom: '24px', color: '#1E293B', fontWeight: 'bold' }}>توزيع الإعلانات جغرافياً (الأقسام الفرعية)</h2>
-            
-            <div style={{ 
-                backgroundColor: '#fff', 
-                padding: '24px', 
-                borderRadius: '16px', 
-                border: '1px solid #E2E8F0', 
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-                overflowX: 'auto'
-            }} className="custom-scrollbar">
-                <div style={{ minWidth: `${Math.max(800, stats.length * 30)}px` }}>
-                    <ReactApexChart options={chartOptions} series={series} type="bar" height={500} />
-                </div>
-            </div>
+      {error ? (
+        <div className="card">
+          <ErrorState message={error} onRetry={reload} />
         </div>
-    );
-};
+      ) : !data ? (
+        <div className="card">
+          <SkeletonRows rows={8} />
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="card">
+          <EmptyState icon={Globe2} title="لا توجد بيانات بعد" />
+        </div>
+      ) : (
+        <>
+          <Card title={`أكثر ${top.length} منطقة إعلانات`} subtitle="مقسّمة حسب النوع">
+            <ReactApexChart options={options} series={series} type="bar" height={Math.max(320, top.length * 30)} />
+          </Card>
 
-export default AdsRegionCategoryAnalytics;
+          <Card title={`كل المناطق (${rows.length})`} flush>
+            <div className="toolbar">
+              <SearchInput value={search} onChange={setSearch} placeholder="ابحث عن منطقة..." />
+            </div>
+            <DataTable
+              rows={visible}
+              rowKey="region"
+              pageSize={25}
+              initialSort={{ key: 'total', dir: 'desc' }}
+              empty={<EmptyState title="لا توجد مناطق مطابقة" />}
+              columns={[
+                { key: 'region', label: 'المنطقة', primary: true, sort: (row) => row.region, render: (row) => <span className="cell-title">{row.region}</span> },
+                ...names.map((name) => ({ key: name, label: name, sort: (row) => row[name] || 0, render: (row) => <span className="num">{formatNumber(row[name] || 0)}</span> })),
+                { key: 'total', label: 'المجموع', sort: (row) => row.total, render: (row) => <span className="num strong">{formatNumber(row.total)}</span> },
+              ]}
+            />
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}

@@ -1,275 +1,305 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Search, Ban, UserX, MessageSquare, Image as ImageIcon, X, CheckCircle, XCircle } from 'lucide-react';
-import './Users.css';
+import React, { useEffect, useRef, useState } from 'react';
+import { Ban, ChevronLeft, ChevronRight, Download, FileText, MessageSquare, RefreshCw, Send, UserCheck, UserX, Users as UsersIcon } from 'lucide-react';
+import { api, errorMessage } from '../lib/api';
+import { adUrl } from '../lib/site';
+import {
+  Badge, Button, Card, DataTable, EmptyState, Input, Loading, Modal, PageHeader, SearchInput, Select, downloadCsv, formatDate, formatPrice, timeAgo, useFeedback, useLoad,
+} from '../ui';
 
-const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/admin/users`;
+const PAGE_SIZE = 50;
 
-const Users = () => {
-    const [users, setUsers] = useState([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    
-    // Modals state
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [modalType, setModalType] = useState(null); // 'ads' or 'chat'
-    const [userAds, setUserAds] = useState([]);
-    const [chatMessages, setChatMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
+const initials = (name) => (name || '?').trim().slice(0, 2);
+const phoneOf = (user) => user.mobile_number || user.phone || '';
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    const fetchUsers = async (query = '') => {
-        setLoading(true);
-        try {
-            const res = await axios.get(`${API_BASE_URL}?q=${query}`);
-            setUsers(res.data);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSearch = (e) => {
-        setSearchQuery(e.target.value);
-        if (e.key === 'Enter') {
-            fetchUsers(e.target.value);
-        }
-    };
-
-    const toggleUserStatus = async (userId, currentStatus) => {
-        try {
-            const res = await axios.put(`${API_BASE_URL}/${userId}/status`, { is_active: !currentStatus });
-            if (res.status === 200) {
-                setUsers(users.map(u => u.id === userId ? { ...u, is_active: !currentStatus } : u));
-            }
-        } catch (err) {
-            console.error('Failed to update status');
-        }
-    };
-
-    const toggleUserBan = async (userId, currentBanStatus) => {
-        try {
-            const res = await axios.put(`${API_BASE_URL}/${userId}/ban`, { is_banned: !currentBanStatus });
-            if (res.status === 200) {
-                setUsers(users.map(u => u.id === userId ? { ...u, is_banned: !currentBanStatus } : u));
-            }
-        } catch (err) {
-            console.error('Failed to update ban status');
-        }
-    };
-
-    const openAdsModal = async (user) => {
-        setSelectedUser(user);
-        setModalType('ads');
-        try {
-            const res = await axios.get(`${API_BASE_URL}/${user.id}/ads`);
-            setUserAds(res.data);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const openChatModal = async (user) => {
-        setSelectedUser(user);
-        setModalType('chat');
-        fetchChatMessages(user.id);
-    };
-
-    const fetchChatMessages = async (userId) => {
-        try {
-            const res = await axios.get(`${API_BASE_URL}/${userId}/chats`);
-            setChatMessages(res.data);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const sendChatMessage = async (e) => {
-        e.preventDefault();
-        if (!newMessage.trim()) return;
-        
-        try {
-            const res = await axios.post(`${API_BASE_URL}/${selectedUser.id}/chats`, { message: newMessage });
-            setChatMessages([...chatMessages, res.data]);
-            setNewMessage('');
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    const formatDate = (dateStr) => {
-        if (!dateStr) return 'غير معروف';
-        return new Date(dateStr).toLocaleDateString('ar-JO', {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    };
-
-    return (
-        <div className="users-page">
-            <div className="users-header">
-                <div>
-                    </div>
+function UserAds({ user }) {
+  const { data, loading, error, reload } = useLoad(() => api.get(`/admin/users/${user.id}/ads`).then((response) => response.data), [user.id]);
+  return (
+    <DataTable
+      loading={loading}
+      error={error}
+      onRetry={reload}
+      rows={data}
+      pageSize={10}
+      empty={<EmptyState icon={FileText} title="لا توجد إعلانات لهذا المستخدم" />}
+      columns={[
+        {
+          key: 'title',
+          label: 'الإعلان',
+          primary: true,
+          render: (ad) => (
+            <div>
+              <a className="cell-title" href={adUrl(ad.id)} target="_blank" rel="noreferrer">
+                {ad.title}
+              </a>
+              <div className="cell-sub">
+                #{ad.id}
+                {ad.category_name ? ` · ${ad.category_name}` : ''}
+              </div>
             </div>
+          ),
+        },
+        { key: 'price', label: 'السعر', sort: (ad) => ad.price, render: (ad) => <span className="num">{ad.price ? formatPrice(ad.price) : '—'}</span> },
+        { key: 'status', label: 'الحالة', render: (ad) => <Badge>{ad.status}</Badge> },
+        { key: 'created_at', label: 'أُضيف', sort: (ad) => ad.created_at, render: (ad) => formatDate(ad.created_at, false) },
+      ]}
+    />
+  );
+}
 
-            <div className="users-actions">
-                <div className="search-box">
-                    <Search className="search-icon" size={20} />
-                    <input 
-                        type="text" 
-                        placeholder="ابحث بالاسم، الإيميل، أو رقم الهاتف..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={handleSearch}
-                    />
-                </div>
+function SupportChat({ user }) {
+  const { toast } = useFeedback();
+  const { data, loading, error, reload } = useLoad(() => api.get(`/admin/users/${user.id}/chats`).then((response) => response.data), [user.id]);
+  const [sent, setSent] = useState([]);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const end = useRef(null);
+  const messages = [...(data || []), ...sent];
+
+  useEffect(() => {
+    if (end.current) end.current.scrollIntoView({ block: 'end' });
+  }, [messages.length]);
+
+  const send = async (event) => {
+    event.preventDefault();
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      const response = await api.post(`/admin/users/${user.id}/chats`, { message: text.trim() });
+      setSent((list) => [...list, response.data]);
+      setText('');
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر إرسال الرسالة.'), 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (loading) return <Loading />;
+  if (error) return <EmptyState title="تعذّر تحميل المحادثة" description={error}><Button variant="secondary" size="sm" onClick={reload}>إعادة المحاولة</Button></EmptyState>;
+
+  return (
+    <div className="chat">
+      <div className="chat-log">
+        {messages.length === 0 && <EmptyState icon={MessageSquare} title="لا توجد رسائل سابقة" description="اكتب أول رسالة لبدء المحادثة." />}
+        {messages.map((message) => (
+          <div key={message.id} className={`chat-bubble${message.sender === 'admin' ? ' is-admin' : ''}`}>
+            <div>{message.message}</div>
+            <div className="chat-meta">
+              {formatDate(message.created_at)}
+              {message.sender === 'user' && !message.is_read ? ' · غير مقروءة' : ''}
             </div>
+          </div>
+        ))}
+        <div ref={end} />
+      </div>
+      <form className="chat-form" onSubmit={send}>
+        <Input value={text} onChange={(event) => setText(event.target.value)} placeholder="اكتب رسالتك..." autoFocus />
+        <Button type="submit" icon={Send} loading={sending} disabled={!text.trim()}>
+          إرسال
+        </Button>
+      </form>
+    </div>
+  );
+}
 
-            <div className="users-table-container">
-                <table className="users-table">
-                    <thead>
-                        <tr>
-                            <th>المستخدم</th>
-                            <th>معلومات التواصل</th>
-                            <th>الحالة</th>
-                            <th>تاريخ الانضمام</th>
-                            <th>إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
-                            <tr><td colSpan="5" style={{textAlign: 'center'}}>جاري التحميل...</td></tr>
-                        ) : error ? (
-                            <tr><td colSpan="5" style={{textAlign: 'center', color: 'red'}}>{error}</td></tr>
-                        ) : users.length === 0 ? (
-                            <tr><td colSpan="5" style={{textAlign: 'center'}}>لا يوجد نتائج</td></tr>
-                        ) : (
-                            users.map(user => (
-                                <tr key={user.id}>
-                                    <td>
-                                        <div className="user-info-cell">
-                                            <div className="user-avatar-placeholder">
-                                                {user.full_name ? user.full_name.substring(0, 2) : 'US'}
-                                            </div>
-                                            <div className="user-details">
-                                                <h4>{user.full_name}</h4>
-                                                <span>ID: {user.id}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className="user-details">
-                                            <div>{user.mobile_number || user.phone || 'لا يوجد رقم'}</div>
-                                            <span>{user.email || 'لا يوجد بريد'}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                            <span className={`status-badge ${user.is_active ? 'status-active' : 'status-inactive'}`}>
-                                                {user.is_active ? <CheckCircle size={14}/> : <XCircle size={14}/>}
-                                                {user.is_active ? 'نشط' : 'معطل'}
-                                            </span>
-                                            {user.is_banned && (
-                                                <span className="status-badge status-banned">
-                                                    <Ban size={14}/> محظور
-                                                </span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td>{formatDate(user.created_at)}</td>
-                                    <td>
-                                        <div className="action-buttons">
-                                            <button className="btn-icon ads" title="عرض إعلانات المستخدم" onClick={() => openAdsModal(user)}>
-                                                <ImageIcon size={18} />
-                                            </button>
-                                            <button className="btn-icon chat" title="محادثة الدعم" onClick={() => openChatModal(user)}>
-                                                <MessageSquare size={18} />
-                                            </button>
-                                            <button 
-                                                className="btn-icon toggle" 
-                                                title={user.is_active ? "تعطيل الحساب" : "تفعيل الحساب"}
-                                                onClick={() => toggleUserStatus(user.id, user.is_active)}
-                                            >
-                                                <UserX size={18} />
-                                            </button>
-                                            <button 
-                                                className="btn-icon ban" 
-                                                title={user.is_banned ? "فك الحظر" : "حظر المستخدم"}
-                                                onClick={() => toggleUserBan(user.id, user.is_banned)}
-                                            >
-                                                <Ban size={18} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
+export default function Users() {
+  const { toast, confirm } = useFeedback();
+  const [query, setQuery] = useState('');
+  const [submitted, setSubmitted] = useState('');
+  const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState('all');
+  const [patches, setPatches] = useState({});
+  const [modal, setModal] = useState(null);
+  const [busy, setBusy] = useState(null);
 
-            {/* Modals */}
-            {modalType && (
-                <div className="modal-overlay" onClick={() => setModalType(null)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>
-                                {modalType === 'ads' ? `إعلانات المستخدم: ${selectedUser?.full_name}` : `محادثة الدعم: ${selectedUser?.full_name}`}
-                            </h2>
-                            <button className="close-btn" onClick={() => setModalType(null)}>
-                                <X size={24} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            {modalType === 'ads' ? (
-                                <div className="ads-grid">
-                                    {userAds.length === 0 ? <p>لا يوجد إعلانات لهذا المستخدم.</p> : null}
-                                    {userAds.map(ad => (
-                                        <div className="ad-card" key={ad.id}>
-                                            <h3 className="ad-title">{ad.title}</h3>
-                                            <div className="ad-price">{ad.price} دينار</div>
-                                            <div className="ad-meta">
-                                                <span>{ad.category_name}</span>
-                                                <span style={{color: ad.status === 'active' ? '#16a34a' : '#94a3b8'}}>{ad.status}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="chat-container">
-                                    <div className="chat-messages">
-                                        {chatMessages.length === 0 ? (
-                                            <p style={{textAlign: 'center', color: '#64748b', marginTop: '20px'}}>لا توجد رسائل سابقة. ابدأ المحادثة الآن.</p>
-                                        ) : null}
-                                        {chatMessages.map(msg => (
-                                            <div key={msg.id} className={`message-bubble ${msg.sender === 'admin' ? 'message-admin' : 'message-user'}`}>
-                                                {msg.message}
-                                                <span className="message-time">{formatDate(msg.created_at)} {msg.sender === 'user' && !msg.is_read ? '(غير مقروءة)' : ''}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <form className="chat-input" onSubmit={sendChatMessage}>
-                                        <input 
-                                            type="text" 
-                                            placeholder="اكتب رسالتك هنا..." 
-                                            value={newMessage}
-                                            onChange={e => setNewMessage(e.target.value)}
-                                        />
-                                        <button type="submit" className="btn-send">إرسال</button>
-                                    </form>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+  const { data, loading, error, reload } = useLoad(
+    () => api.get('/admin/users', { params: { q: submitted || undefined, skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE } }).then((response) => response.data),
+    [submitted, page],
+  );
+
+  const users = (data || []).map((user) => ({ ...user, ...(patches[user.id] || {}) }));
+  const visible = users.filter((user) => (filter === 'banned' ? user.is_banned : filter === 'inactive' ? !user.is_active : filter === 'active' ? user.is_active && !user.is_banned : true));
+  const hasNext = (data || []).length === PAGE_SIZE;
+
+  const search = (value) => {
+    setPage(1);
+    setSubmitted(value.trim());
+  };
+
+  const patch = (id, change) => setPatches((current) => ({ ...current, [id]: { ...(current[id] || {}), ...change } }));
+
+  const toggleActive = async (user) => {
+    if (user.is_active) {
+      const agreed = await confirm({ title: 'تعطيل الحساب؟', message: `لن يتمكن «${user.full_name}» من استخدام حسابه حتى تعيد تفعيله.`, confirmLabel: 'تعطيل', danger: true });
+      if (!agreed) return;
+    }
+    setBusy(user.id);
+    try {
+      await api.put(`/admin/users/${user.id}/status`, { is_active: !user.is_active });
+      patch(user.id, { is_active: !user.is_active });
+      toast(user.is_active ? 'تم تعطيل الحساب' : 'تم تفعيل الحساب');
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر تحديث حالة الحساب.'), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleBan = async (user) => {
+    if (!user.is_banned) {
+      const agreed = await confirm({ title: 'حظر المستخدم؟', message: `سيُمنع «${user.full_name}» من الدخول والنشر.`, confirmLabel: 'حظر', danger: true });
+      if (!agreed) return;
+    }
+    setBusy(user.id);
+    try {
+      await api.put(`/admin/users/${user.id}/ban`, { is_banned: !user.is_banned });
+      patch(user.id, { is_banned: !user.is_banned });
+      toast(user.is_banned ? 'تم فك الحظر' : 'تم حظر المستخدم');
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر تحديث الحظر.'), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const exportCsv = () =>
+    downloadCsv(
+      'users.csv',
+      [
+        { label: 'المعرّف', value: (user) => user.id },
+        { label: 'الاسم', value: (user) => user.full_name },
+        { label: 'الهاتف', value: phoneOf },
+        { label: 'البريد', value: (user) => user.email },
+        { label: 'نشط', value: (user) => (user.is_active ? 'نعم' : 'لا') },
+        { label: 'محظور', value: (user) => (user.is_banned ? 'نعم' : 'لا') },
+        { label: 'تاريخ الانضمام', value: (user) => formatDate(user.created_at) },
+      ],
+      visible,
     );
-};
 
-export default Users;
+  const columns = [
+    {
+      key: 'user',
+      label: 'المستخدم',
+      primary: true,
+      sort: (user) => user.full_name,
+      render: (user) => (
+        <div className="media">
+          <span className="avatar">{initials(user.full_name)}</span>
+          <div className="media-body">
+            <div className="cell-title truncate">{user.full_name}</div>
+            <div className="cell-sub num">#{user.id}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'contact',
+      label: 'التواصل',
+      render: (user) => (
+        <div>
+          <div className="ltr">{phoneOf(user) || <span className="muted">بدون رقم</span>}</div>
+          {user.email && <div className="cell-sub ltr">{user.email}</div>}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'الحالة',
+      render: (user) => (
+        <div className="row" style={{ gap: 6 }}>
+          {user.is_banned ? (
+            <Badge tone="red" dot>
+              محظور
+            </Badge>
+          ) : user.is_active ? (
+            <Badge tone="green" dot>
+              نشط
+            </Badge>
+          ) : (
+            <Badge dot>معطّل</Badge>
+          )}
+        </div>
+      ),
+    },
+    { key: 'created_at', label: 'انضم', sort: (user) => user.created_at, render: (user) => <span title={formatDate(user.created_at)}>{timeAgo(user.created_at)}</span> },
+    {
+      key: 'actions',
+      label: '',
+      actions: true,
+      render: (user) => (
+        <div className="actions">
+          <Button variant="ghost" size="sm" icon={FileText} title="إعلانات المستخدم" aria-label="إعلانات المستخدم" onClick={() => setModal({ type: 'ads', user })} />
+          <Button variant="ghost" size="sm" icon={MessageSquare} title="مراسلة" aria-label="مراسلة" onClick={() => setModal({ type: 'chat', user })} />
+          <Button variant="secondary" size="sm" icon={user.is_active ? UserX : UserCheck} disabled={busy === user.id} onClick={() => toggleActive(user)}>
+            {user.is_active ? 'تعطيل' : 'تفعيل'}
+          </Button>
+          <Button variant={user.is_banned ? 'secondary' : 'danger-soft'} size="sm" icon={Ban} disabled={busy === user.id} onClick={() => toggleBan(user)}>
+            {user.is_banned ? 'فك الحظر' : 'حظر'}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <PageHeader title="المستخدمون" subtitle="ابحث عن مستخدم، راجع إعلاناته، راسله، أو عطّل حسابه.">
+        <Button variant="secondary" icon={Download} disabled={visible.length === 0} onClick={exportCsv}>
+          تصدير الصفحة
+        </Button>
+        <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={reload}>
+          تحديث
+        </Button>
+      </PageHeader>
+
+      <Card flush>
+        <div className="toolbar">
+          <SearchInput value={query} onChange={setQuery} onSubmit={search} placeholder="الاسم، البريد أو رقم الهاتف، ثم Enter" />
+          <Button variant="secondary" onClick={() => search(query)}>
+            بحث
+          </Button>
+          <div className="toolbar-spacer" />
+          <Select value={filter} onChange={(event) => setFilter(event.target.value)} aria-label="تصفية حسب الحالة">
+            <option value="all">كل الحالات</option>
+            <option value="active">نشط</option>
+            <option value="inactive">معطّل</option>
+            <option value="banned">محظور</option>
+          </Select>
+        </div>
+        <DataTable
+          columns={columns}
+          rows={visible}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          pageSize={PAGE_SIZE}
+          empty={<EmptyState icon={UsersIcon} title="لا يوجد مستخدمون مطابقون" description={submitted ? `لا نتائج لـ «${submitted}».` : undefined} />}
+        />
+        {(page > 1 || hasNext) && (
+          <div className="pagination">
+            <span>الصفحة {page}</span>
+            <div className="pagination-pages">
+              <Button variant="secondary" size="sm" icon={ChevronRight} disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>
+                السابق
+              </Button>
+              <Button variant="secondary" size="sm" icon={ChevronLeft} disabled={!hasNext || loading} onClick={() => setPage(page + 1)}>
+                التالي
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Modal
+        open={!!modal}
+        size="wide"
+        title={modal ? `${modal.type === 'ads' ? 'إعلانات' : 'مراسلة'}: ${modal.user.full_name}` : ''}
+        onClose={() => setModal(null)}
+      >
+        {modal && modal.type === 'ads' && <UserAds user={modal.user} />}
+        {modal && modal.type === 'chat' && <SupportChat user={modal.user} />}
+      </Modal>
+    </>
+  );
+}

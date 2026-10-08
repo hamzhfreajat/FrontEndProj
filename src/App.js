@@ -1,158 +1,82 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { DashboardLayout } from './layouts/DashboardLayout';
-import UserRegistrationAnalytics from './pages/UserRegistrationAnalytics';
-import AdsRegionCategoryAnalytics from './pages/AdsRegionCategoryAnalytics';
-import UserTrackingAnalytics from './pages/UserTrackingAnalytics';
-import Ads from './pages/Ads';
-import Categories from './pages/Categories';
-import Users from './pages/Users';
-import SavedGroups from './pages/SavedGroups';
-import SendNotification from './pages/SendNotification';
-import Reports from './pages/Reports';
-import Reviews from './pages/Reviews';
-import SearchLogs from './pages/SearchLogs';
-import ScrapingLogs from './pages/ScrapingLogs';
-import ChangeAdsLocation from './pages/ChangeAdsLocation';
-import LocationsManager from './pages/LocationsManager';
-import Inbox from './pages/Inbox';
-import FacebookAutoPost from './pages/FacebookAutoPost';
-import ErrorLogs from './pages/ErrorLogs';
-import AppSettings from './pages/AppSettings';
-import ApiHitsAnalytics from './pages/ApiHitsAnalytics';
-import BlockedNumbers from './pages/BlockedNumbers';
-
-
+import React, { Suspense, lazy } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AppShell } from './layouts/AppShell';
+import { isSignedIn } from './lib/api';
+import { FeedbackProvider, Loading } from './ui';
 import Login from './pages/Login';
-import axios from 'axios';
+import NotFound from './pages/NotFound';
 
-// Configure Axios auth interceptor
-axios.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
+// Each page is loaded when it is first opened, so the panel starts quickly
+const Overview = lazy(() => import('./pages/Overview'));
+const Ads = lazy(() => import('./pages/Ads'));
+const Categories = lazy(() => import('./pages/Categories'));
+const Reviews = lazy(() => import('./pages/Reviews'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Users = lazy(() => import('./pages/Users'));
+const Inbox = lazy(() => import('./pages/Inbox'));
+const SendNotification = lazy(() => import('./pages/SendNotification'));
+const BlockedNumbers = lazy(() => import('./pages/BlockedNumbers'));
+const LocationsManager = lazy(() => import('./pages/LocationsManager'));
+const ChangeAdsLocation = lazy(() => import('./pages/ChangeAdsLocation'));
+const SavedGroups = lazy(() => import('./pages/SavedGroups'));
+const FacebookAutoPost = lazy(() => import('./pages/FacebookAutoPost'));
+const ScrapingLogs = lazy(() => import('./pages/ScrapingLogs'));
+const UserRegistrationAnalytics = lazy(() => import('./pages/UserRegistrationAnalytics'));
+const UserTrackingAnalytics = lazy(() => import('./pages/UserTrackingAnalytics'));
+const AdsRegionCategoryAnalytics = lazy(() => import('./pages/AdsRegionCategoryAnalytics'));
+const SearchLogs = lazy(() => import('./pages/SearchLogs'));
+const ApiHitsAnalytics = lazy(() => import('./pages/ApiHitsAnalytics'));
+const ErrorLogs = lazy(() => import('./pages/ErrorLogs'));
+const AppSettings = lazy(() => import('./pages/AppSettings'));
+
+const Private = ({ children }) => (isSignedIn() ? children : <Navigate to="/login" replace />);
+
+const page = (Component) => (
+  <Suspense fallback={<Loading />}>
+    <Component />
+  </Suspense>
 );
-
-let isRefreshing = false;
-let failedQueue = [];
-
-const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
-axios.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    // If 401, token expired or invalid
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise(function(resolve, reject) {
-          failedQueue.push({ resolve, reject });
-        }).then(token => {
-          originalRequest.headers['Authorization'] = 'Bearer ' + token;
-          return axios(originalRequest);
-        }).catch(err => {
-          return Promise.reject(err);
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken) {
-        try {
-          const apiUrl = process.env.REACT_APP_API_URL ;
-          const { data } = await axios.post(`${apiUrl}/api/auth/refresh`, { refresh_token: refreshToken });
-          
-          localStorage.setItem('token', data.token);
-          if (data.refresh_token) {
-              localStorage.setItem('refresh_token', data.refresh_token);
-          }
-          
-          originalRequest.headers['Authorization'] = 'Bearer ' + data.token;
-          
-          processQueue(null, data.token);
-          return axios(originalRequest);
-        } catch (err) {
-          processQueue(err, null);
-          localStorage.removeItem('adminLoggedIn');
-          localStorage.removeItem('token');
-          localStorage.removeItem('refresh_token');
-          if (window.location.pathname !== '/login') {
-              window.location.href = '/login';
-          }
-          return Promise.reject(err);
-        } finally {
-          isRefreshing = false;
-        }
-      } else {
-        localStorage.removeItem('adminLoggedIn');
-        localStorage.removeItem('token');
-        localStorage.removeItem('refresh_token');
-        if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-        }
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-const isAuthenticated = () => {
-  return !!localStorage.getItem('adminLoggedIn');
-};
-
-const PrivateRoute = ({ children }) => {
-  return isAuthenticated() ? children : <Navigate to="/login" />;
-};
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-
-        {/* Protected Dashboard Routes */}
-        <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
-          <Route index element={<Navigate to="/user-analytics" replace />} />
-          <Route path="user-analytics" element={<UserRegistrationAnalytics />} />
-          <Route path="geo-analytics" element={<AdsRegionCategoryAnalytics />} />
-          <Route path="user-tracking" element={<UserTrackingAnalytics />} />
-          <Route path="api-hits" element={<ApiHitsAnalytics />} />
-          <Route path="inbox" element={<Inbox />} />
-          <Route path="ads" element={<Ads />} />
-          <Route path="categories" element={<Categories />} />
-          <Route path="users" element={<Users />} />
-          <Route path="saved-groups" element={<SavedGroups />} />
-          <Route path="send-notification" element={<SendNotification />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="reviews" element={<Reviews />} />
-          <Route path="searches" element={<SearchLogs />} />
-          <Route path="scraping-logs" element={<ScrapingLogs />} />
-          <Route path="change-ads-location" element={<ChangeAdsLocation />} />
-          <Route path="locations-manager" element={<LocationsManager />} />
-          <Route path="facebook-autopost" element={<FacebookAutoPost />} />
-          <Route path="errors" element={<ErrorLogs />} />
-          <Route path="app-settings" element={<AppSettings />} />
-          <Route path="blocked-numbers" element={<BlockedNumbers />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <FeedbackProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <Private>
+                <AppShell />
+              </Private>
+            }
+          >
+            <Route index element={page(Overview)} />
+            <Route path="ads" element={page(Ads)} />
+            <Route path="categories" element={page(Categories)} />
+            <Route path="reviews" element={page(Reviews)} />
+            <Route path="reports" element={page(Reports)} />
+            <Route path="users" element={page(Users)} />
+            <Route path="inbox" element={page(Inbox)} />
+            <Route path="send-notification" element={page(SendNotification)} />
+            <Route path="blocked-numbers" element={page(BlockedNumbers)} />
+            <Route path="locations-manager" element={page(LocationsManager)} />
+            <Route path="change-ads-location" element={page(ChangeAdsLocation)} />
+            <Route path="saved-groups" element={page(SavedGroups)} />
+            <Route path="facebook-autopost" element={page(FacebookAutoPost)} />
+            <Route path="scraping-logs" element={page(ScrapingLogs)} />
+            <Route path="user-analytics" element={page(UserRegistrationAnalytics)} />
+            <Route path="user-tracking" element={page(UserTrackingAnalytics)} />
+            <Route path="geo-analytics" element={page(AdsRegionCategoryAnalytics)} />
+            <Route path="searches" element={page(SearchLogs)} />
+            <Route path="api-hits" element={page(ApiHitsAnalytics)} />
+            <Route path="errors" element={page(ErrorLogs)} />
+            <Route path="app-settings" element={page(AppSettings)} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </FeedbackProvider>
   );
 }
 
