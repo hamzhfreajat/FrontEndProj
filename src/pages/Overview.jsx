@@ -24,6 +24,9 @@ function attentionItems(data) {
   if (data.attention.pending_reports > 0) {
     items.push({ tone: 'red', icon: Flag, text: `${formatNumber(data.attention.pending_reports)} بلاغ بانتظار المراجعة`, to: '/reports', action: 'مراجعة البلاغات' });
   }
+  if (data.attention.new_seekers > 0) {
+    items.push({ tone: undefined, icon: UserPlus, text: `${formatNumber(data.attention.new_seekers)} طلب عقار جديد على فيسبوك بانتظار تعليق`, to: '/seekers', action: 'عرض الطلبات' });
+  }
   if (data.attention.low_reviews_week > 0) {
     items.push({ tone: 'amber', icon: Star, text: `${formatNumber(data.attention.low_reviews_week)} تقييم منخفض هذا الأسبوع`, to: '/reviews', action: 'عرض التقييمات' });
   }

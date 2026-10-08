@@ -1,6 +1,6 @@
 import {
   Activity, AlertOctagon, BellRing, Facebook, FileText, Flag, FolderTree, Gauge, Globe2, LayoutDashboard,
-  Link2, MapPin, MapPinned, MessageSquare, PhoneOff, ScrollText, Search, Settings, Star, UserPlus, Users,
+  Link2, MapPin, MapPinned, MessageSquare, PhoneOff, ScrollText, Search, SearchCheck, Settings, Star, UserPlus, Users,
 } from 'lucide-react';
 
 /**
@@ -41,6 +41,7 @@ export const NAV_GROUPS = [
   {
     title: 'فيسبوك والسحب',
     items: [
+      { path: '/seekers', name: 'طلبات العقارات', icon: SearchCheck },
       { path: '/saved-groups', name: 'مجموعات فيسبوك', icon: Link2 },
       { path: '/facebook-autopost', name: 'النشر على فيسبوك', icon: Facebook },
       { path: '/scraping-logs', name: 'سجل السحب', icon: ScrollText },

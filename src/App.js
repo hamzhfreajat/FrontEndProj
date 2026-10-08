@@ -21,6 +21,7 @@ const ChangeAdsLocation = lazy(() => import('./pages/ChangeAdsLocation'));
 const SavedGroups = lazy(() => import('./pages/SavedGroups'));
 const FacebookAutoPost = lazy(() => import('./pages/FacebookAutoPost'));
 const ScrapingLogs = lazy(() => import('./pages/ScrapingLogs'));
+const Seekers = lazy(() => import('./pages/Seekers'));
 const UserRegistrationAnalytics = lazy(() => import('./pages/UserRegistrationAnalytics'));
 const UserTrackingAnalytics = lazy(() => import('./pages/UserTrackingAnalytics'));
 const AdsRegionCategoryAnalytics = lazy(() => import('./pages/AdsRegionCategoryAnalytics'));
@@ -65,6 +66,7 @@ function App() {
             <Route path="saved-groups" element={page(SavedGroups)} />
             <Route path="facebook-autopost" element={page(FacebookAutoPost)} />
             <Route path="scraping-logs" element={page(ScrapingLogs)} />
+            <Route path="seekers" element={page(Seekers)} />
             <Route path="user-analytics" element={page(UserRegistrationAnalytics)} />
             <Route path="user-tracking" element={page(UserTrackingAnalytics)} />
             <Route path="geo-analytics" element={page(AdsRegionCategoryAnalytics)} />
