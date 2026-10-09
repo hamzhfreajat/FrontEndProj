@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { Check, Copy, ExternalLink, EyeOff, MapPin, RefreshCw, RotateCcw, SearchCheck, Users } from 'lucide-react';
+import { Check, ClipboardList, Copy, ExternalLink, EyeOff, MapPin, RefreshCw, RotateCcw, SearchCheck, Users } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { SITE_URL } from '../lib/site';
 import { Alert, Badge, Button, Card, EmptyState, ErrorState, PageHeader, Pagination, SearchInput, Select, SkeletonRows, Tabs, timeAgo, useFeedback, useLoad } from '../ui';
 
 const PAGE_SIZE = 30;
+const PERIODS = [
+  { value: 'today', label: 'اليوم' },
+  { value: 'week', label: 'آخر 7 أيام' },
+  { value: '', label: 'الكل' },
+];
 const DEALS = { rent: { label: 'للإيجار', slug: 'للإيجار' }, sale: { label: 'للبيع', slug: 'للبيع' } };
 /** What the person asked for -> its name, and the address word the website uses for that kind of property. */
 const KINDS = {
@@ -144,22 +149,44 @@ export default function Seekers() {
   const { toast } = useFeedback();
   const [status, setStatus] = useState('new');
   const [deal, setDeal] = useState('');
+  const [period, setPeriod] = useState('today');
+  const [copying, setCopying] = useState(false);
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState('');
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(null);
+  const filters = { status, deal: deal || undefined, q: submitted || undefined, period: period || undefined };
 
   const { data, loading, error, reload } = useLoad(
-    () => api.get('/dashboard/seekers', { params: { status, deal: deal || undefined, q: submitted || undefined, page, limit: PAGE_SIZE } }).then((response) => response.data),
-    [status, deal, submitted, page],
+    () => api.get('/dashboard/seekers', { params: { ...filters, page, limit: PAGE_SIZE } }).then((response) => response.data),
+    [status, deal, submitted, period, page],
   );
 
   const items = (data && data.items) || [];
   const counts = (data && data.counts) || {};
+  const total = (data && data.total) || 0;
 
   const change = (setter) => (value) => {
     setPage(1);
     setter(value);
+  };
+
+  /** Copies the Facebook link of every request matching the filters, one per line. */
+  const copyLinks = async () => {
+    setCopying(true);
+    try {
+      const { data: body } = await api.get('/dashboard/seekers/links', { params: filters });
+      if (body.links.length === 0) {
+        toast('لا توجد روابط لنسخها.', 'error');
+        return;
+      }
+      await navigator.clipboard.writeText(body.links.join('\n'));
+      toast(`نُسخ ${body.links.length} رابط${body.links.length >= body.limit ? ` (الحد الأقصى ${body.limit})` : ''}`);
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر نسخ الروابط.'), 'error');
+    } finally {
+      setCopying(false);
+    }
   };
 
   const setPostStatus = async (post, next) => {
@@ -178,6 +205,9 @@ export default function Seekers() {
   return (
     <div className="stack">
       <PageHeader title="طلبات العقارات" subtitle="منشورات على فيسبوك لأشخاص يبحثون عن عقار. افتح المنشور وعلّق برابط الإعلانات المطابقة على الموقع.">
+        <Button icon={ClipboardList} loading={copying} disabled={total === 0} onClick={copyLinks}>
+          نسخ كل الروابط{total ? ` (${total})` : ''}
+        </Button>
         <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={reload}>
           تحديث
         </Button>
@@ -198,6 +228,13 @@ export default function Seekers() {
           ]}
         />
         <div className="toolbar">
+          <div className="chips">
+            {PERIODS.map((item) => (
+              <button key={item.value} type="button" className={`chip${period === item.value ? ' active' : ''}`} onClick={() => change(setPeriod)(item.value)}>
+                {item.label}
+              </button>
+            ))}
+          </div>
           <SearchInput value={query} onChange={setQuery} onSubmit={change(setSubmitted)} placeholder="ابحث في النص أو المنطقة، ثم Enter" />
           <Select value={deal} onChange={(event) => change(setDeal)(event.target.value)} aria-label="نوع الطلب">
             <option value="">إيجار وشراء</option>
@@ -213,13 +250,13 @@ export default function Seekers() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={SearchCheck}
-            title={status === 'new' ? 'لا توجد طلبات جديدة' : 'لا توجد طلبات هنا'}
-            description={status === 'new' && !submitted && !deal ? 'ستظهر الطلبات هنا بعد التشغيل التالي للسحب من فيسبوك.' : undefined}
+            title={period === 'today' ? 'لا توجد طلبات اليوم' : status === 'new' ? 'لا توجد طلبات جديدة' : 'لا توجد طلبات هنا'}
+            description={period ? 'جرّب «آخر 7 أيام» أو «الكل».' : status === 'new' && !submitted && !deal ? 'ستظهر الطلبات هنا بعد التشغيل التالي للسحب من فيسبوك.' : undefined}
           />
         ) : (
           items.map((post) => <Request key={post.id} post={post} busy={busy === post.id} onStatus={setPostStatus} />)
         )}
-        <Pagination page={page} pageSize={PAGE_SIZE} total={(data && data.total) || 0} onPage={setPage} />
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
       </Card>
     </div>
   );
