@@ -171,7 +171,7 @@ export default function Seekers() {
     setter(value);
   };
 
-  /** Copies the Facebook link of every request matching the filters, one per line. */
+  /** Copies the Facebook link of every request matching the filters, numbered, one per line. */
   const copyLinks = async () => {
     setCopying(true);
     try {
@@ -180,7 +180,7 @@ export default function Seekers() {
         toast('لا توجد روابط لنسخها.', 'error');
         return;
       }
-      await navigator.clipboard.writeText(body.links.join('\n'));
+      await navigator.clipboard.writeText(body.links.map((link, index) => `${index + 1} - ${link}`).join('\n'));
       toast(`نُسخ ${body.links.length} رابط${body.links.length >= body.limit ? ` (الحد الأقصى ${body.limit})` : ''}`);
     } catch (failure) {
       toast(errorMessage(failure, 'تعذّر نسخ الروابط.'), 'error');
