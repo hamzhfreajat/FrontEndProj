@@ -1,752 +1,398 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Folder, ChevronRight, ChevronDown, List, Plus, Edit2, Trash2, GripVertical, CheckCircle, XCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { ChevronDown, ChevronLeft, Folder, FolderTree, GripVertical, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
+import { API_URL, api, errorMessage } from '../lib/api';
+import { Alert, Badge, Button, Card, EmptyState, ErrorState, Field, Input, Modal, PageHeader, Select, SkeletonRows, formatNumber, useFeedback } from '../ui';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL ;
-const API_HEADERS = {
-    'ngrok-skip-browser-warning': 'true',
-    'Bypass-Tunnel-Reminder': 'true',
-    'Content-Type': 'application/json'
-};
+const DEFAULT_COLOR = '#1557f5';
+// Sub-sections can be added down to this depth (0 is a main section)
+const MAX_ADD_DEPTH = 2;
+const BLANK = { name: '', icon_name: '', color_hex: DEFAULT_COLOR, tag: '', parent_id: '', tags: [] };
+
+const byOrder = (a, b) => (a.order_index || 0) - (b.order_index || 0);
+const isImage = (icon) => /^(https?:|\/|data:)/.test(icon || '');
+const imageUrl = (icon) => (icon.startsWith('/') ? `${(API_URL || '').replace(/\/api$/, '')}${icon}` : icon);
+
+function CategoryIcon({ node }) {
+  const style = node.color_hex ? { background: `${node.color_hex}1f`, color: node.color_hex } : undefined;
+  return (
+    <span className="tree-icon" style={style}>
+      {isImage(node.icon_name) ? (
+        <img src={imageUrl(node.icon_name)} alt="" />
+      ) : node.icon_name ? (
+        // Some sections carry an emoji, others the name of a Material icon ("apartment")
+        <span className={/^[a-z0-9_]+$/.test(node.icon_name) ? 'material-icons' : undefined} style={{ fontSize: 18 }}>
+          {node.icon_name}
+        </span>
+      ) : (
+        <Folder size={17} />
+      )}
+    </span>
+  );
+}
+
+/** The search words of a section: typed one at a time, with the words other sections already use offered. */
+function TagsInput({ value, onChange, known }) {
+  const [text, setText] = useState('');
+  const suggestions = text.trim() ? known.filter((tag) => tag.toLowerCase().includes(text.trim().toLowerCase()) && !value.includes(tag)).slice(0, 5) : [];
+
+  const add = (raw) => {
+    const tag = raw.trim();
+    if (tag && !value.includes(tag)) onChange([...value, tag]);
+    setText('');
+  };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div className="tag-input">
+        {value.map((tag) => (
+          <span key={tag} className="tag-pill">
+            {tag}
+            <button type="button" onClick={() => onChange(value.filter((item) => item !== tag))} aria-label={`حذف ${tag}`}>
+              <X size={13} />
+            </button>
+          </span>
+        ))}
+        <input
+          value={text}
+          placeholder={value.length === 0 ? 'اكتب كلمة ثم Enter' : ''}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              add(text);
+            }
+          }}
+        />
+      </div>
+      {suggestions.length > 0 && (
+        <div className="suggest">
+          {suggestions.map((tag) => (
+            <button key={tag} type="button" onClick={() => add(tag)}>
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Categories() {
-    const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [expandedIds, setExpandedIds] = useState(new Set());
-    const [fetchedParentIds, setFetchedParentIds] = useState(new Set());
+  const { toast, confirm } = useFeedback();
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [expanded, setExpanded] = useState(() => new Set());
+  const [fetched, setFetched] = useState(() => new Set());
+  // null when closed; { mode: 'add', parentId } or { mode: 'edit', id }
+  const [dialog, setDialog] = useState(null);
+  const [form, setForm] = useState(BLANK);
+  const [saving, setSaving] = useState(false);
 
-    // Modal & Form State
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
-    const [activeCategory, setActiveCategory] = useState(null); // Parent category context for 'add', selected category for 'edit'
+  /** Loads one level: the main sections (parentId null) or the sub-sections of one section. */
+  const load = async (parentId = null) => {
+    if (parentId === null) {
+      setLoading(true);
+      setError(null);
+    }
+    try {
+      const { data } = await api.get('/categories', { params: { parent_id: parentId === null ? 'null' : parentId } });
+      const ids = new Set(data.map((item) => item.id));
+      setCategories((current) => [...current.filter((item) => !ids.has(item.id)), ...data]);
+      setFetched((current) => new Set(current).add(parentId));
+    } catch (failure) {
+      if (parentId === null) setError(errorMessage(failure, 'تعذّر تحميل الأقسام.'));
+      else toast(errorMessage(failure, 'تعذّر تحميل الأقسام الفرعية.'), 'error');
+    } finally {
+      if (parentId === null) setLoading(false);
+    }
+  };
 
-    const [formData, setFormData] = useState({
-        name: '',
-        icon_name: '',
-        color_hex: '',
-        tag: '',
-        parent_id: '',
-        tags: [] // Array of tag names for the new relational Tag table
+  useEffect(() => {
+    load(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const reload = () => {
+    setCategories([]);
+    setExpanded(new Set());
+    setFetched(new Set());
+    load(null);
+  };
+
+  const childrenOf = (parentId) => categories.filter((item) => (item.parent_id || null) === parentId).sort(byOrder);
+  const knownTags = useMemo(() => [...new Set(categories.flatMap((item) => (item.linked_tags || []).map((tag) => tag.name)))], [categories]);
+
+  const toggle = (id) => {
+    const next = new Set(expanded);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+      if (!fetched.has(id)) load(id);
+    }
+    setExpanded(next);
+  };
+
+  const openAdd = (parentId = null) => {
+    setForm({ ...BLANK, parent_id: parentId || '' });
+    setDialog({ mode: 'add', parentId });
+  };
+
+  const openEdit = (category) => {
+    setForm({
+      name: category.name || '',
+      icon_name: category.icon_name || '',
+      color_hex: category.color_hex || DEFAULT_COLOR,
+      tag: category.tag || '',
+      parent_id: category.parent_id || '',
+      tags: (category.linked_tags || []).map((tag) => tag.name),
     });
-    const [tagInputText, setTagInputText] = useState('');
-    const [tagSuggestions, setTagSuggestions] = useState([]);
+    setDialog({ mode: 'edit', id: category.id });
+  };
 
-    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
+  const save = async (event) => {
+    event.preventDefault();
+    const payload = {
+      name: form.name.trim(),
+      icon_name: form.icon_name.trim() || null,
+      color_hex: form.color_hex || null,
+      tag: form.tag.trim() || null,
+      parent_id: form.parent_id ? Number(form.parent_id) : null,
+      linked_tags: form.tags,
     };
+    setSaving(true);
+    try {
+      if (dialog.mode === 'add') {
+        const { data } = await api.post('/categories', payload);
+        setCategories((current) => [...current, data]);
+        if (data.parent_id && !expanded.has(data.parent_id)) toggle(data.parent_id);
+        toast('أُضيف القسم');
+      } else {
+        const { data } = await api.put(`/categories/${dialog.id}`, payload);
+        setCategories((current) => current.map((item) => (item.id === data.id ? data : item)));
+        toast('حُفظت التعديلات');
+      }
+      setDialog(null);
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر حفظ القسم.'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    // Lock body scroll when modal is open
-    useEffect(() => {
-        if (isModalOpen) {
-            const originalOverflow = document.body.style.overflow;
-            document.body.style.overflow = 'hidden';
-            return () => {
-                document.body.style.overflow = originalOverflow;
-            };
-        }
-    }, [isModalOpen]);
+  const remove = async (category) => {
+    if (categories.some((item) => item.parent_id === category.id)) {
+      toast('هذا القسم فيه أقسام فرعية. احذفها أولاً.', 'error');
+      return;
+    }
+    const agreed = await confirm({
+      title: 'حذف القسم؟',
+      message: `سيُحذف قسم «${category.name}» نهائياً، ولا يمكن التراجع.`,
+      confirmLabel: 'حذف',
+      danger: true,
+    });
+    if (!agreed) return;
+    try {
+      await api.delete(`/categories/${category.id}`);
+      setCategories((current) => current.filter((item) => item.id !== category.id));
+      toast('حُذف القسم');
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر حذف القسم. قد يكون فيه أقسام فرعية أو إعلانات.'), 'error');
+    }
+  };
 
-    useEffect(() => {
-        fetchCategories(null);
-    }, []);
+  /** Moving a section: a new place among its siblings, or under another section. */
+  const onDragEnd = async ({ destination, draggableId }) => {
+    if (!destination) return;
+    const target = destination.droppableId.replace('level-', '');
+    const newParent = target === 'root' ? null : Number(target);
+    const id = Number(draggableId);
+    const moved = categories.find((item) => item.id === id);
+    if (!moved) return;
 
-    const fetchCategories = async (parentId = null) => {
-        if (parentId === null) setLoading(true);
-        try {
-            const queryParam = parentId === null ? '?parent_id=null' : `?parent_id=${parentId}`;
-            const res = await fetch(`${API_BASE_URL}/categories${queryParam}`, { headers: { ...API_HEADERS, 'Content-Type': undefined } });
-            if (res.ok) {
-                const data = await res.json();
-
-                setCategories(prev => {
-                    const newIds = new Set(data.map(d => d.id));
-                    const filteredPrev = prev.filter(c => !newIds.has(c.id));
-                    return [...filteredPrev, ...data];
-                });
-
-                setFetchedParentIds(prev => new Set(prev).add(parentId));
-            }
-        } catch (error) {
-            console.error('Error fetching categories:', error);
-            showToast('خطأ في الاتصال بالخادم لجلب الأقسام', 'error');
-        } finally {
-            if (parentId === null) setLoading(false);
-        }
+    const isInside = (candidate, ancestor) => {
+      if (candidate === ancestor) return true;
+      const node = categories.find((item) => item.id === candidate);
+      return node && node.parent_id ? isInside(node.parent_id, ancestor) : false;
     };
+    if (newParent && isInside(newParent, id)) {
+      toast('لا يمكن نقل قسم إلى داخل أحد فروعه.', 'error');
+      return;
+    }
 
-    const toggleExpand = async (id) => {
-        const newExpanded = new Set(expandedIds);
-        let fetchesNeeded = false;
-        
-        if (newExpanded.has(id)) {
-            newExpanded.delete(id);
-        } else {
-            newExpanded.add(id);
-            if (!fetchedParentIds.has(id)) {
-                fetchesNeeded = true;
-            }
-        }
-        setExpandedIds(newExpanded);
-        
-        if (fetchesNeeded) {
-            await fetchCategories(id);
-        }
-    };
+    const before = categories;
+    const siblings = childrenOf(newParent).filter((item) => item.id !== id);
+    siblings.splice(destination.index, 0, moved);
+    const order = new Map(siblings.map((item, index) => [item.id, index]));
+    const parentChanged = (moved.parent_id || null) !== newParent;
 
-    // --- CRUD Actions ---
+    setCategories(before.map((item) => (order.has(item.id) ? { ...item, order_index: order.get(item.id), parent_id: item.id === id ? newParent : item.parent_id } : item)));
+    if (newParent) setExpanded((current) => new Set(current).add(newParent));
 
-    const openAddModal = (parentId = null) => {
-        setModalMode('add');
-        setActiveCategory(parentId); // Store the parent ID we are adding to (null if top level)
-        setFormData({
-            name: '',
-            icon_name: '',
-            color_hex: '#0075FF',
-            tag: '',
-            parent_id: parentId || '',
-            tags: []
-        });
-        setTagInputText('');
-        setIsModalOpen(true);
-    };
+    try {
+      if (parentChanged) await api.put(`/categories/${id}`, { parent_id: newParent });
+      await api.put('/categories/reorder', siblings.map((item, index) => ({ id: item.id, order_index: index })));
+    } catch (failure) {
+      setCategories(before);
+      toast(errorMessage(failure, 'تعذّر نقل القسم. أُعيد إلى مكانه.'), 'error');
+    }
+  };
 
-    const openEditModal = (category) => {
-        setModalMode('edit');
-        setActiveCategory(category.id); // Store the category ID we are editing
-        setFormData({
-            name: category.name || '',
-            icon_name: category.icon_name || '',
-            color_hex: category.color_hex || '#0075FF',
-            tag: category.tag || '',
-            parent_id: category.parent_id || '',
-            tags: category.linked_tags ? category.linked_tags.map(t => t.name) : []
-        });
-        setTagInputText('');
-        setIsModalOpen(true);
-    };
-
-    const handleDelete = async (category) => {
-        // Prevent deletion if children exist
-        const hasChildren = categories.some(c => c.parent_id === category.id);
-        if (hasChildren) {
-            showToast('لا يمكن حذف هذا القسم لأنه يحتوي على أقسام فرعية. يرجى حذف الفروع أولاً.', 'error');
-            return;
-        }
-
-        if (!window.confirm(`هل أنت متأكد من حذف قسم "${category.name}"؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
-
-        try {
-            const res = await fetch(`${API_BASE_URL}/categories/${category.id}`, {
-                method: 'DELETE',
-                headers: { 'ngrok-skip-browser-warning': 'true', 'Bypass-Tunnel-Reminder': 'true' }
-            });
-
-            if (res.ok) {
-                showToast('تم حذف القسم بنجاح', 'success');
-                setCategories(categories.filter(c => c.id !== category.id));
-            } else {
-                showToast('فشل في حذف القسم', 'error');
-            }
-        } catch (error) {
-            showToast('خطأ في الاتصال بالخادم', 'error');
-        }
-    };
-
-    const handleFormSubmit = async (e) => {
-        e.preventDefault();
-
-        // Prepare payload mapping local tag names to backend linked_tags expected input
-        const payload = {
-            name: formData.name,
-            icon_name: formData.icon_name || null,
-            color_hex: formData.color_hex || null,
-            tag: formData.tag || null,
-            parent_id: formData.parent_id ? parseInt(formData.parent_id) : null,
-            linked_tags: formData.tags
-        };
-
-        try {
-            let res;
-            if (modalMode === 'add') {
-                res = await fetch(`${API_BASE_URL}/categories`, {
-                    method: 'POST',
-                    headers: API_HEADERS,
-                    body: JSON.stringify(payload)
-                });
-            } else {
-                res = await fetch(`${API_BASE_URL}/categories/${activeCategory}`, {
-                    method: 'PUT',
-                    headers: API_HEADERS,
-                    body: JSON.stringify(payload)
-                });
-            }
-
-            if (res.ok) {
-                const savedCategory = await res.json();
-
-                if (modalMode === 'add') {
-                    setCategories([...categories, savedCategory]);
-                    showToast('تم إضافة القسم بنجاح', 'success');
-                    // Auto-expand the parent we just added to
-                    if (savedCategory.parent_id) toggleExpand(savedCategory.parent_id);
-                } else {
-                    setCategories(categories.map(c => c.id === savedCategory.id ? savedCategory : c));
-                    showToast('تم تعديل القسم بنجاح', 'success');
-                }
-
-                setIsModalOpen(false);
-            } else {
-                showToast('حدث خطأ أثناء حفظ القسم', 'error');
-            }
-        } catch (error) {
-            console.error(error);
-            showToast('خطأ في الاتصال بالخادم', 'error');
-        }
-    };
-
-    // --- Drag and Drop ---
-
-    const handleDragEnd = async (result) => {
-        const { source, destination, draggableId } = result;
-
-        // Dropped outside a valid droppable
-        if (!destination) return;
-
-        // Extract the parent ID from the droppable ID (format: "droppable-null" or "droppable-123")
-        const newParentStr = destination.droppableId.replace('droppable-', '');
-        const newParentId = newParentStr === 'null' ? null : parseInt(newParentStr);
-
-        const draggedCategoryId = parseInt(draggableId);
-        const draggedCategory = categories.find(c => c.id === draggedCategoryId);
-
-        // Prevent dragging a parent into its own child (infinite loop)
-        const isDescendant = (childId, parentId) => {
-            if (parentId === childId) return true;
-            const childCat = categories.find(c => c.id === childId);
-            if (!childCat || !childCat.parent_id) return false;
-            return isDescendant(childCat.parent_id, parentId);
-        };
-
-        if (newParentId && isDescendant(newParentId, draggedCategoryId)) {
-            showToast('لا يمكن نقل القسم الرئيسي ليكون فرعاً من أحد أبنائه.', 'error');
-            return;
-        }
-
-        // Logic for Same Parent vs Different Parent drops
-        let updatedCategories = [...categories];
-
-        // 1. Update the parent ID if it changed
-        if (draggedCategory.parent_id !== newParentId) {
-            updatedCategories = updatedCategories.map(c =>
-                c.id === draggedCategoryId ? { ...c, parent_id: newParentId } : c
-            );
-        }
-
-        // 2. Re-calculate sort order `order_index` within the same parent branch
-        const siblings = updatedCategories
-            .filter(c => c.parent_id === newParentId)
-            // Sort by existing index to maintain stable baseline before array mutations
-            .sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-
-        // Remove item from its original position (if it was already in this array)
-        const currentItemIndex = siblings.findIndex(c => c.id === draggedCategoryId);
-        if (currentItemIndex !== -1) {
-            siblings.splice(currentItemIndex, 1);
-        }
-
-        // Insert at new destination
-        const draggedItemContext = updatedCategories.find(c => c.id === draggedCategoryId);
-        siblings.splice(destination.index, 0, draggedItemContext);
-
-        // Map fresh incremental order indexes
-        siblings.forEach((c, index) => {
-            c.order_index = index;
-        });
-
-        // Overlay new indexes back into the global list
-        const finalOptimistic = updatedCategories.map(c => {
-            const updatedSibling = siblings.find(s => s.id === c.id);
-            return updatedSibling ? { ...c, order_index: updatedSibling.order_index } : c;
-        });
-
-        // 3. Update React App State Optimistically
-        setCategories(finalOptimistic);
-
-        if (newParentId) {
-            const newExp = new Set(expandedIds);
-            newExp.add(newParentId);
-            setExpandedIds(newExp);
-        }
-
-        // 4. Send persistent updates to API 
-        try {
-            // If parent changed, we must hit the PUT /categories/:id first
-            if (draggedCategory.parent_id !== newParentId) {
-                await fetch(`${API_BASE_URL}/categories/${draggedCategoryId}`, {
-                    method: 'PUT',
-                    headers: API_HEADERS,
-                    body: JSON.stringify({ parent_id: newParentId })
-                });
-            }
-
-            // Fire bulk Array reposition Payload 
-            const reorderPayload = siblings.map(c => ({
-                id: c.id,
-                order_index: c.order_index
-            }));
-
-            const res = await fetch(`${API_BASE_URL}/categories/reorder`, {
-                method: 'PUT',
-                headers: API_HEADERS,
-                body: JSON.stringify(reorderPayload)
-            });
-
-            if (!res.ok) throw new Error('Failed to Reorder Index');
-
-        } catch (error) {
-            showToast('فشل النقل، التراجع...', 'error');
-            setCategories(categories); // revert fully
-        }
-    };
-
-    // --- Tags System ---
-
-    // Extract all unique tags dynamically from categories
-    useEffect(() => {
-        const extractUniqueTags = () => {
-            const allTags = new Set();
-            categories.forEach(cat => {
-                if (cat.linked_tags && Array.isArray(cat.linked_tags)) {
-                    cat.linked_tags.forEach(tag => allTags.add(tag.name));
-                }
-            });
-            return Array.from(allTags);
-        };
-
-        if (tagInputText.trim() === '') {
-            setTagSuggestions([]);
-        } else {
-            const available = extractUniqueTags();
-            const matches = available.filter(t =>
-                t.toLowerCase().includes(tagInputText.toLowerCase()) &&
-                !formData.tags.includes(t)
-            );
-            setTagSuggestions(matches.slice(0, 5)); // Suggest top 5
-        }
-    }, [tagInputText, categories, formData.tags]);
-
-    const handleAddTag = (tagVal) => {
-        const val = tagVal.trim();
-        if (val && !formData.tags.includes(val)) {
-            setFormData(prev => ({ ...prev, tags: [...prev.tags, val] }));
-        }
-        setTagInputText(''); // Reset input
-    };
-
-    const handleRemoveTag = (tagToRemove) => {
-        setFormData(prev => ({
-            ...prev,
-            tags: prev.tags.filter(t => t !== tagToRemove)
-        }));
-    };
-
-    const handleTagInputKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleAddTag(tagInputText);
-        }
-    };
-
-
-    // --- Rendering ---
-
-    const renderCategoryNode = (node, depth = 0, index) => {
-        const isExpanded = expandedIds.has(node.id);
-        const children = categories.filter(c => c.parent_id === node.id);
-        const childrenFetched = fetchedParentIds.has(node.id);
-        const hasChildren = children.length > 0 || (!childrenFetched && depth < 6);
-
-        const isTopLevel = depth === 0;
-        const isSecondary = depth === 1;
-
-        return (
-            <Draggable key={node.id} draggableId={node.id.toString()} index={index}>
-                {(provided, snapshot) => (
-                    <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        className={`category-node-container ${snapshot.isDragging ? 'is-dragging' : ''}`}
-                        style={{ ...provided.draggableProps.style, marginLeft: depth > 0 ? '24px' : '0' }}
-                    >
-                        <div
-                            className={`category-row ${isTopLevel ? 'top-level' : isSecondary ? 'secondary-level' : 'third-level'}`}
-                            onClick={() => (hasChildren || depth < 6) && toggleExpand(node.id)}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <div className="category-info">
-                                <div {...provided.dragHandleProps} className="drag-handle text-muted">
-                                    <GripVertical size={16} />
-                                </div>
-
-                                <div className="expand-icon" style={{ width: '20px', display: 'flex', justifyContent: 'center' }}>
-                                    {hasChildren ? (
-                                        isExpanded ? <ChevronDown size={18} color="var(--text-gray)" /> : <ChevronRight size={18} color="var(--text-gray)" />
-                                    ) : (
-                                        depth < 6 ? <div style={{ width: 18, height: 18, borderRadius: '50%', border: '1px dashed var(--border-color)' }}></div> : <List size={16} color="var(--border-color)" />
-                                    )}
-                                </div>
-
-                                <div className="category-icon" style={{
-                                    backgroundColor: node.color_hex ? `${node.color_hex}20` : 'var(--bg-color)',
-                                    color: node.color_hex || 'var(--primary-color)'
-                                }}>
-                                    {node.icon_name && (node.icon_name.startsWith('http') || node.icon_name.startsWith('/') || node.icon_name.startsWith('data:')) ? (
-                                        <img src={node.icon_name.startsWith('/') ? `${API_BASE_URL.replace('/api', '')}${node.icon_name}` : node.icon_name} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
-                                    ) : node.icon_name ? (
-                                        <span className="material-icons" style={{ fontSize: '18px' }}>{node.icon_name}</span>
-                                    ) : (
-                                        <Folder size={18} />
-                                    )}
-                                </div>
-
-                                <div className="category-details" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span className="category-name fw-600">
-                                        {node.name}
-                                    </span>
-                                    {node.tag && (
-                                        <span className="badge" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-color)', fontSize: '0.75rem', padding: '2px 8px' }}>
-                                            {node.tag}
-                                        </span>
-                                    )}
-                                    <span className="category-id text-muted" style={{ fontSize: '0.75rem' }}>
-                                        (ID: {node.id})
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="category-actions" onClick={e => e.stopPropagation()}>
-                                <button className="btn-icon" title="تعديل تالقسم" onClick={(e) => { e.stopPropagation(); openEditModal(node); }}><Edit2 size={16} color="var(--text-gray)" /></button>
-                                {depth < 2 && (
-                                    <button className="btn-icon" title="إضافة قسم فرعي" onClick={(e) => { e.stopPropagation(); openAddModal(node.id); }}><Plus size={16} color="var(--primary-color)" /></button>
-                                )}
-                                <button className="btn-icon" title="حذف القسم" onClick={(e) => { e.stopPropagation(); handleDelete(node); }}><Trash2 size={16} color="var(--danger-color)" /></button>
-                            </div>
-                        </div>
-
-                        {/* Droppable Area for Children */}
-                        {(isExpanded || snapshot.isDragging) && (
-                            <Droppable droppableId={`droppable-${node.id}`} type="category">
-                                {(provided, childSnapshot) => (
-                                    <div
-                                        ref={provided.innerRef}
-                                        {...provided.droppableProps}
-                                        className={`children-container ${childSnapshot.isDraggingOver ? 'is-dragging-over' : ''}`}
-                                    >
-                                        {children.map((child, childIdx) => renderCategoryNode(child, depth + 1, childIdx))}
-                                        {provided.placeholder}
-                                    </div>
-                                )}
-                            </Droppable>
-                        )}
-                    </div>
-                )}
-            </Draggable>
-        );
-    };
-
-    const topLevelCategories = categories.filter(c => !c.parent_id);
-
+  const renderNode = (node, depth, index) => {
+    const open = expanded.has(node.id);
+    const children = childrenOf(node.id);
+    const mayHaveChildren = children.length > 0 || !fetched.has(node.id);
     return (
-        <div className="page-container position-relative">
-            {toast.show && (
-                <div className={`toast-notification ${toast.type}`}>
-                    {toast.type === 'success' ? <CheckCircle size={20} /> : <XCircle size={20} />}
-                    <span>{toast.message}</span>
-                </div>
-            )}
-
-            <div className="page-header justify-content-between align-items-center">
-                <div>
-                    </div>
-                <button className="btn btn-primary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} onClick={() => openAddModal(null)}>
-                    <Plus size={18} /> إضافة قسم رئيسي
-                </button>
+      <Draggable key={node.id} draggableId={String(node.id)} index={index}>
+        {(drag, state) => (
+          <div ref={drag.innerRef} {...drag.draggableProps} className={`tree-node${depth === 0 ? ' is-root' : ''}${state.isDragging ? ' is-dragging' : ''}`}>
+            <div className="tree-row" onClick={() => toggle(node.id)}>
+              <span {...drag.dragHandleProps} className="tree-grip" title="اسحب لإعادة الترتيب" onClick={(event) => event.stopPropagation()}>
+                <GripVertical size={16} />
+              </span>
+              <span className="tree-toggle">{mayHaveChildren ? open ? <ChevronDown size={17} /> : <ChevronLeft size={17} /> : null}</span>
+              <CategoryIcon node={node} />
+              <span className="tree-name truncate">{node.name}</span>
+              {node.tag && <Badge tone="blue">{node.tag}</Badge>}
+              <span className="cell-sub num hide-mobile">#{node.id}</span>
+              <span className="tree-actions" onClick={(event) => event.stopPropagation()}>
+                {depth < MAX_ADD_DEPTH && <Button variant="ghost" size="sm" icon={Plus} title="إضافة قسم فرعي" aria-label="إضافة قسم فرعي" onClick={() => openAdd(node.id)} />}
+                <Button variant="ghost" size="sm" icon={Pencil} title="تعديل" aria-label="تعديل" onClick={() => openEdit(node)} />
+                <Button variant="ghost" size="sm" icon={Trash2} title="حذف" aria-label="حذف" onClick={() => remove(node)} />
+              </span>
             </div>
-
-            <div className="card">
-                <div className="card-header border-bottom pb-4 mb-4" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ fontSize: '1.2rem', margin: 0 }}>شجرة الأقسام الهرمية ({categories.length} قسم)</h2>
-                    <span className="text-muted text-sm">التغييرات على الأقسام تنعكس فوراً على التطبيق</span>
-                </div>
-
-                {loading ? (
-                    <div className="loading-state" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-gray)' }}>
-                        جاري تحميل التصنيفات...
-                    </div>
-                ) : (
-                    <div className="categories-tree-wrapper">
-                        <DragDropContext onDragEnd={handleDragEnd}>
-                            <Droppable droppableId="droppable-null" type="category">
-                                {(provided, snapshot) => (
-                                    <div
-                                        ref={provided.innerRef}
-                                        {...provided.droppableProps}
-                                        className={snapshot.isDraggingOver ? 'root-is-dragging-over' : ''}
-                                        style={{ minHeight: '200px' }}
-                                    >
-                                        {topLevelCategories.map((node, index) => renderCategoryNode(node, 0, index))}
-                                        {provided.placeholder}
-                                    </div>
-                                )}
-                            </Droppable>
-                        </DragDropContext>
-                    </div>
+            {(open || state.isDragging) && (
+              <Droppable droppableId={`level-${node.id}`} type="category">
+                {(drop, dropState) => (
+                  <div ref={drop.innerRef} {...drop.droppableProps} className={`tree-children${dropState.isDraggingOver ? ' is-over' : ''}`}>
+                    {children.map((child, childIndex) => renderNode(child, depth + 1, childIndex))}
+                    {open && fetched.has(node.id) && children.length === 0 && <div className="cell-sub" style={{ padding: '6px 10px' }}>لا توجد أقسام فرعية</div>}
+                    {drop.placeholder}
+                  </div>
                 )}
-            </div>
-
-            {/* Modals */}
-            {isModalOpen && createPortal(
-                <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2 className="modal-title">{modalMode === 'add' ? 'إضافة قسم جديد' : 'تعديل القسم'}</h2>
-                            <button className="modal-close" onClick={() => setIsModalOpen(false)}>&times;</button>
-                        </div>
-
-                        <form onSubmit={handleFormSubmit}>
-                            <div className="modal-body">
-                                {modalMode === 'add' && activeCategory && (
-                                    <div className="form-group mb-3">
-                                        <div className="badge" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-color)', display: 'inline-flex', padding: '8px 12px', borderRadius: '8px', width: '100%' }}>
-                                            <Folder size={16} className="text-muted ml-2" />
-                                            إضافة قسم فرعي تابع لـ: <strong style={{ marginRight: '8px' }}>{categories.find(c => c.id === activeCategory)?.name}</strong>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="form-group grid-1">
-                                    <label>اسم القسم <span className="text-danger">*</span></label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        required
-                                        placeholder="مثال: سيارات للإيجار"
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className="form-group grid-2">
-                                    <div>
-                                        <label>أيقونة (Material Icon)</label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            placeholder="مثال: directions_car"
-                                            value={formData.icon_name}
-                                            onChange={e => setFormData({ ...formData, icon_name: e.target.value })}
-                                        />
-                                        <a href="https://fonts.google.com/icons" target="_blank" rel="noreferrer" className="text-sm text-primary" style={{ display: 'inline-block', marginTop: '4px' }}>تصفح الأيقونات</a>
-                                    </div>
-                                    <div>
-                                        <label>لون الأيقونة (Hex)</label>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <input
-                                                type="color"
-                                                className="form-control"
-                                                style={{ width: '40px', padding: '2px', cursor: 'pointer' }}
-                                                value={formData.color_hex}
-                                                onChange={e => setFormData({ ...formData, color_hex: e.target.value })}
-                                            />
-                                            <input
-                                                type="text"
-                                                className="form-control"
-                                                placeholder="#0075FF"
-                                                value={formData.color_hex}
-                                                onChange={e => setFormData({ ...formData, color_hex: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="form-group grid-2">
-                                    <div>
-                                        <label>وسم مميز (شريطة)</label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            placeholder="مثال: الأكثر طلباً"
-                                            value={formData.tag}
-                                            onChange={e => setFormData({ ...formData, tag: e.target.value })}
-                                        />
-                                    </div>
-                                    <div style={{ position: 'relative' }}>
-                                        <label>كلمات مفتاحية للبحث (Tags)</label>
-                                        <div className="tag-input-container">
-                                            {formData.tags.map((t, idx) => (
-                                                <span key={idx} className="tag-bubble">
-                                                    {t}
-                                                    <button type="button" onClick={() => handleRemoveTag(t)}>
-                                                        <XCircle size={14} />
-                                                    </button>
-                                                </span>
-                                            ))}
-                                            <input
-                                                type="text"
-                                                className="tag-input-field"
-                                                placeholder={formData.tags.length === 0 ? "اكتب ثم اضغط Enter..." : ""}
-                                                value={tagInputText}
-                                                onChange={e => setTagInputText(e.target.value)}
-                                                onKeyDown={handleTagInputKeyDown}
-                                            />
-                                        </div>
-                                        {/* Autocomplete Dropdown */}
-                                        {tagSuggestions.length > 0 && (
-                                            <div className="autocomplete-dropdown">
-                                                {tagSuggestions.map((suggestion, idx) => (
-                                                    <div
-                                                        key={idx}
-                                                        className="autocomplete-item"
-                                                        onClick={() => handleAddTag(suggestion)}
-                                                    >
-                                                        {suggestion}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="form-group grid-1">
-                                    <div>
-                                        <label>ينتمي إلى</label>
-                                        <select
-                                            className="form-control"
-                                            value={formData.parent_id}
-                                            onChange={e => setFormData({ ...formData, parent_id: e.target.value })}
-                                        >
-                                            <option value="">- قسم رئيسي مقلتس -</option>
-                                            {/* Build flat hierarchy dropdown */}
-                                            {categories.filter(c => !c.parent_id).map(c1 => (
-                                                <React.Fragment key={c1.id}>
-                                                    <option value={c1.id} disabled={modalMode === 'edit' && activeCategory === c1.id}>{c1.name}</option>
-                                                    {categories.filter(c => c.parent_id === c1.id).map(c2 => (
-                                                        <option key={c2.id} value={c2.id} disabled={modalMode === 'edit' && activeCategory === c2.id}>
-                                                            &nbsp;&nbsp;&nbsp;↳ {c2.name}
-                                                        </option>
-                                                    ))}
-                                                </React.Fragment>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>إلغاء</button>
-                                <button type="submit" className="btn btn-primary">{modalMode === 'add' ? 'إضافة القسم' : 'حفظ التعديلات'}</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>,
-                document.body
+              </Droppable>
             )}
-
-            <style jsx="true">{`
-                .toast-notification {
-                    position: fixed; top: 20px; right: 20px; z-index: 9999;
-                    background: white; padding: 16px 24px; border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px;
-                    font-weight: 600; animation: slideIn 0.3s ease-out;
-                }
-                .toast-notification.success { border-right: 4px solid var(--success-color); color: var(--success-color); }
-                .toast-notification.error { border-right: 4px solid var(--danger-color); color: var(--danger-color); }
-                
-                @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-                .category-node-container { margin-bottom: 2px; }
-                .is-dragging {
-                    box-shadow: 0 8px 16px rgba(0,0,0,0.12);
-                    border-radius: var(--radius-md);
-                    background: white;
-                    z-index: 100;
-                }
-                .children-container {
-                    margin-top: 2px;
-                    border-right: 2px solid var(--border-color);
-                    padding-right: 12px;
-                    min-height: 5px; /* Important for empty droppables */
-                    transition: background 0.2s;
-                    border-radius: 4px;
-                }
-                .children-container.is-dragging-over {
-                    background-color: rgba(0, 117, 255, 0.05); /* Highlight droppable area */
-                }
-                .root-is-dragging-over {
-                    background-color: rgba(0, 117, 255, 0.05);
-                    border-radius: var(--radius-md);
-                }
-
-                .category-row {
-                    display: flex; justify-content: space-between; align-items: center;
-                    padding: 10px 16px; border-radius: var(--radius-md);
-                    transition: all 0.15s; border: 1px solid transparent; background-color: var(--scaffold-bg);
-                    gap: 16px;
-                }
-                .category-row:hover { background-color: white; border-color: var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-                
-                .top-level { background-color: white; border: 1px solid var(--border-color); margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
-                .top-level:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.06); }
-                .secondary-level { background-color: var(--bg-color); border: 1px dashed transparent; }
-                .third-level { background-color: transparent; }
-
-                .category-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-                .category-details { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-                
-                .drag-handle { cursor: grab; display: flex; align-items: center; justify-content: center; height: 100%; opacity: 0.3; transition: 0.2s; flex-shrink: 0; }
-                .category-row:hover .drag-handle { opacity: 1; }
-                .drag-handle:active { cursor: grabbing; }
-
-                .category-icon { width: 36px; height: 36px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-                .third-level .category-icon { width: 28px; height: 28px; border-radius: var(--radius-sm); }
-                
-                .category-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; flex-shrink: 0; }
-                .category-row:hover .category-actions { opacity: 1; }
-                
-                .btn-icon { background: none; border: none; cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-                .btn-icon:hover { background-color: rgba(0,0,0,0.05); transform: scale(1.05); }
-
-                /* Modals (Re-using generic modal styles) */
-                .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 99999; backdrop-filter: blur(4px); }
-                .modal-content { position: relative; background: white; width: 95%; max-width: 800px; max-height: 90vh; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; animation: scaleUp 0.2s ease-out; z-index: 100000; display: flex; flex-direction: column; }
-                @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-                .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background-color: var(--secondary-color); }
-                .modal-title { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-color); }
-                .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-gray); transition: 0.2s; }
-                .modal-close:hover { color: var(--danger-color); transform: rotate(90deg); }
-                .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
-                .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; background-color: var(--secondary-color); flex-shrink: 0; }
-                
-                .form-control { width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.95rem; font-family: inherit; transition: 0.2s; }
-                .form-control:focus { border-color: var(--primary-color); outline: none; box-shadow: 0 0 0 3px var(--primary-light); }
-
-                /* Tag Input Styles */
-                .tag-input-container { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: white; min-height: 42px; align-items: center; focus-within: border-color: var(--primary-color); focus-within: box-shadow: 0 0 0 3px var(--primary-light); transition: 0.2s; }
-                .tag-bubble { display: inline-flex; align-items: center; gap: 4px; background-color: rgba(0, 117, 255, 0.1); color: var(--primary-color); padding: 4px 10px; border-radius: 16px; font-size: 0.85rem; font-weight: 500; }
-                .tag-bubble button { background: none; border: none; padding: 0; color: var(--primary-color); opacity: 0.7; cursor: pointer; display: flex; align-items: center; transition: 0.2s; }
-                .tag-bubble button:hover { opacity: 1; color: var(--danger-color); }
-                .tag-input-field { flex: 1; min-width: 120px; border: none; outline: none; background: transparent; font-size: 0.9rem; padding: 4px; }
-                
-                /* Autocomplete Dropdown */
-                .autocomplete-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); z-index: 10; max-height: 150px; overflow-y: auto; }
-                .autocomplete-item { padding: 10px 12px; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; border-bottom: 1px solid #f0f0f0; }
-                .autocomplete-item:last-child { border-bottom: none; }
-                .autocomplete-item:hover { background-color: var(--bg-hover); color: var(--primary-color); }
-            `}</style>
-        </div>
+          </div>
+        )}
+      </Draggable>
     );
+  };
+
+  const roots = childrenOf(null);
+  // A section three levels down has a parent the list below does not offer; without this its parent would be lost on save
+  const listed = new Set(roots.flatMap((root) => [root.id, ...childrenOf(root.id).map((child) => child.id)]));
+  const deepParent = form.parent_id && !listed.has(Number(form.parent_id)) ? categories.find((item) => item.id === Number(form.parent_id)) : null;
+  const parent = dialog && dialog.mode === 'add' && dialog.parentId ? categories.find((item) => item.id === dialog.parentId) : null;
+
+  return (
+    <div className="stack">
+      <PageHeader title="الأقسام" subtitle="شجرة أقسام الموقع والتطبيق. أي تغيير هنا يظهر للمستخدمين مباشرة.">
+        <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={reload}>
+          تحديث
+        </Button>
+        <Button icon={Plus} onClick={() => openAdd(null)}>
+          قسم رئيسي
+        </Button>
+      </PageHeader>
+
+      <Alert icon={FolderTree}>اضغط على قسم لعرض فروعه. اسحب القسم من المقبض لتغيير ترتيبه أو لنقله إلى قسم آخر مفتوح.</Alert>
+
+      <Card title="شجرة الأقسام" subtitle={loading ? undefined : `${formatNumber(roots.length)} قسم رئيسي`} flush>
+        {error ? (
+          <ErrorState message={error} onRetry={reload} />
+        ) : loading ? (
+          <SkeletonRows rows={6} columns={3} />
+        ) : roots.length === 0 ? (
+          <EmptyState icon={FolderTree} title="لا توجد أقسام بعد">
+            <Button size="sm" icon={Plus} onClick={() => openAdd(null)}>
+              إضافة أول قسم
+            </Button>
+          </EmptyState>
+        ) : (
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="level-root" type="category">
+              {(drop, dropState) => (
+                <div ref={drop.innerRef} {...drop.droppableProps} className={`tree${dropState.isDraggingOver ? ' is-over' : ''}`}>
+                  {roots.map((node, index) => renderNode(node, 0, index))}
+                  {drop.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        )}
+      </Card>
+
+      <Modal
+        open={!!dialog}
+        title={dialog && dialog.mode === 'edit' ? 'تعديل القسم' : parent ? `قسم فرعي في «${parent.name}»` : 'قسم جديد'}
+        onClose={() => setDialog(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDialog(null)}>
+              إلغاء
+            </Button>
+            <Button type="submit" form="category-form" loading={saving}>
+              {dialog && dialog.mode === 'edit' ? 'حفظ التعديلات' : 'إضافة القسم'}
+            </Button>
+          </>
+        }
+      >
+        <form id="category-form" className="form-grid" onSubmit={save}>
+          <Field label="اسم القسم" className="span-2">
+            <Input required autoFocus value={form.name} placeholder="مثال: شقق للإيجار" onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          </Field>
+          <Field
+            label="الأيقونة"
+            hint={
+              <>
+                رمز تعبيري (🏠)، أو اسم أيقونة من{' '}
+                <a href="https://fonts.google.com/icons" target="_blank" rel="noreferrer">
+                  Material Icons
+                </a>{' '}
+                أو رابط صورة
+              </>
+            }
+          >
+            <Input value={form.icon_name} placeholder="🏠" onChange={(event) => setForm({ ...form, icon_name: event.target.value })} />
+          </Field>
+          <Field label="لون الأيقونة">
+            <div className="row" style={{ flexWrap: 'nowrap' }}>
+              <input type="color" className="color-input" value={form.color_hex || DEFAULT_COLOR} onChange={(event) => setForm({ ...form, color_hex: event.target.value })} aria-label="اختيار اللون" />
+              <Input className="ltr" value={form.color_hex} placeholder={DEFAULT_COLOR} onChange={(event) => setForm({ ...form, color_hex: event.target.value })} />
+            </div>
+          </Field>
+          <Field label="شارة تظهر بجانب الاسم" hint="اختياري، مثل «الأكثر طلباً»">
+            <Input value={form.tag} onChange={(event) => setForm({ ...form, tag: event.target.value })} />
+          </Field>
+          <Field label="يتبع القسم">
+            <Select value={form.parent_id} onChange={(event) => setForm({ ...form, parent_id: event.target.value })}>
+              <option value="">قسم رئيسي (لا يتبع قسماً)</option>
+              {deepParent && <option value={deepParent.id}>{deepParent.name}</option>}
+              {roots.map((root) => (
+                <React.Fragment key={root.id}>
+                  <option value={root.id} disabled={dialog && dialog.id === root.id}>
+                    {root.name}
+                  </option>
+                  {childrenOf(root.id).map((child) => (
+                    <option key={child.id} value={child.id} disabled={dialog && dialog.id === child.id}>
+                      {'   ↳ '}
+                      {child.name}
+                    </option>
+                  ))}
+                </React.Fragment>
+              ))}
+            </Select>
+          </Field>
+          {/* Not a <label>: a click on its text would press the first tag's remove button */}
+          <div className="field span-2">
+            <span className="field-label">كلمات البحث</span>
+            <TagsInput value={form.tags} onChange={(tags) => setForm({ ...form, tags })} known={knownTags} />
+            <span className="field-hint">كلمات يجد بها المستخدم هذا القسم عند البحث</span>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
 }

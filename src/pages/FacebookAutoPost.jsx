@@ -1,686 +1,374 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { 
-  Facebook, 
-  Settings, 
-  Trash2, 
-  Send, 
-  MapPin, 
-  Hash, 
-  MessageSquare, 
-  AlertCircle, 
-  CheckCircle2, 
-  Plus, 
-  Loader2,
-  Copy,
-  FileText
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { CheckCircle2, Copy, Facebook, FileText, Megaphone, Plus, RefreshCw, Settings2, Trash2 } from 'lucide-react';
+import { api, errorMessage } from '../lib/api';
+import {
+  Alert, Badge, Button, Card, DataTable, EmptyState, ErrorState, Field, Input, PageHeader, SearchInput, Select, SkeletonRows, Textarea, formatNumber, useFeedback, useLoad,
+} from '../ui';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL ;
+const FORMATS = [
+  { value: 'catalog', label: 'نص مع كتالوج روابط' },
+  { value: 'images', label: 'نص مع ألبوم صور (بدون روابط)' },
+  { value: 'link', label: 'نص مع رابط واحد' },
+  { value: 'text_only', label: 'نص فقط' },
+  { value: 'text_link_catalog', label: 'نص فيه رابط + كتالوج روابط' },
+  { value: 'text_link_images', label: 'نص فيه رابط + ألبوم صور' },
+];
+const MAX_ADS = 20;
 
-const FacebookAutoPost = () => {
-  const [rules, setRules] = useState([]);
-  const [availableRegions, setAvailableRegions] = useState([]);
-  
-  const [newRegion, setNewRegion] = useState('');
-  const [newThreshold, setNewThreshold] = useState(100);
-  
-  // Manual trigger state
-  const [manualRegion, setManualRegion] = useState('');
-  const [manualCategory, setManualCategory] = useState('');
-  const [manualCount, setManualCount] = useState(10);
-  const [manualText, setManualText] = useState('');
-  const [postFormat, setPostFormat] = useState('catalog');
-  const [generatedText, setGeneratedText] = useState(null);
-  const [generatedLink, setGeneratedLink] = useState(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  
-  const [availableCategories, setAvailableCategories] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [rulesLoading, setRulesLoading] = useState(true);
-  const [readyLoading, setReadyLoading] = useState(false);
-  const [readyCombinations, setReadyCombinations] = useState([]);
-  const [message, setMessage] = useState({ text: '', type: '' });
+const hashtag = (words) => words.trim().replace(/\s+/g, '_');
 
-  const fetchData = async () => {
-    setRulesLoading(true);
-    setReadyLoading(true);
-    try {
-      const [rulesRes, locRes, catRes, readyRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/facebook-rules`),
-        axios.get(`${API_BASE_URL}/locations`).catch(() => ({ data: [] })),
-        axios.get(`${API_BASE_URL}/categories`).catch(() => ({ data: [] })),
-        axios.get(`${API_BASE_URL}/facebook/ready-combinations`).catch(() => ({ data: [] }))
-      ]);
-      setRules(rulesRes.data);
-      setReadyCombinations(readyRes.data || []);
-      const catData = catRes.data || [];
-      // Normalizing checking for "عقارات" to catch variations like "عقارات للإيجار"
-      const rootIds = catData
-        .filter(c => c.name && c.name.includes("عقار"))
-        .map(c => String(c.id));
-        
-      const descendantIds = new Set(rootIds);
-      let changed = true;
-      while (changed) {
-        changed = false;
-        catData.forEach(c => {
-          if (c.parent_id && descendantIds.has(String(c.parent_id)) && !descendantIds.has(String(c.id))) {
-            descendantIds.add(String(c.id));
-            changed = true;
-          }
-        });
+/** The opening lines of a post about one kind of property in one area. */
+function openingText(category, region) {
+  const kind = category || 'عقار';
+  const tags = `#${hashtag(kind)} #${region ? hashtag(region) : 'الاردن'} #عقارات #عقارات_الاردن #سوقكم`;
+  return `تبحث عن ${kind} في ${region || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل ${category || 'العقارات'} المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\n${tags}`;
+}
+
+/** Property sections only: every section under one whose name has "عقار". */
+function propertyCategories(all) {
+  const ids = new Set(all.filter((item) => (item.name || '').includes('عقار')).map((item) => item.id));
+  for (let grew = true; grew; ) {
+    grew = false;
+    all.forEach((item) => {
+      if (item.parent_id && ids.has(item.parent_id) && !ids.has(item.id)) {
+        ids.add(item.id);
+        grew = true;
       }
-      
-      const filteredCategories = catData.filter(c => descendantIds.has(String(c.id)));
-      setAvailableCategories(filteredCategories);
-      
-      // Flatten locations
-      const regionsList = [];
-      if (Array.isArray(locRes.data)) {
-        locRes.data.forEach(city => {
-          if (city.name_ar) regionsList.push(city.name_ar);
-          if (city.regions && Array.isArray(city.regions)) {
-            city.regions.forEach(r => {
-              if (r.name_ar) regionsList.push(r.name_ar);
-            });
-          }
-        });
-      }
-      setAvailableRegions([...new Set(regionsList)]);
-      
-    } catch (err) {
-      console.error("Error fetching data:", err);
-    } finally {
-      setRulesLoading(false);
-      setReadyLoading(false);
-    }
+    });
+  }
+  return all.filter((item) => ids.has(item.id));
+}
+
+async function loadPage() {
+  const optional = (request) => request.then((response) => response.data || []).catch(() => []);
+  const [rules, locations, categories, ready] = await Promise.all([
+    api.get('/facebook-rules').then((response) => response.data || []),
+    optional(api.get('/locations')),
+    optional(api.get('/categories')),
+    optional(api.get('/facebook/ready-combinations')),
+  ]);
+  const regions = new Set();
+  (Array.isArray(locations) ? locations : []).forEach((city) => {
+    if (city.name_ar) regions.add(city.name_ar);
+    (city.regions || []).forEach((region) => region.name_ar && regions.add(region.name_ar));
+  });
+  return { rules, ready, regions: [...regions], categories: propertyCategories(Array.isArray(categories) ? categories : []) };
+}
+
+export default function FacebookAutoPost() {
+  const { toast, confirm } = useFeedback();
+  const { data, loading, error, reload } = useLoad(loadPage);
+
+  const [region, setRegion] = useState('');
+  const [category, setCategory] = useState('');
+  const [format, setFormat] = useState('catalog');
+  const [count, setCount] = useState(10);
+  const [text, setText] = useState('');
+  // The opening text follows the area and section until the admin edits it by hand
+  const [textEdited, setTextEdited] = useState(false);
+  const [busy, setBusy] = useState(null);
+  const [preview, setPreview] = useState(null);
+
+  const [ruleRegion, setRuleRegion] = useState('');
+  const [ruleThreshold, setRuleThreshold] = useState(100);
+  const [rules, setRules] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const page = data || { rules: [], ready: [], regions: [], categories: [] };
+  const shownRules = rules || page.rules;
+  const ready = useMemo(() => {
+    const words = search.trim();
+    const rows = words ? page.ready.filter((row) => `${row.region_name} ${row.category_name}`.includes(words)) : page.ready;
+    return rows.map((row, index) => ({ ...row, key: `${row.region_name}-${row.category_id}-${index}` }));
+  }, [page.ready, search]);
+
+  const pick = (nextRegion, nextCategory) => {
+    setRegion(nextRegion);
+    setCategory(nextCategory);
+    if (!textEdited) setText(nextRegion || nextCategory ? openingText(nextCategory, nextRegion) : '');
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (manualRegion || manualCategory) {
-      let categoryId = '';
-      let categoryName = 'عقار';
-      let categoryNamePlural = 'العقارات';
-
-      if (manualCategory) {
-        categoryName = manualCategory;
-        categoryNamePlural = manualCategory; // In Arabic "شقق للبيع" fits well in both singular and plural contexts here
-        const found = availableCategories.find(c => c.name === manualCategory);
-        if (found) categoryId = found.id;
-      }
-      
-      const categoryHashtag = categoryName.replace(/\s+/g, '_');
-      const regionHashtag = manualRegion ? manualRegion.replace(/\s+/g, '_') : 'الاردن';
-      
-      const hashtags = `#${categoryHashtag} #${regionHashtag} #عقارات #عقارات_الاردن #سوقكم`;
-      
-      const text = `تبحث عن ${categoryName} في ${manualRegion || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل ${categoryNamePlural} المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\n${hashtags}`;
-      
-      setManualText(text);
-    }
-  }, [manualRegion, manualCategory]);
-
-  const handleAddRule = async (e) => {
-    e.preventDefault();
-    if (!newRegion) return;
-    
-    try {
-      await axios.post(`${API_BASE_URL}/facebook-rules`, {
-        region_name: newRegion,
-        threshold: parseInt(newThreshold)
-      });
-      setNewRegion('');
-      setNewThreshold(100);
-      
-      const res = await axios.get(`${API_BASE_URL}/facebook-rules`);
-      setRules(res.data);
-    } catch (err) {
-      alert("Error adding rule");
-    }
+  const request = (regionName) => {
+    const found = page.categories.find((item) => item.name === category);
+    return {
+      region_name: regionName,
+      count: Math.max(1, Math.min(MAX_ADS, Number(count) || 1)),
+      custom_text: text || undefined,
+      category_id: found ? found.id : undefined,
+      format,
+    };
   };
 
-  const handleDeleteRule = async (region_name) => {
-    if (window.confirm(`هل أنت متأكد من حذف القاعدة لمنطقة ${region_name}؟`)) {
-      try {
-        await axios.delete(`${API_BASE_URL}/facebook-rules/${region_name}`);
-        const res = await axios.get(`${API_BASE_URL}/facebook-rules`);
-        setRules(res.data);
-      } catch (err) {
-        alert("Error deleting rule");
-      }
-    }
-  };
-
-  const handleGenerateText = async () => {
-    if (!manualRegion) {
-      setMessage({ text: "يرجى إدخال اسم المنطقة لتوليد النص", type: "error" });
+  const generate = async () => {
+    if (!region.trim()) {
+      toast('اختر المنطقة أولاً.', 'error');
       return;
     }
-    
-    setIsGenerating(true);
-    setMessage({ text: '', type: '' });
-    setGeneratedText(null);
-    setGeneratedLink(null);
-    
+    setBusy('generate');
     try {
-      let category_id = undefined;
-      if (manualCategory) {
-        const foundCat = availableCategories.find(c => c.name === manualCategory);
-        if (foundCat) category_id = foundCat.id;
-      }
-
-      const res = await axios.post(`${API_BASE_URL}/facebook/generate-text`, {
-        region_name: manualRegion,
-        count: parseInt(manualCount),
-        custom_text: manualText || undefined,
-        category_id: category_id
-      });
-      setGeneratedText(res.data.text);
-      setGeneratedLink(res.data.main_link);
-      setMessage({ text: `تم توليد النص بنجاح لـ ${res.data.count} عقار`, type: "success" });
-    } catch (err) {
-      setMessage({ text: `خطأ: ${err.response?.data?.detail || err.message}`, type: "error" });
+      const { data: body } = await api.post('/facebook/generate-text', request(region.trim()));
+      setPreview({ text: body.text, link: body.main_link, count: body.count });
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر توليد النص.'), 'error');
     } finally {
-      setIsGenerating(false);
+      setBusy(null);
     }
   };
 
-  const handlePublishGlobalCatalog = async () => {
-    setIsGenerating(true);
-    setMessage({ text: '', type: '' });
-    
-    try {
-      let category_id = undefined;
-      if (manualCategory) {
-        const foundCat = availableCategories.find(c => c.name === manualCategory);
-        if (foundCat) category_id = foundCat.id;
-      }
-
-      const res = await axios.post(`${API_BASE_URL}/facebook/manual-publish`, {
-        region_name: "all",
-        count: parseInt(manualCount),
-        custom_text: manualText || undefined,
-        category_id: category_id,
-        format: postFormat
-      });
-      setMessage({ text: `تم نشر كتالوج شامل بنجاح لـ ${res.data.posted_count} عقار مميز على فيسبوك!`, type: "success" });
-    } catch (err) {
-      setMessage({ text: `خطأ: ${err.response?.data?.detail || err.message}`, type: "error" });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const copyToClipboard = () => {
-    if (generatedText) {
-      let textToCopy = generatedText;
-      if (generatedLink && postFormat !== 'text_only') {
-        textToCopy += `\n\nالرابط: ${generatedLink}`;
-      }
-      navigator.clipboard.writeText(textToCopy);
-      setMessage({ text: "تم نسخ النص إلى الحافظة!", type: "success" });
-    }
-  };
-
-  const handleManualPublish = async (e) => {
-    e.preventDefault();
-    if (!manualRegion) {
-      setMessage({ text: "يرجى إدخال اسم المنطقة", type: "error" });
+  const publish = async (everywhere) => {
+    if (!everywhere && !region.trim()) {
+      toast('اختر المنطقة أولاً.', 'error');
       return;
     }
-    
-    setLoading(true);
-    setMessage({ text: '', type: '' });
-    
+    const agreed = await confirm({
+      title: 'النشر على صفحة فيسبوك؟',
+      message: everywhere
+        ? `سيُنشر الآن منشور عام من كل المناطق${category ? ` لقسم «${category}»` : ''} على صفحة سوقكم.`
+        : `سيُنشر الآن منشور عن ${category || 'العقارات'} في «${region.trim()}» على صفحة سوقكم.`,
+      confirmLabel: 'نشر الآن',
+    });
+    if (!agreed) return;
+    setBusy(everywhere ? 'publish-all' : 'publish');
     try {
-      let category_id = undefined;
-      if (manualCategory) {
-        const foundCat = availableCategories.find(c => c.name === manualCategory);
-        if (foundCat) category_id = foundCat.id;
-      }
-
-      const res = await axios.post(`${API_BASE_URL}/facebook/manual-publish`, {
-        region_name: manualRegion,
-        count: parseInt(manualCount),
-        custom_text: manualText || undefined,
-        category_id: category_id,
-        format: postFormat
-      });
-      setMessage({ text: `تم النشر بنجاح! عدد العقارات المرفقة: ${res.data.posted_count}`, type: "success" });
-      setManualText('');
-      setManualRegion('');
-    } catch (err) {
-      setMessage({ text: `خطأ: ${err.response?.data?.detail || err.message}`, type: "error" });
+      const { data: body } = await api.post('/facebook/manual-publish', request(everywhere ? 'all' : region.trim()));
+      toast(`نُشر المنشور وفيه ${formatNumber(body.posted_count)} عقار`);
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر النشر على فيسبوك.'), 'error');
     } finally {
-      setLoading(false);
+      setBusy(null);
     }
   };
 
-  const handleQuickCopy = async (combo, format) => {
-    setIsGenerating(true);
-    setMessage({ text: '', type: '' });
-    
+  const copy = async (value, done) => {
     try {
-      const categoryName = combo.category_name;
-      const categoryNamePlural = combo.category_name;
-      const categoryHashtag = categoryName.replace(/\s+/g, '_');
-      const regionHashtag = combo.region_name ? combo.region_name.replace(/\s+/g, '_') : 'الاردن';
-      const hashtags = `#${categoryHashtag} #${regionHashtag} #عقارات #عقارات_الاردن #سوقكم`;
-      const customText = `تبحث عن ${categoryName} في ${combo.region_name || 'منطقتك'}؟ 🏡✨\nاكتشف أحدث وأفضل ${categoryNamePlural} المعروضة لدينا في هذه المجموعة المميزة! 🌟\n\n${hashtags}`;
-      
-      const res = await axios.post(`${API_BASE_URL}/facebook/generate-text`, {
-        region_name: combo.region_name,
-        count: combo.count,
-        custom_text: customText,
-        category_id: combo.category_id,
-        format: format
-      });
-      
-      navigator.clipboard.writeText(res.data.text);
-      setMessage({ text: `تم توليد ونسخ النص بنجاح لصيغة ${format}`, type: "success" });
-    } catch (err) {
-      setMessage({ text: `خطأ أثناء النسخ: ${err.response?.data?.detail || err.message}`, type: "error" });
-    } finally {
-      setIsGenerating(false);
+      await navigator.clipboard.writeText(value);
+      toast(done);
+    } catch (failure) {
+      toast('تعذّر النسخ.', 'error');
     }
   };
 
-  const styles = {
-    container: { padding: '30px', maxWidth: '1400px', margin: '0 auto', direction: 'rtl', fontFamily: "'Cairo', sans-serif" },
-    headerBox: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' },
-    iconBox: { backgroundColor: '#1877F2', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 15px rgba(24, 119, 242, 0.2)' },
-    title: { margin: 0, fontSize: '28px', fontWeight: '800', color: '#1e293b' },
-    subtitle: { margin: '4px 0 0 0', fontSize: '15px', color: '#64748b' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '30px' },
-    card: { backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
-    cardHeader: { padding: '20px 24px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', gap: '10px' },
-    cardTitle: { margin: 0, fontSize: '18px', fontWeight: '700', color: '#334155' },
-    cardBody: { padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' },
-    description: { fontSize: '14px', color: '#64748b', marginBottom: '24px', lineHeight: '1.6' },
-    formRow: { display: 'flex', gap: '15px', marginBottom: '24px', flexWrap: 'wrap' },
-    inputGroup: { position: 'relative', flex: '1 1 auto', minWidth: '200px' },
-    inputLabel: { display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' },
-    input: { width: '100%', padding: '12px 16px 12px 40px', fontSize: '14px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#f8fafc', outline: 'none', transition: 'all 0.2s ease', color: '#334155', fontWeight: '500' },
-    textarea: { width: '100%', padding: '14px 16px 14px 40px', fontSize: '14px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#f8fafc', outline: 'none', transition: 'all 0.2s ease', minHeight: '120px', resize: 'vertical', color: '#334155' },
-    inputIcon: { position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' },
-    textareaIcon: { position: 'absolute', left: '14px', top: '14px', color: '#94a3b8' },
-    buttonPrimary: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: '#1e293b', color: '#ffffff', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 4px 6px rgba(15, 23, 42, 0.1)', height: '46px', minWidth: '120px' },
-    buttonFacebook: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: '#1877F2', color: '#ffffff', border: 'none', padding: '14px 24px', borderRadius: '10px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 6px 12px rgba(24, 119, 242, 0.2)', width: '100%', marginTop: '10px' },
-    tableContainer: { border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' },
-    table: { width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '14px' },
-    th: { padding: '14px 20px', backgroundColor: '#f8fafc', color: '#475569', fontWeight: '700', borderBottom: '1px solid #e2e8f0' },
-    td: { padding: '14px 20px', borderBottom: '1px solid #f1f5f9', color: '#334155', fontWeight: '500' },
-    badge: { display: 'inline-flex', alignItems: 'center', backgroundColor: '#eff6ff', color: '#2563eb', padding: '4px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: '700' },
-    actionBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', border: 'none', backgroundColor: '#fef2f2', color: '#ef4444', cursor: 'pointer', transition: 'all 0.2s ease' },
-    copyBtn: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease' },
-    messageAlert: { display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px', borderRadius: '10px', marginTop: '16px', fontWeight: '600', fontSize: '14px' },
-    successAlert: { backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' },
-    errorAlert: { backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }
+  /** A finished post for one ready area and section, straight to the clipboard. */
+  const copyReady = async (row) => {
+    setBusy(row.key);
+    try {
+      const { data: body } = await api.post('/facebook/generate-text', {
+        region_name: row.region_name,
+        count: row.count,
+        custom_text: openingText(row.category_name, row.region_name),
+        category_id: row.category_id,
+        format: 'catalog',
+      });
+      await copy(body.text, `نُسخ منشور ${row.category_name} في ${row.region_name}`);
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر توليد المنشور.'), 'error');
+    } finally {
+      setBusy(null);
+    }
   };
+
+  const refreshRules = async () => setRules((await api.get('/facebook-rules')).data || []);
+
+  const addRule = async (event) => {
+    event.preventDefault();
+    if (!ruleRegion.trim()) return;
+    setBusy('rule');
+    try {
+      await api.post('/facebook-rules', { region_name: ruleRegion.trim(), threshold: Math.max(1, Number(ruleThreshold) || 1) });
+      setRuleRegion('');
+      setRuleThreshold(100);
+      await refreshRules();
+      toast('أُضيفت القاعدة');
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر إضافة القاعدة.'), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeRule = async (rule) => {
+    const agreed = await confirm({ title: 'حذف القاعدة؟', message: `لن يُنشر تلقائياً عن «${rule.region_name}» بعد الآن.`, confirmLabel: 'حذف', danger: true });
+    if (!agreed) return;
+    try {
+      await api.delete(`/facebook-rules/${encodeURIComponent(rule.region_name)}`);
+      await refreshRules();
+      toast('حُذفت القاعدة');
+    } catch (failure) {
+      toast(errorMessage(failure, 'تعذّر حذف القاعدة.'), 'error');
+    }
+  };
+
+  const header = (
+    <PageHeader title="النشر على فيسبوك" subtitle="منشورات جاهزة من إعلانات الموقع لصفحة سوقكم: انسخها للمجموعات، أو انشرها مباشرة، أو اتركها تُنشر تلقائياً.">
+      <Button variant="secondary" icon={RefreshCw} loading={loading} onClick={() => { setRules(null); reload(); }}>
+        تحديث
+      </Button>
+    </PageHeader>
+  );
+
+  if (error) {
+    return (
+      <>
+        {header}
+        <div className="card">
+          <ErrorState message={error} onRetry={reload} />
+        </div>
+      </>
+    );
+  }
+  if (!data) {
+    return (
+      <>
+        {header}
+        <div className="card">
+          <SkeletonRows rows={8} />
+        </div>
+      </>
+    );
+  }
+
+  const working = busy !== null;
 
   return (
-    <div style={styles.container}>
-      <datalist id="regions-list">
-        {availableRegions.map((region, idx) => (
-          <option key={idx} value={region} />
+    <div className="stack">
+      {header}
+      <datalist id="fb-regions">
+        {page.regions.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
+      <datalist id="fb-categories">
+        {page.categories.map((item) => (
+          <option key={item.id} value={item.name} />
         ))}
       </datalist>
 
-      <div style={styles.headerBox}>
-        <div style={styles.iconBox}>
-          <Facebook size={28} color="white" />
-        </div>
-        <div>
-          </div>
-      </div>
+      <Card
+        title="منشورات جاهزة للنسخ"
+        subtitle="مناطق وأقسام فيها 50 إعلاناً أو أكثر. «نسخ» يولّد المنشور كاملاً بروابطه."
+        actions={<SearchInput value={search} onChange={setSearch} placeholder="ابحث عن منطقة أو قسم" />}
+        flush
+      >
+        <DataTable
+          rows={ready}
+          rowKey="key"
+          pageSize={10}
+          initialSort={{ key: 'count', dir: 'desc' }}
+          empty={<EmptyState icon={CheckCircle2} title={search ? 'لا نتائج لهذا البحث' : 'لا توجد تجمعات جاهزة الآن'} description={search ? undefined : 'تظهر هنا كل منطقة وقسم يصل عدد إعلاناتهما إلى 50.'} />}
+          columns={[
+            { key: 'region', label: 'المنطقة', primary: true, sort: (row) => row.region_name, render: (row) => <span className="cell-title">{row.region_name}</span> },
+            { key: 'category', label: 'القسم', sort: (row) => row.category_name, render: (row) => row.category_name },
+            { key: 'count', label: 'الإعلانات', sort: (row) => row.actual_count, render: (row) => <Badge tone="blue">{formatNumber(row.actual_count)}</Badge> },
+            {
+              key: 'actions',
+              label: '',
+              actions: true,
+              render: (row) => (
+                <div className="actions">
+                  <Button variant="secondary" size="sm" icon={Copy} loading={busy === row.key} disabled={working} onClick={() => copyReady(row)}>
+                    نسخ
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={working} onClick={() => { pick(row.region_name, row.category_name); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }}>
+                    تخصيص
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </Card>
 
-      <div style={styles.grid}>
-        
-        {/* Automated Rules Card */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <Settings size={22} color="#64748b" />
-            <h2 style={styles.cardTitle}>قواعد النشر التلقائي</h2>
-          </div>
-          
-          <div style={styles.cardBody}>
-            <p style={styles.description}>
-              سيقوم النظام بجمع العقارات التي يتم إضافتها، وعندما يصل عددها إلى الرقم المحدد لأي منطقة سيتم نشر بوست تلقائياً.
-            </p>
-            
-            <form onSubmit={handleAddRule} style={styles.formRow}>
-              <div style={styles.inputGroup}>
-                <MapPin size={18} style={styles.inputIcon} />
-                <input 
-                  type="text" 
-                  list="regions-list"
-                  placeholder="اختر أو اكتب اسم المنطقة..." 
-                  style={{ ...styles.input, paddingLeft: '40px', paddingRight: '16px' }}
-                  value={newRegion}
-                  onChange={(e) => setNewRegion(e.target.value)}
-                  required
-                />
-              </div>
-              <div style={{ ...styles.inputGroup, flex: '0 1 120px', minWidth: '120px' }}>
-                <Hash size={18} style={styles.inputIcon} />
-                <input 
-                  type="number" 
-                  placeholder="العدد" 
-                  style={{ ...styles.input, paddingLeft: '40px', paddingRight: '16px' }}
-                  value={newThreshold}
-                  onChange={(e) => setNewThreshold(e.target.value)}
-                  required
-                />
-              </div>
-              <button type="submit" style={styles.buttonPrimary}>
-                <Plus size={18} /> إضافة
-              </button>
-            </form>
-
-            <div style={styles.tableContainer}>
-              {rulesLoading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-                  <Loader2 size={32} color="#2563eb" className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                </div>
-              ) : (
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>المنطقة</th>
-                      <th style={styles.th}>العدد المطلوب</th>
-                      <th style={{ ...styles.th, width: '80px', textAlign: 'center' }}>إجراء</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rules.map((rule) => (
-                      <tr key={rule.id}>
-                        <td style={styles.td}>{rule.region_name}</td>
-                        <td style={styles.td}>
-                          <span style={styles.badge}>{rule.threshold} عقار</span>
-                        </td>
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
-                          <button 
-                            type="button"
-                            onClick={() => handleDeleteRule(rule.region_name)}
-                            style={styles.actionBtn}
-                            title="حذف"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {rules.length === 0 && (
-                      <tr>
-                        <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                          <Settings size={32} style={{ opacity: 0.2, margin: '0 auto 10px auto', display: 'block' }} />
-                          لا توجد قواعد مضافة حالياً.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Manual Trigger Card */}
-        <div style={styles.card}>
-          <div style={{ height: '4px', background: 'linear-gradient(90deg, #1877F2 0%, #8b5cf6 100%)', width: '100%' }}></div>
-          <div style={styles.cardHeader}>
-            <Send size={22} color="#1877F2" />
-            <h2 style={styles.cardTitle}>النشر الفوري (كتالوج)</h2>
-          </div>
-          
-          <div style={styles.cardBody}>
-            <p style={styles.description}>
-              اختر منطقة لنشر أحدث عقاراتها فوراً ككتالوج في فيسبوك مع إرفاق صور العقارات بشكل جذاب.
-            </p>
-            
-            <form onSubmit={handleManualPublish} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px' }}>
-                <div>
-                  <label style={styles.inputLabel}>المنطقة المُستهدفة</label>
-                  <div style={{ position: 'relative' }}>
-                    <MapPin size={18} style={styles.inputIcon} />
-                    <input 
-                      type="text" 
-                      list="regions-list"
-                      placeholder="اختر اسم المنطقة..."
-                      style={{ ...styles.input, paddingLeft: '40px', paddingRight: '16px' }}
-                      value={manualRegion}
-                      onChange={(e) => setManualRegion(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={styles.inputLabel}>القسم (اختياري)</label>
-                  <div style={{ position: 'relative' }}>
-                    <input 
-                      type="text" 
-                      list="categories-list"
-                      placeholder="اختر أو اكتب القسم..."
-                      style={{ ...styles.input, paddingLeft: '16px', paddingRight: '16px' }}
-                      value={manualCategory}
-                      onChange={(e) => setManualCategory(e.target.value)}
-                    />
-                    <datalist id="categories-list">
-                      {availableCategories.map(cat => (
-                        <option key={cat.id} value={cat.name} />
-                      ))}
-                    </datalist>
-                  </div>
-                </div>
-                
-                <div>
-                  <label style={styles.inputLabel}>نوع النشر</label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      style={{ ...styles.input, paddingLeft: '16px', paddingRight: '16px', cursor: 'pointer' }}
-                      value={postFormat}
-                      onChange={(e) => setPostFormat(e.target.value)}
-                    >
-                      <option value="catalog">نص مع كتالوج روابط (افتراضي)</option>
-                      <option value="images">نص مع ألبوم صور (بدون روابط)</option>
-                      <option value="link">نص مع رابط واحد فقط (صورة عرض الرابط)</option>
-                      <option value="text_only">بوست نصي فقط</option>
-                      <option value="text_link_catalog">نص (يحتوي رابط) + كتالوج روابط</option>
-                      <option value="text_link_images">نص (يحتوي رابط) + ألبوم صور</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div>
-                  <label style={styles.inputLabel}>العدد الأقصى</label>
-                  <div style={{ position: 'relative' }}>
-                    <Hash size={18} style={styles.inputIcon} />
-                    <input 
-                      type="number" 
-                      style={{ ...styles.input, paddingLeft: '40px', paddingRight: '16px' }}
-                      value={manualCount}
-                      onChange={(e) => setManualCount(e.target.value)}
-                      min="1"
-                      max="20"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <label style={styles.inputLabel}>النص الافتتاحي للبوست (اختياري)</label>
-                <div style={{ position: 'relative' }}>
-                  <MessageSquare size={18} style={styles.textareaIcon} />
-                  <textarea 
-                    style={{ ...styles.textarea, paddingLeft: '40px', paddingRight: '16px' }}
-                    placeholder="اكتب رسالة جذابة... (سيتم إرفاق قائمة العقارات وصورها تلقائياً أسفل هذا النص)"
-                    value={manualText}
-                    onChange={(e) => setManualText(e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <button 
-                  type="submit" 
-                  disabled={loading || isGenerating}
-                  style={{ ...styles.buttonFacebook, flex: 2, opacity: (loading || isGenerating) ? 0.7 : 1, cursor: (loading || isGenerating) ? 'not-allowed' : 'pointer' }}
-                >
-                  {loading ? (
-                    <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري النشر...</>
-                  ) : (
-                    <><Facebook size={20} /> نشر البوست الآن</>
-                  )}
-                </button>
-                
-                <button 
-                  type="button" 
-                  onClick={handleGenerateText}
-                  disabled={loading || isGenerating}
-                  style={{ ...styles.buttonFacebook, flex: 1, backgroundColor: '#64748b', opacity: (loading || isGenerating) ? 0.7 : 1, cursor: (loading || isGenerating) ? 'not-allowed' : 'pointer' }}
-                >
-                  {isGenerating ? (
-                    <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري التوليد...</>
-                  ) : (
-                    <><FileText size={20} /> توليد النص للنسخ</>
-                  )}
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-                <button 
-                  type="button" 
-                  onClick={handlePublishGlobalCatalog}
-                  disabled={loading || isGenerating}
-                  style={{ ...styles.buttonFacebook, width: '100%', backgroundColor: '#10b981', boxShadow: '0 6px 12px rgba(16, 185, 129, 0.2)', opacity: (loading || isGenerating) ? 0.7 : 1, cursor: (loading || isGenerating) ? 'not-allowed' : 'pointer' }}
-                >
-                  {isGenerating ? (
-                    <><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> جاري النشر...</>
-                  ) : (
-                    <><Send size={20} /> نشر كتالوج شامل للحملات الإعلانية (كل المناطق)</>
-                  )}
-                </button>
-              </div>
-              
-              {generatedText && (
-                <div style={{ marginTop: '20px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', backgroundColor: '#f8fafc' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                    <h3 style={{ margin: 0, fontSize: '16px', color: '#334155' }}>النص المُولد:</h3>
-                    <button 
-                      type="button" 
-                      onClick={copyToClipboard}
-                      style={{ ...styles.buttonPrimary, height: '36px', padding: '0 16px', fontSize: '14px' }}
-                    >
-                      <Copy size={16} /> نسخ النص
-                    </button>
-                  </div>
-                  <pre style={{ 
-                    whiteSpace: 'pre-wrap', 
-                    fontFamily: 'inherit', 
-                    fontSize: '15px', 
-                    lineHeight: '1.6', 
-                    color: '#1e293b',
-                    margin: 0,
-                    padding: '15px',
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    textAlign: 'right'
-                  }}>
-                    {generatedText}
-                  </pre>
-                </div>
-              )}
-              
-              {message.text && (
-                <div style={{ ...styles.messageAlert, ...(message.type === 'error' ? styles.errorAlert : styles.successAlert) }}>
-                  {message.type === 'error' ? <AlertCircle size={20} style={{ flexShrink: 0 }} /> : <CheckCircle2 size={20} style={{ flexShrink: 0 }} />}
-                  <span>{message.text}</span>
-                </div>
-              )}
-            </form>
-          </div>
-        </div>
-        
-      </div>
-
-      {/* Ready Combinations Card */}
-      <div style={{ ...styles.card, marginTop: '30px' }}>
-        <div style={styles.cardHeader}>
-          <CheckCircle2 size={22} color="#10b981" />
-          <h2 style={styles.cardTitle}>تجمعات جاهزة للنشر (50 عقار أو أكثر)</h2>
-        </div>
-        
-        <div style={styles.cardBody}>
-          <p style={styles.description}>
-            هنا تظهر المناطق والأقسام الفرعية التي تحتوي على 50 إعلاناً أو أكثر. يمكنك نسخ النص لجميع أنواع النشر بضغطة زر.
-          </p>
-          
-          <div style={styles.tableContainer}>
-            {readyLoading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-                <Loader2 size={32} color="#2563eb" className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-              </div>
-            ) : (
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>المنطقة</th>
-                    <th style={styles.th}>القسم</th>
-                    <th style={styles.th}>عدد العقارات</th>
-                    <th style={{ ...styles.th, textAlign: 'center' }}>نسخ جاهز للنشر</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {readyCombinations.map((combo, idx) => (
-                    <tr key={idx}>
-                      <td style={styles.td}>{combo.region_name}</td>
-                      <td style={styles.td}>{combo.category_name}</td>
-                      <td style={styles.td}>
-                        <span style={styles.badge}>{combo.actual_count} عقار</span>
-                      </td>
-                      <td style={{ ...styles.td, textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                          <button type="button" onClick={() => handleQuickCopy(combo, 'catalog')} style={{...styles.buttonPrimary, padding: '8px 16px', height: '36px', fontSize: '14px', minWidth: '100px'}} title="نسخ البوست">
-                            <Copy size={16} /> نسخ 
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+      <div className="grid grid-main">
+        <Card title="منشور مخصّص" subtitle="اختر المنطقة والقسم والشكل، ثم عاين النص أو انشره.">
+          <div className="stack">
+            <div className="form-grid">
+              <Field label="المنطقة">
+                <Input list="fb-regions" value={region} placeholder="اختر أو اكتب اسم المنطقة" onChange={(event) => pick(event.target.value, category)} />
+              </Field>
+              <Field label="القسم" hint="اختياري">
+                <Input list="fb-categories" value={category} placeholder="كل أقسام العقارات" onChange={(event) => pick(region, event.target.value)} />
+              </Field>
+              <Field label="شكل المنشور">
+                <Select value={format} onChange={(event) => setFormat(event.target.value)}>
+                  {FORMATS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
                   ))}
-                  {readyCombinations.length === 0 && (
-                    <tr>
-                      <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                        <CheckCircle2 size={32} style={{ opacity: 0.2, margin: '0 auto 10px auto', display: 'block' }} />
-                        لا توجد مناطق وأقسام جاهزة للنشر حالياً.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                </Select>
+              </Field>
+              <Field label="عدد الإعلانات" hint={`حتى ${MAX_ADS}`}>
+                <Input type="number" min="1" max={MAX_ADS} value={count} onChange={(event) => setCount(event.target.value)} />
+              </Field>
+              <Field label="النص الافتتاحي" hint="تُضاف قائمة العقارات تحته تلقائياً" className="span-2">
+                <Textarea rows={5} value={text} onChange={(event) => { setText(event.target.value); setTextEdited(event.target.value !== ''); }} />
+              </Field>
+            </div>
+
+            <div className="row">
+              <Button variant="secondary" icon={FileText} loading={busy === 'generate'} disabled={working} onClick={generate}>
+                معاينة النص
+              </Button>
+              <Button icon={Facebook} loading={busy === 'publish'} disabled={working} onClick={() => publish(false)}>
+                نشر على الصفحة
+              </Button>
+              <span className="toolbar-spacer" />
+              <Button variant="ghost" icon={Megaphone} loading={busy === 'publish-all'} disabled={working} onClick={() => publish(true)}>
+                نشر كتالوج من كل المناطق
+              </Button>
+            </div>
+
+            {preview && (
+              <div className="stack-sm">
+                <div className="row row-between">
+                  <span className="strong">المعاينة ({formatNumber(preview.count)} عقار)</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={Copy}
+                    onClick={() => copy(preview.link && format !== 'text_only' ? `${preview.text}\n\nالرابط: ${preview.link}` : preview.text, 'نُسخ النص')}
+                  >
+                    نسخ النص
+                  </Button>
+                </div>
+                <div className="preview-text">{preview.text}</div>
+              </div>
             )}
           </div>
-        </div>
+        </Card>
+
+        <Card title="النشر التلقائي" subtitle="عندما يصل عدد الإعلانات الجديدة في منطقة إلى الحد، يُنشر عنها منشور دون تدخّل.">
+          <div className="stack">
+            <form className="row" style={{ alignItems: 'flex-end', flexWrap: 'nowrap' }} onSubmit={addRule}>
+              <Field label="المنطقة" className="grow">
+                <Input list="fb-regions" required value={ruleRegion} placeholder="اسم المنطقة" onChange={(event) => setRuleRegion(event.target.value)} />
+              </Field>
+              <Field label="الحد">
+                <Input type="number" min="1" required style={{ width: 84 }} value={ruleThreshold} onChange={(event) => setRuleThreshold(event.target.value)} />
+              </Field>
+              <Button type="submit" icon={Plus} loading={busy === 'rule'} aria-label="إضافة القاعدة" />
+            </form>
+
+            {shownRules.length === 0 ? (
+              <EmptyState icon={Settings2} title="لا توجد قواعد" description="أضف منطقة وحدّاً ليبدأ النشر التلقائي عنها." />
+            ) : (
+              <div className="stack-sm">
+                {shownRules.map((rule) => (
+                  <div key={rule.id || rule.region_name} className="row row-between" style={{ flexWrap: 'nowrap' }}>
+                    <span className="strong truncate">{rule.region_name}</span>
+                    <span className="row" style={{ flexWrap: 'nowrap' }}>
+                      <Badge>كل {formatNumber(rule.threshold)} إعلان</Badge>
+                      <Button variant="ghost" size="sm" icon={Trash2} aria-label={`حذف قاعدة ${rule.region_name}`} onClick={() => removeRule(rule)} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Alert>النشر المباشر والتلقائي يحتاجان إلى ربط صفحة فيسبوك في إعدادات الخادم. النسخ يعمل دائماً.</Alert>
+          </div>
+        </Card>
       </div>
-      
-      {/* Required for simple rotation animation since we don't have Tailwind classes */}
-      <style>
-        {`
-          @keyframes spin { 100% { transform: rotate(360deg); } }
-          .animate-spin { animation: spin 1s linear infinite; }
-        `}
-      </style>
     </div>
   );
-};
-
-export default FacebookAutoPost;
+}

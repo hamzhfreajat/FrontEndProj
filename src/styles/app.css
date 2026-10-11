@@ -2068,3 +2068,267 @@ button {
     margin: 0 !important;
   }
 }
+
+/* -------------------------------------------------------- Categories tree */
+
+.cell-sub {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.tree {
+  padding: 10px;
+  border-radius: var(--radius);
+}
+
+.tree.is-over,
+.tree-children.is-over {
+  background: var(--brand-50);
+}
+
+.tree-children {
+  min-height: 6px;
+  margin-inline-start: 26px;
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var(--line);
+  border-radius: 4px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--white);
+  cursor: pointer;
+}
+
+.tree-row:hover {
+  background: var(--surface);
+}
+
+.tree-node.is-root > .tree-row {
+  margin-bottom: 6px;
+  border-color: var(--line);
+}
+
+.tree-node.is-dragging > .tree-row {
+  border-color: var(--brand-200);
+  box-shadow: var(--shadow-lg);
+}
+
+.tree-grip {
+  display: flex;
+  color: var(--faint);
+  cursor: grab;
+}
+
+.tree-toggle {
+  display: flex;
+  justify-content: center;
+  width: 18px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.tree-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--brand-50);
+  color: var(--brand-600);
+}
+
+.tree-icon img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.tree-name {
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tree-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.color-input {
+  width: 42px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--white);
+  cursor: pointer;
+}
+
+.tag-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  /* A main section can carry hundreds of words */
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--white);
+}
+
+.tag-input:focus-within {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px var(--brand-50);
+}
+
+.tag-input input {
+  flex: 1;
+  min-width: 120px;
+  padding: 4px;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.tag-pill button {
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.tag-pill button:hover {
+  color: var(--red-600);
+  opacity: 1;
+}
+
+.suggest {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+.suggest button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--body);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.suggest button:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* ------------------------------------------- Facebook posts and app usage */
+
+.preview-text {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.flow-chart {
+  height: 750px;
+}
+
+.phone-frame {
+  position: relative;
+  width: 264px;
+  height: 540px;
+  margin: 0 auto;
+  padding: 18px 4px 4px;
+  border: 10px solid var(--ink);
+  border-radius: 34px;
+  background: var(--surface);
+}
+
+.phone-frame::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  z-index: 2;
+  width: 90px;
+  height: 20px;
+  border-radius: 0 0 12px 12px;
+  background: var(--ink);
+  transform: translateX(-50%);
+}
+
+.apexcharts-tooltip,
+.sankey-tooltip {
+  direction: rtl;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .tree-children {
+    margin-inline-start: 12px;
+    padding-inline-start: 6px;
+  }
+
+  .tree-row {
+    gap: 7px;
+    padding-inline: 6px;
+  }
+
+  .tree-row .badge {
+    display: none;
+  }
+}
